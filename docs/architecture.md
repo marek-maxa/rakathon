@@ -1,18 +1,20 @@
 # Technické řešení
 
 Základ: Python 3.12 + uv, Linux / Windows PowerShell. Web používá Flask;
-pytest a Ruff jsou vývojové nástroje. Web je jednoduchý vícekrokový formulář
-nad `llm_intake/`, nikoli chat; neprovádí triáž ani neukládá odpovědi trvale.
+pytest a Ruff jsou vývojové nástroje. Web je jednoduchý formulář nad
+`llm_intake/`, nikoli chat; neprovádí triáž.
 
 ## Web
 
 Spusťte z kořene `uv run python web/app.py`. Web při startu automaticky načte
 `llm_intake/.env`; existující proměnné prostředí mají přednost.
-Odpověď se odešle formulářem, LLM navrhne strukturovanou možnost a pacient ji upraví nebo potvrdí.
-Po potvrzení se zobrazí další z prvních tří otázek dotazníku. Při nejasné
-odpovědi může následovat doptání; nevyřešenou odpověď lze ponechat bez přiřazení
-a pokračovat. Chyby odeslání se zobrazují jako samostatné chybové upozornění,
-oddělené od otázky a formuláře. Stav relace zůstává v paměti procesu.
+Po výběru profilu se zobrazí tři pevné otázky. LLM navrhne odpověď; pacient ji
+potvrdí nebo upraví, nevyřešenou odpověď může ponechat bez přiřazení a pokračovat.
+Stav intake zůstává v paměti procesu a po restartu se ztratí. Historický report
+profilu je dostupný na `/patients/<patient_id>/report` a zpracovává jej
+samostatný `patient_report` blueprint. Report není výsledkem nového intake ani
+úplná klinická triáž. Chyby odeslání formuláře se zobrazují jako samostatná
+upozornění.
 
 ## Minimální propojení intake → triáž
 

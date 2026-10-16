@@ -119,3 +119,10 @@ Spuštění webu už nevyžaduje `uv --env-file`. Ověřeno po odstranění klí
 procesního prostředí, bez jeho výpisu: import webu načetl lokální hodnotu.
 `uv run --locked pytest -q` — 71 testů prošlo; Ruff a `git diff --check`
 prošly. Živé volání LLM nebylo součástí kontroly.
+
+Rozřešení konfliktů webu 17. 10. 2026: zachovány výběr profilu a reportový
+blueprint ve stejné Flask aplikaci; formulář používá dostupný `llm_intake.Intake`.
+Alternativní `MasterDialogue` odkazoval na moduly, které v tomto checkoutu
+neexistují, proto tento tok nelze bezpečně sloučit bez přidání jeho implementace.
+`uv run --locked pytest -q` — 81 testů prošlo; Ruff, `git diff --check` a kontrola
+konfliktních značek prošly. Žádný commit vytvořen.
