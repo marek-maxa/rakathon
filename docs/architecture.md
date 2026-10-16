@@ -23,6 +23,111 @@ ostatní potřebné údaje zůstávají neznámé a `requires_review` je true.
 Bez prokázané eskalace vypíše „neurčeno“, nikoli zelenou. Výchozí otázka
 `unava` zatím nemá mapování. Kontext léčby ani měření se zde nedoplňují.
 
+## Návrh: MASTER QUESTION a karta v čase
+
+[master-question.md](master-question.md) propojuje otevřenou otázku se
+`zprava_pacienta`, extrakcí faktů, výběrem témat, stávajícím intake a budoucími
+kontrolami z karty. Jde o návrh, nová orchestrace ani konzervativní vyhodnocení
+alternativ zatím nejsou implementované. Stávající rozhraní modulů se nemění.
+
+Zásadní hranice: každá zpráva nejprve poskytne fakta pro nezávislou kontrolu
+tvrdých pravidel; běžné doptávání ani potvrzení nesmějí blokovat již známé
+urgentní předání. Nejistota má zůstat v datech; vyšší prozatímní úroveň vypočte
+kód z podložených možných interpretací, nezapisuje se jako vymyšlená potvrzená
+odpověď. Barvy možností nejsou úrovně triáže.
+
+Současná triáž pokrývá jen část pravidel a intake při `unclear` nevrací
+alternativy, takže celý tento bezpečnostní požadavek ještě neplní. První
+samostatný LLM kontrakt je uveden níže; pokrytí pravidel a jejich adaptér
+zůstávají úkolem budoucí integrace. Aktuálních 49 otázek nevyžaduje vektorovou databázi;
+plánujeme explicitní katalog a výběr podle faktů, chybějících údajů a splatných
+kontrol. Vedle limitu doptání jedné otázky potřebujeme i rozpočet celého kontaktu.
+
+## Implementováno: LLM kontrakt MASTER QUESTION
+
+[Popis rozhraní a příklad](../llm_intake/MASTER_CONTRACT.md):
+`llm_intake.master_contract` definuje `MessageEvent`, `Fact`, `NumericRange`
+a `build_packet(message, facts) -> dict`. Samostatný paket verze 1 obsahuje
+původní zprávu a nepotvrzené fakty s citací, subjektem, nejistotou a časovým textem.
+Neobsahuje triáž a nenahrazuje export intake v2. Čas dostupnosti a zdroj dodává
+aplikace; relativní čas ani interval se nepřevádějí na domyšlené přesné měření.
+
+`llm_intake.question_catalog.load_catalog()` čte všech 49 dvojic ID ze zdrojových
+definic. `lookup_questions(concepts)` vrací vazby na otázky a nenamapované pojmy.
+První mapování pokrývá šest témat v `nezadouci_ucinky`, nikoli všechna pravidla.
+Zachovává podmínky větvení, ale nevyhodnocuje je. Jde o kandidátní vazby,
+ne plánovač: i popření nebo potíž pečujícího má vazbu, kterou musí následný
+výběr posoudit podle celého faktu a kontextu.
+
+Pět syntetických příkladů v `llm_intake/master_examples.json` vymezuje požadovaný
+převod a používá je nový extraktor níže. Automatické vedení otázek a potvrzování
+těchto faktů zůstávají další malé kroky. Karta, časování a triáž se zde neimplementují.
+
+## Implementováno: extrakce MASTER QUESTION a kandidáti otázek
+
+`llm_intake.master.MasterExtractor(client)(message)` vrací validovaný seznam
+`Fact`. Vlastní `master_prompt.md` a `master_schema.json`, pět příkladů v kontextu
+a balíčky otázek šesti namapovaných témat. Model nedostává identifikátory
+pacienta ani systémový čas; časová vyjádření zachovává doslovně. Další pojmy
+uchová i bez odpovídající otázky. HTTP transport a autentizaci sdílí s intake
+přes `Client.structured_payload()` a `Client.send()`.
+
+`analyze_message(message, extract)` vrací pipeline paket s původní zprávou,
+nepotvrzenými fakty a prázdným `question_answers`. Přidává `analysis_status`
+(extracted/no_facts), `question_candidates` (balíček otázky + indexy důvodových
+faktů), `unmapped_concepts` a `unknown_subject_fact_indices`. Popření a potíže
+pečujícího nevyvolávají otázku na pacienta; fakta s neurčeným subjektem jsou
+viditelná mimo automatický výběr. Kandidáti se neduplikují a respektují pořadí
+definic, nikoli pořadí zmínek ve zprávě. Nejde o triáž ani hotový plán.
+
+CLI pro zaznamenanou syntetickou odpověď, shodné pro Linux i PowerShell:
+
+```text
+uv run --locked --env-file llm_intake/.env python -m llm_intake.master llm_intake/master_input.example.json
+```
+
+Na stdout je JSON, při chybě zpráva na stderr a kód 1. Nevalidní či nedokončený
+výstup se nepřekládá na úspěšný prázdný výsledek. Samotné `no_facts` neznamená
+dobrý stav pacienta. [Rozhraní a živý syntetický výstup](../llm_intake/MASTER_CONTRACT.md).
+Další krok propojí kandidáty a již sdělené hodnoty s omezeným dialogem a
+potvrzováním; současná funkce neposuzuje naléhavost, stáří nebo celkový rozpočet.
+
+## Implementováno: větvení otázek a předání LLM výstupu
+
+[Review a diagram](llm-flow.md) popisuje tok i dosavadní mezery. `Question`
+je společný balíček otázky, všech možností, návodu, poznámky, pořadí a podmínky;
+využívá jej model, katalog i pipeline. Příklady drží pouze ID a při sestavení
+promptu dostanou aktuální balíček ze zdrojových definic. Výlučnost „žádné účinky“
+je malá explicitní politika; směr škály se předává bez popisu barev.
+
+`QuestionnaireFlow(questionnaire_id, targets=None)` načítá pořadí a `podminka`
+z definic, nevytváří druhý ruční graf. Bez `targets` prochází celý formulář;
+s `targets` začne vybranými otázkami a zahrne jejich potomky. Rodiče mimo
+rozsah nevyplňuje. `QuestionnaireFlow.for_targets(targets)` navíc automaticky
+odvodí dotazník z prvního zadaného cíle. `next_question()` vrací další balíček nebo None;
+`record(session)` přijímá pouze očekávaný ukončený intake. Větve aktivuje
+potvrzená odpověď, ne návrh. `snapshot()` rozlišuje ready, blocked, unresolved
+a complete; None z `next_question()` samo neznamená dokončený sběr.
+
+`find_question(question_id, questionnaire_id=None)` umožňuje dohledat otázku
+ze všech dotazníků bez nutnosti předem znát ID dotazníku; při kolizi ID vyžaduje
+upřesnění. `create_targeted_session(question_id)` připraví hotovou `Intake` relaci
+pro cílenou udržovací otázku. Kořenový balíček `llm_intake` exportuje ucelené
+rozhraní pro zprávu, extrakci, katalog, relaci i sestavení pipeline paketu.
+
+`build_pipeline_packet(message, facts, sessions)` vrací JSON typu `llm_intake`
+verze 1: původní podnět `message`, nepotvrzené `facts` a `question_answers`
+s balíčky, hodnotami, potvrzením, citací a historií skutečných otázek/odpovědí.
+Nový výstup neobsahuje barvy. Odmítnuté a nevyřešené návrhy mají null;
+samostatný starší export intake v2 zůstává zachovaný. Časy tahů ani původ faktů
+se nevymýšlejí; jednotlivé časy musí později dodat adaptér událostí.
+
+CLI stále řeší jedinou otázku, nabízí `/moznosti` bez API volání a má
+`--max-clarifications`. MASTER má samostatné CLI nad zaznamenanou zprávou výše.
+Propojení kandidátů s celým dialogem a rozpočet kontaktu zůstávají další práce.
+Nový pipeline paket zatím nemá adaptér triáže ani karty. CLI jedné otázky
+používá pouze minimální propojení s triáží popsané výše.
+
 ## Implementováno: malá deterministická triáž
 
 `triage.py` obsahuje čistou funkci `evaluate_triage(data)` a CLI:
@@ -263,3 +368,18 @@ uv run pytest
 Testy pytest existují pro `llm_intake/`. Ověření prvního `triage.py`
 proběhlo samostatnými kontrolami funkce a CLI; rozsah a výsledek jsou v tasks.md.
 CLI intake navíc vypisuje omezenou triáž podle propojení popsaného výše.
+
+## Porovnání barev dotazníků s referencemi
+
+Z `origin/main` pochází také `meddi/form.py`, `meddi/loader.py`,
+`meddi/common_types.py`, `meddi/triage.py` a porovnávací CLI `main.py`.
+
+```text
+uv run python main.py
+uv run python -m meddi.triage vstup.json
+```
+
+`main.py` porovnává maximum barev dotazníků s referencemi párovanými podle
+`checkin_id`; nevytváří kontextovou triáž ani důkaz její klinické správnosti.
+Reference se načítají pouze pro porovnání. Propojení intake nadále používá
+kořenový `triage.py`; implementace v `meddi/triage.py` je zatím samostatná.

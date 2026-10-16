@@ -1,0 +1,9 @@
+{
+  "id": "synthetic-master-01",
+  "patient_id": "synthetic-patient",
+  "text": "Od rána jsem dvakrát zvracel a jsem hodně unavený. Teplotu nemám.",
+  "available_at": "2026-10-16T10:00:00+02:00",
+  "source": "master_question",
+  "author": "patient",
+  "question": "Jak se dnes cítíte?"
+}

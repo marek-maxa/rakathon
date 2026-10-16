@@ -5,6 +5,8 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 
 | Úkol / rozsah souborů | Vlastník | Stav | Hotovo, když |
 | --- | --- | --- | --- |
+| Sanity check, pull a sloučení před publikací; docs/, llm_intake/, tests/ | Aktuální relace / main | done | Začleněn origin/main 7b6e26f, zachovány obě strany dokumentace a CLI; 159 testů, Ruff, MASTER CLI bez varování a 36 místních odkazů prošlo |
+| Review LLM, balíček otázky, větvení a výstup pipeline; llm_intake/, tests/, docs/ | Aktuální relace / main | done | Sdílený balíček, 13 příkladů bez kopií definic, QuestionnaireFlow, /moznosti, pipeline paket a diagram; 116 testů, Ruff a dvě živé syntetické extrakce prošly. MASTER extraktor, triáž a karta zůstávají oddělené |
 | Nový začátek pro MEDDI; README.md, AGENTS.md, docs/, documents/, pyproject.toml, uv.lock a lokální cache | Aktuální relace / main | done | Zdrojované zadání, plán a archiv; odstraněné duplicity, cache a nepotřebné závislosti; ověřené odkazy, integrita podkladů a prostředí |
 | Zhodnotit představu týmu a zpřesnit návrh; docs/architecture.md, docs/decisions.md, docs/tasks.md, docs/challenge.md, README.md, documents/README.md | Aktuální relace / main | done | Zapsaný CLI proof of concept, karta a role LLM; doporučení odlišená od rozhodnutí; tým potvrdil simulovaný čas, zaznamenané odpovědi a dodaná data |
 | Dohledat MEDDI JSON, pravidla a popis výstupu; docs/challenge.md, documents/README.md | Aktuální relace / main | done | Otevřená ukázka; lokálně 14 pacientů / 171 check-inů, přečtené README a pravidla; výstup se páruje přes checkin_id |
@@ -17,6 +19,11 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 | Malá deterministická triáž; triage.py, docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Jeden soubor přijímá JSON, vrací barvu s důvody a nejistotou; ověřené hranice, priority pravidel a chybné vstupy; připraveno k review |
 | Sloučit dokumentaci triáže a LLM intake před commitem; docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Zachované obě implementace a historie rozhodnutí, sjednocený popis aktuálního stavu; 59 testů a Ruff prošly |
 | Minimálně propojit potvrzený intake s triáží; triage.py, llm_intake/__main__.py, tests/test_triage_intake.py, docs/ | Aktuální relace / main | done | CLI po potvrzení vypíše barvu či neurčeno; mapuje pocit a NRS, neodvozuje chybějící fakta; 65 testů a Ruff prošly |
+| Návrh MASTER QUESTION a propojení; docs/master-question.md, docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Prověřené aktuální moduly a podklady; zdrojované mezery, tok zprávy/faktů/otázek/karty, konzervativní triáž bez falšování faktů, limity zátěže a malé implementační kroky; zatím jen návrh bez změny běžícího API |
+| Minimální LLM kontrakt faktů a první katalog; llm_intake/master_contract.py, llm_intake/question_catalog.py, llm_intake/master_examples.json, llm_intake/MASTER_CONTRACT.md, tests/test_master_contract.py, docs/ | Aktuální relace / main | done | Samostatný formát zprávy a faktů se zdrojem, časovým textem a nejistotou; 49 dvojic ID a první vazby šesti témat, pět syntetických příkladů; 86 testů a Ruff prošly, bez zásahů do triáže, karty a intake v2 |
+| Extraktor MASTER QUESTION nad připraveným kontraktem; llm_intake/master.py, master_prompt.md, master_schema.json, client.py, ukázkové JSON, tests/test_master_extraction.py a docs/ | Aktuální relace / main | done | Striktní extrakce s pěti příklady a sdíleným transportem, kandidáti a nepokryté pojmy, CLI nad zaznamenanou zprávou; 149 testů a tři živé syntetické scénáře prošly. Bez triáže, karty a automatického rozhovoru |
+| Napojit kandidáty MASTER na omezený dialog a potvrzování; llm_intake/ a testy | Nepřiřazeno | todo | Po domluvě znovu využít již sdělené hodnoty se správným zdrojem, doplnit jen chybějící údaje, zachovat podmínky a rozpočet celého kontaktu; rozšířit pokrytí témat podle potřeby; nečekat na dialog v budoucí bezpečnostní větvi |
+| Domluvit budoucí napojení LLM faktů na pravidla a kartu; docs/master-question.md, docs/architecture.md | Tým | todo | Mapování k triage.py, pokrytí tvrdých pravidel, rozpočet kontaktu a práce s nejistotou; vyjasněné mezery hranic průjmu a NRS. Samostatná práce LLM části tím není blokovaná |
 | S mentorem potvrdit nejasnosti pravidel a časových údajů; docs/challenge.md, docs/architecture.md | Tým + mentor | todo | Známá dostupnost údajů v čase, vyřešené interpretační otázky, případné dodatečné hodnoticí rozhraní, termín a způsob odevzdání |
 | Společně projít jeden případ a domluvit schéma extrakce a karty; docs/architecture.md | Tým | todo | Definovaná pozorování se zdrojem a časem, jejich použití v pravidlech a výstupy pro pacienta i zdravotníka; zvolený nejmenší implementační krok |
 | První průchod načtení → triáž → výstup | Nepřiřazeno | todo | Po domluvě předchozího kroku konkretizovat soubory; jeden případ běží s dohledatelnými důvody a bez budoucích dat či referencí ve vstupu |
@@ -105,3 +112,79 @@ vyřešeny se zachováním obou modulů; jejich propojení zůstává dalším k
 `uv run --locked python -m pytest -q`: 59 testů prošlo;
 `uv run --locked ruff check .` prošel. Kontroly proběhly na Linuxu,
 bez živého volání LLM a bez nového klinického ověření.
+
+Návrh MASTER QUESTION 16. 10. 2026: přečteny aktuální `triage.py`, intake v2,
+README balíčku, pravidla a pacientská cesta; ověřeny definice 4 dotazníků /
+49 otázek a relevantní zprávy dvou fiktivních pacientů, bez ground truth.
+Zapsáno propojení, skutečné mezery a zdroje v `docs/master-question.md`.
+Stávajících 59 testů prošlo. Mění se pouze dokumentace; žádná nová orchestrace,
+RAG, karta, časování ani vyhodnocení alternativ nebyly implementované nebo
+klinicky ověřené. Provedeno `git diff --check` a kontrola místních odkazů.
+
+První LLM kontrakt MASTER QUESTION 16. 10. 2026: přidané samostatné typy zprávy,
+faktu a číselného rozsahu, paket se zdrojem a nepotvrzeným stavem, katalog
+49 dvojic ID s prvními vazbami šesti témat a pět ručních syntetických příkladů.
+`uv run --locked python -m pytest -q`: 86 testů prošlo (27 nových);
+`uv run --locked ruff check .`, kontrola formátu nových Python souborů,
+`git diff --check` a místní odkazy prošly. Linux / Python 3.12;
+Windows se nespouštěl. Bez živého LLM volání nebo měření kvality extrakce;
+extraktor nad MASTER QUESTION ještě neexistuje. Triáž, karta, původní intake,
+zdrojová data a závislosti se neměnily. Zbývá prompt a API adaptér extraktoru.
+
+Review a příprava propojení 16. 10. 2026: společný balíček otázky z jednoho
+načítání definic; příklady uchovávají ID, nikoli kopie možností. Nový
+`QuestionnaireFlow` respektuje pořadí a `podminka`, rozlišuje celý dotazník
+a cílené větve; návrhy neaktivují další otázky. Přidáno `/moznosti`, CLI limit
+doptání a kontrola výlučné možnosti „žádné“. `build_pipeline_packet()` vrací
+hodnoty a zdroje bez barev, odmítnutý návrh má null. Diagram, stav review a API
+jsou v `docs/llm-flow.md`, skutečný offline výstup se syntetickým extraktorem
+v `llm_intake/pipeline_example.json`.
+`uv run --locked python -m pytest -q`: 116 testů prošlo, z toho 30 nových;
+`uv run --locked ruff check .`, formát upravených Python souborů,
+`git diff --check`, místní odkazy a CLI `--help` / `--list` prošly.
+Živě ověřeny dvě syntetické extrakce: vícenásobná volba `[7, 10]` a výlučná
+volba `[12]`, obě ve stavu `needs_confirmation`, bez skutečného potvrzení.
+Linux / Python 3.12, Windows se nespouštěl. Nejde o benchmark ani klinické
+ověření; MASTER extraktor, automatická selekce témat, rozpočet celého kontaktu,
+časy jednotlivých tahů a adaptér triáže/karty zůstávají dalšími úkoly.
+Zdrojové definice, triáž, klíče a závislosti se neměnily.
+
+MASTER extraktor 16. 10. 2026: `llm_intake/master.py` s vlastním promptem,
+striktním schématem a pěti dosavadními syntetickými příklady. `Client.send`
+a `structured_payload` sdílejí API transport s původním intake. Extraktor
+vrací fakta, kód navrhne kandidátní otázky pro šest témat a zachová nenamapované
+pojmy a neurčené subjekty. Popření ani potíž pečujícího sama nevyvolají dotaz
+na pacienta. Přidáno samostatné CLI pro zaznamenaný MessageEvent a ukázkové
+vstupní/výstupní JSON; výstupní ukázka pochází z živého syntetického volání.
+`uv run --locked python -m pytest -q`: 149 testů prošlo (33 nových),
+Ruff, kontrola formátu změněných Python souborů, `git diff --check`, místní
+odkazy, CLI `--help` a validace ukázkového výstupu prošly.
+Tři živé syntetické scénáře ověřily: zvracení + únavu a popřenou teplotu;
+přibližný počet průjmů pacienta a vlastní únavu pečujícího; nejistou teplotu,
+popření zvracení a zachovanou nenamapovanou nespavost. Nejde o benchmark ani
+klinické ověření. Linux / Python 3.12; Windows se nespouštěl.
+Závislosti, zdrojové definice, klíč, triáž a karta se neměnily. Zbývá napojení
+kandidátů a již známých hodnot na omezený dialog, potvrzování a širší pokrytí
+pojmů; naléhavost a časování nadále patří do jiných částí systému.
+
+Review modulu a rozhraní pipeline 16. 10. 2026: provedena kontrola chronologie a logiky
+všech 4 dotazníků v dotazniky_definice.json (25 otázek nezadouci_ucinky, 9 psychoonkologicky_screening,
+5 bolest_analgeticka_terapie, 10 esas). Zhodnoceno RAG vs. in-context katalog: RAG zatím odložen: pro 49 otázek používáme přímý katalog a Structured Outputs.
+Srovnávací benchmark neproběhl; rizika negací a prahu podobnosti vyžadují měření.
+Validace JSON schématu je samostatná a použití RAG ji samo o sobě nevylučuje.
+Pro snadné napojení do celkové pipeline přidáno find_question() (dohledání i bez znalosti dotazníku),
+QuestionnaireFlow.for_targets() (automatické odvození dotazníku z cíle) a create_targeted_session().
+Veřejné API exportováno v kořeni llm_intake.
+`uv run --locked python -m pytest -q`: 153 testů prošlo (4 nové);
+`uv run --locked ruff check .` a `git diff --check` prošly. Linux / Python 3.12.
+
+Sanity check a pull 16. 10. 2026: začleněny tři commity po `6818539`
+až po `7b6e26f`; konflikty v decisions.md a tasks.md vyřešeny zachováním
+obou stran. CLI zachovává `/moznosti`, limit doptání i novou triáž po potvrzení.
+Opraveno předčasné načítání MASTER modulu při `python -m llm_intake.master`
+bez změny veřejných exportů. Dokumentace rozlišuje pipeline fakta, omezené
+propojení CLI a porovnání barev formulářů; závěr o RAG zúžen na dosavadní volbu
+bez srovnávacího benchmarku. Prošlo 159 testů, Ruff, MASTER CLI s varováními
+jako chybami, import veřejného API, načtení JSON a 36 místních odkazů.
+Linux; bez živého LLM volání, Windows ani nového klinického ověření.
+Zbývá napojení MASTER kandidátů na dialog, kartu a úplná triážní pravidla.

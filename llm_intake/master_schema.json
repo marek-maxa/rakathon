@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "concept": {"type": "string"},
+          "presence": {"type": "string", "enum": ["present", "absent", "uncertain"]},
+          "evidence": {"type": "string"},
+          "subject": {"type": "string", "enum": ["patient", "caregiver", "unknown"]},
+          "value": {
+            "anyOf": [
+              {"type": "number"},
+              {"type": "string"},
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "lower": {"type": ["number", "null"]},
+                  "upper": {"type": ["number", "null"]},
+                  "lower_inclusive": {"type": "boolean"},
+                  "upper_inclusive": {"type": "boolean"}
+                },
+                "required": ["lower", "upper", "lower_inclusive", "upper_inclusive"]
+              },
+              {"type": "null"}
+            ]
+          },
+          "unit": {"type": ["string", "null"]},
+          "time_text": {"type": ["string", "null"]},
+          "certainty": {"type": "string", "enum": ["stated", "approximate", "uncertain"]}
+        },
+        "required": ["concept", "presence", "evidence", "subject", "value", "unit", "time_text", "certainty"]
+      }
+    }
+  },
+  "required": ["facts"]
+}

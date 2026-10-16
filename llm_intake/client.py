@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib import error, parse, request
 
-from .core import Question
+from .core import Question, load_questions
 
 ASSETS = Path(__file__).resolve().parent
 DEFAULT_BASE_URL = "https://apim-rakathon-q7146n.azure-api.net/openai/v1/"
@@ -67,12 +67,21 @@ class Client:
             }
         ]
         examples = json.loads((ASSETS / "examples.json").read_text(encoding="utf-8"))
+        # Příklady drží jen ID; texty a možnosti mají jediný zdroj v definicích.
+        questions = {(q.questionnaire_id, q.id): q for q in load_questions()}
         for example in examples:
+            ref = example["input"]["question"]
+            example_input = {
+                **example["input"],
+                "question": questions[
+                    (ref["questionnaire_id"], ref["question_id"])
+                ].specification(),
+            }
             messages.extend(
                 [
                     {
                         "role": "user",
-                        "content": json.dumps(example["input"], ensure_ascii=False),
+                        "content": json.dumps(example_input, ensure_ascii=False),
                     },
                     {
                         "role": "assistant",
@@ -94,6 +103,10 @@ class Client:
                 ),
             }
         )
+        return self.structured_payload(messages, question.schema(), "question_answer")
+
+    def structured_payload(self, messages: list[dict], schema: dict, name: str) -> dict:
+        """Sdílený tvar požadavku pro cílenou odpověď i extrakci celé zprávy."""
         return {
             "model": self.model,
             "messages": messages,
@@ -101,9 +114,9 @@ class Client:
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "question_answer",
+                    "name": name,
                     "strict": True,
-                    "schema": question.schema(),
+                    "schema": schema,
                 },
             },
         }
@@ -114,6 +127,10 @@ class Client:
         sources: list[str],
         source_questions: list[str] | None = None,
     ) -> dict:
+        return self.send(self.payload(question, sources, source_questions))
+
+    def send(self, payload: dict) -> dict:
+        """Stejná autentizace a obsluha chyb pro oba extraktory."""
         auth = (
             f"Bearer {self.api_key}"
             if self.key_header == "Authorization"
@@ -121,9 +138,9 @@ class Client:
         )
         req = request.Request(
             self.base_url.rstrip("/") + "/chat/completions",
-            data=json.dumps(
-                self.payload(question, sources, source_questions), ensure_ascii=False
-            ).encode("utf-8"),
+            data=json.dumps(payload, ensure_ascii=False, allow_nan=False).encode(
+                "utf-8"
+            ),
             headers={self.key_header: auth, "Content-Type": "application/json"},
             method="POST",
         )

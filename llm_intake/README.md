@@ -4,7 +4,25 @@ Samostatný modul pro první experimenty. Pacient vidí otázku a odpovídá vla
 slovy. LLM sémanticky přiřadí odpověď k možnosti z interních definic a pacient
 potvrdí její slovní znění. Nabídka možností se pacientovi předem nezobrazuje.
 Při odmítnutí přijme opravu a celý cyklus zopakuje. Nemění pacientská data,
-nečte reference, neprovádí triáž a nespravuje kartu ani časování kontaktů.
+nečte reference a nespravuje kartu ani časování kontaktů. Samotný intake
+neprovádí triáž; CLI po potvrzení zavolá `triage.evaluate_intake()` pro pocit
+a NRS a vypíše omezený výsledek včetně neúplnosti posouzení.
+
+Pro otevřený popis stavu je vedle tohoto průchodu připravený samostatný
+[kontrakt MASTER QUESTION a katalog vazeb](MASTER_CONTRACT.md).
+Obsahuje už LLM extraktor otevřené zprávy a kandidátní otázky podle faktů;
+automatické vedení více témat a potvrzování faktů jsou další krok.
+Pro ručně vybraná témata už existuje `QuestionnaireFlow` a společný výstup
+`build_pipeline_packet()`: [rozhraní, diagram a výsledek review](../docs/llm-flow.md).
+
+První běh MASTER nad připravenou syntetickou zprávou (výstup je JSON):
+
+```text
+uv run --locked --env-file llm_intake/.env python -m llm_intake.master llm_intake/master_input.example.json
+```
+
+[Návod a formát výstupu](MASTER_CONTRACT.md),
+[ukázka živého syntetického výsledku](master_output.example.json).
 
 ## Cílené doptání
 
@@ -27,6 +45,7 @@ Výchozí limit jsou dvě doplňující otázky na relaci. Po jejich vyčerpán�
 při doslovném opakování původní či již položené otázky skončí relace stavem
 `unresolved`, bez přiřazené možnosti či barvy, se zachovanými zprávami.
 CLI vrací kód 2. Toto je počáteční limit, nikoli optimalizovaný klinický práh.
+V CLI jej lze nastavit pomocí `--max-clarifications 2`.
 Pacientovy opravy po odmítnutí počítáme zvlášť; každá nejasná oprava ale čerpá
 stejný limit doptání. Limit lze změnit v Pythonu přes `max_clarifications`.
 
@@ -103,6 +122,9 @@ Obecné vysvětlení této vrstvy autentizace:
 [Azure API Management 401](https://learn.microsoft.com/en-us/troubleshoot/azure/api-mgmt/availability/unauthorized-errors-invoke-apis).
 
 Odpovězte volným textem, zkontrolujte přehled a zadejte `ano` nebo `ne`.
+Příkaz `/moznosti` bez volání LLM vypíše texty možností, pokud Vám to usnadní
+odpověď. Následně lze zadat název nebo slovní výběr více možností; indexy
+a barvy pacientovi nezobrazujeme. Nabídka není povinná.
 Po `ne` napište opravu; potom se znovu potvrzuje celá aktuální odpověď.
 `/konec`, Ctrl+C nebo konec vstupu ukončí relaci. Interní JSON ani barvy se
 v běžném pacientském průchodu nezobrazují. Pro vývojářské ověření přidejte
@@ -169,13 +191,17 @@ tento izolovaný modul upozorňování neimplementuje a nesmí být jeho jedinou
 ## Prompt a omezení první verze
 
 - [prompt.md](prompt.md): instrukce pro extrakci, negace, nejasnost a opravy.
-- [examples.json](examples.json): jedenáct syntetických příkladů pro in-context learning.
+- [examples.json](examples.json): třináct syntetických příkladů pro in-context learning,
+  včetně výběru více účinků a „žádné“. U otázky drží jen dvojici ID; klient
+  doplní aktuální text, návod i všechny možnosti ze stejných definic.
   Posílají se v každém požadavku; model se tím trvale nepřetrénovává.
 - Stav a zdrojové odpovědi drží Python v paměti. Do dalšího volání posílá
   definici jedné otázky a dosavadní otázky i odpovědi k ní, nikoli celou kartu pacienta.
 - Otázky se čtou z dodaného `dotazniky_definice.json`. Barvy a upozornění
-  se modelu neposílají. Jedna otázka se volí explicitně; podmínky `podminka`
-  a průchod celým dotazníkem patří do pozdější orchestrace.
+  se modelu neposílají. Balíček zachovává také pořadí, `podminka` a směr škály
+  z poznámky dotazníku; popis barev z této poznámky se vynechává.
+  CLI volí jednu otázku explicitně. Python `QuestionnaireFlow` už umí pořadí
+  a větvení celého formuláře nebo vybrané větve; automatický výběr témat zatím ne.
 - Typy `jedna`, `vice`, `skala_1_10`, `cislo`, `text` mají lokální validaci.
   U `nrs` text otázky uvádí 0–10, ale typ a poznámka definují 1–10. Prototyp
   respektuje 1–10 a nulu nesmí přemapovat na jedničku; rozsah potvrdit s mentorem
@@ -188,7 +214,8 @@ tento izolovaný modul upozorňování neimplementuje a nesmí být jeho jedinou
 
 ```text
 uv run python -m pytest tests/test_llm_intake.py -q
-uv run ruff check llm_intake tests/test_llm_intake.py
+uv run python -m pytest tests/test_master_contract.py tests/test_questionnaire_flow.py -q
+uv run ruff check llm_intake tests
 ```
 
 Automatické testy používají náhradu modelu a HTTP transportu. Ověřují potvrzování,
