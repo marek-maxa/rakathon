@@ -17,6 +17,10 @@ body {
 .chat {
   width: 100%;
   max-width: 720px;
+  height: 85vh;
+  height: 85svh;
+  display: flex;
+  flex-direction: column;
 }
 
 h1 {
@@ -30,6 +34,42 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding-top: 20px;
+}
+
+.messages {
+  flex: 1;
+  min-height: 100px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px;
+}
+
+.message {
+  flex-shrink: 0;
+  max-width: 85%;
+  margin: 0;
+  padding: 16px 20px;
+  border-radius: 20px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message-assistant {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid #bac6d0;
+  border-bottom-left-radius: 4px;
+}
+
+.message-user {
+  align-self: flex-end;
+  background: #176b63;
+  color: #fff;
+  border-bottom-right-radius: 4px;
 }
 
 label {
@@ -39,7 +79,8 @@ label {
 
 textarea {
   width: 100%;
-  min-height: 240px;
+  min-height: 120px;
+  max-height: 30svh;
   padding: 24px;
   resize: vertical;
   border: 1px solid #bac6d0;

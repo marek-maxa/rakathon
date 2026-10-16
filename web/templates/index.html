@@ -8,12 +8,16 @@
   </head>
   <body>
     <main class="chat">
-      <h1>Jak se dnes cítíte?</h1>
+      <h1>MEDDI ONCO</h1>
+      <div class="messages" role="log" aria-label="Konverzace" aria-live="polite">
+        <p class="message message-assistant">Jak se dnes cítíte?</p>
+      </div>
       <form class="chat-form">
         <label for="message">Vaše zpráva</label>
         <textarea id="message" name="message" placeholder="Napište, co vás trápí…" required></textarea>
-        <button type="button">Next <span aria-hidden="true">→</span></button>
+        <button type="submit">Next <span aria-hidden="true">→</span></button>
       </form>
     </main>
+    <script src="{{ url_for('static', filename='chat.js') }}" defer></script>
   </body>
 </html>
