@@ -11,10 +11,14 @@
       <header class="page-header">
         <p class="eyebrow">MEDDI ONCO</p>
         <h1>Pravidelná kontrola</h1>
-        {% if not page.done %}
-          <p class="progress">Otázka {{ page.number }} z {{ page.total }}</p>
+        {% if not page.done and not page.review %}
+          <p class="progress">{% if page.master %}Úvodní otázka{% else %}Upřesnění podle vaší odpovědi{% endif %}</p>
         {% endif %}
       </header>
+      <div id="loading" class="loading" role="status" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Zpracováváme odpověď, chvíli prosím počkejte…</span>
+      </div>
       <section class="form-card" aria-labelledby="question-title">
         {% if error %}
           <div class="error" role="alert">
@@ -24,39 +28,41 @@
         {% endif %}
         {% if page.done %}
           <h2 id="question-title">Děkujeme</h2>
-          <p>Všechny odpovědi jsou potvrzené.</p>
+          <p>Souhrn je potvrzený. Odpovědi bez přiřazení zůstávají označené jako nevyřešené.</p>
+        {% elif page.review %}
+          <h2 id="question-title">Zkontrolujte všechny odpovědi</h2>
+          <p>Rozuměli jsme vám správně? Případné chyby opravte a pak potvrďte celý souhrn.</p>
+          <p class="answer-summary">Vaše úvodní zpráva: {{ page.master_text }}</p>
+          <form method="post">
+            <button type="submit" name="restart" value="1">Změnit úvodní zprávu a začít znovu</button>
+          </form>
+          {% if page.gaps %}
+            <p class="notice">Pro část sdělení prototyp nemá navazující otázky. Zpráva zůstává zaznamenaná; nejde o posouzení zdravotního stavu.</p>
+          {% endif %}
+          {% if page.blocked %}
+            <p class="notice">Některé navazující otázky nelze položit bez vyřešení předchozí odpovědi.</p>
+          {% endif %}
+          {% for draft in page.drafts %}
+            <div class="review-answer">
+              <p class="answer-summary">{{ draft.patient_summary() }}</p>
+              {% if draft.state == "unresolved" %}
+                <p>{{ draft.question.text }}</p>
+                <p>Zaznamenáno: {{ draft.snapshot().source_messages | join('; ') }}</p>
+              {% endif %}
+              <form method="post">
+                <button type="submit" name="edit" value="{{ loop.index0 }}">Opravit odpověď</button>
+              </form>
+            </div>
+          {% endfor %}
+          <form method="post" class="question-form">
+            <button type="submit" name="confirm" value="1">Potvrdit všechny odpovědi</button>
+          </form>
         {% elif page.unresolved %}
           <h2 id="question-title">Odpověď se nepodařilo přiřadit</h2>
           <div class="notice">{{ page.unresolved }}</div>
           <p>Můžete pokračovat a tuto otázku ponechat bez vybrané odpovědi.</p>
           <form method="post" class="question-form">
             <button type="submit" name="continue" value="1">Pokračovat</button>
-          </form>
-        {% elif page.intake and page.intake.state == "needs_confirmation" %}
-          <h2 id="question-title">Zkontrolujte navrženou odpověď</h2>
-          <p class="answer-summary">{{ page.summary }}</p>
-          <form method="post" class="question-form">
-            {% if page.kind == "vice" %}
-              <fieldset>
-                <legend>Vyberte odpověď, která vás vystihuje</legend>
-                {% for option in page.options %}
-                  <label class="option">
-                    <input type="checkbox" name="value" value="{{ loop.index0 }}"
-                      {% if loop.index0 in page.value %}checked{% endif %}>
-                    <span>{{ option }}</span>
-                  </label>
-                {% endfor %}
-              </fieldset>
-            {% else %}
-              <label for="value">Upravte nebo potvrďte odpověď</label>
-              <select id="value" name="value">
-                {% for option in page.options %}
-                  <option value="{{ loop.index0 }}"
-                    {% if loop.index0 == page.value %}selected{% endif %}>{{ option }}</option>
-                {% endfor %}
-              </select>
-            {% endif %}
-            <button type="submit">Potvrdit a pokračovat</button>
           </form>
         {% else %}
           <h2 id="question-title">{{ page.question }}</h2>
@@ -69,5 +75,6 @@
         {% endif %}
       </section>
     </main>
+    <script src="{{ url_for('static', filename='form.js') }}" defer></script>
   </body>
 </html>
