@@ -1,22 +1,27 @@
-# Rakathon 2026
+# MEDDI ONCO · Rakathon 2026
 
-Python 3.12 + uv. Linux i Windows PowerShell.
+AI společník onkologického pacienta mezi kontrolami: vývoj obtíží,
+vysvětlitelná triáž a srozumitelný další krok pro pacienta i zdravotnický tým.
+
+Začínáme návrhem. Aplikace zatím není implementovaná. Nejdříve projdeme
+datový balíček MEDDI a domluvíme jeden průchod od hlášení k výstupu.
 
 ## Soubory
 
 | Kam | Co |
 | --- | --- |
-| [documents/](documents/README.md) | Sem nahrajte podklady organizátorů, PDF, prezentace a tipy. Agenti tu hledají relevantní zdroje. |
+| [documents/](documents/README.md) | Aktivní podklady MEDDI a stav dostupnosti dat |
 | [docs/challenge.md](docs/challenge.md) | Zadání a rozsah dema |
 | [docs/architecture.md](docs/architecture.md) | Stack, rozhraní a spuštění projektu |
 | [docs/tasks.md](docs/tasks.md) | Úkoly, vlastníci a stav |
 | [docs/decisions.md](docs/decisions.md) | Důležitá rozhodnutí |
 | [AGENTS.md](AGENTS.md) | Společné instrukce pro libovolné agenty |
 | `pyproject.toml` + `uv.lock` | Knihovny a uzamčené verze |
+| [docs/archive/](docs/archive/README.md), [documents/archive/](documents/archive/) | Historie výběru a podklady ostatních témat |
 
 ## Příkazy
 
-Potřebujete [Git](https://git-scm.com/downloads) a [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Python 3.12 + uv, Linux i Windows PowerShell. Potřebujete Git a uv.
 
 ```text
 git clone https://github.com/marek-maxa/rakathon.git
@@ -33,7 +38,8 @@ uv sync --locked
 | `uv run pytest` | Testy, až je přidáme |
 | `git status --short` / `git diff` | Přehled změn |
 
-Nainstalováno: NumPy, pandas, scikit-learn, matplotlib, HTTPX, python-dotenv, pytest, Ruff.
+Zatím pouze vývojové nástroje pytest a Ruff. Knihovny pro aplikaci přidáme,
+až je bude potřebovat konkrétní krok. Testy přibudou s implementací.
 
 ## Startovní prompt pro agenta
 
@@ -42,9 +48,8 @@ Zorientuj se v repozitáři a řiď se společnými instrukcemi v AGENTS.md.
 Přečti docs/challenge.md a docs/architecture.md. Čerpej z relevantních podkladů
 v documents/; není potřeba načítat všechno.
 
-Pracuj podle docs/tasks.md: pokračuj ve svém rozpracovaném úkolu, jinak vezmi
-první volný úkol todo. Zapiš se jako vlastník a nastav doing. Respektuj úkoly
-ostatních. Postupuj samostatně, ověř výsledek a aktualizuj stav na done nebo blocked.
-Pokud není žádný připravený úkol nebo chybí zásadní informace, stručně to oznam.
+Pracuj na domluveném kroku z docs/tasks.md. Zapiš se jako vlastník a nastav doing.
+Respektuj úkoly ostatních. Ověř výsledek a aktualizuj stav na done nebo blocked.
+Pokud krok ještě není domluvený nebo chybí zásadní informace, stručně to oznam.
 Na závěr uveď, co je hotové, jak jsi to ověřil a co zbývá.
 ```

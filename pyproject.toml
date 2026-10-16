@@ -1,16 +1,9 @@
 [project]
-name = "rakathon-workspace"
+name = "meddi-onco"
 version = "0.1.0"
-description = "Rakathon 2026: shared Python/ML environment and provider-neutral agent workflow"
+description = "Rakathon 2026: MEDDI ONCO Challenge"
 requires-python = ">=3.12"
-dependencies = [
-    "httpx>=0.28.1",
-    "matplotlib>=3.11.2",
-    "numpy>=2.4.6",
-    "pandas>=3.0.6",
-    "python-dotenv>=1.2.4",
-    "scikit-learn>=1.9.1",
-]
+dependencies = []
 
 [tool.uv]
 package = false
