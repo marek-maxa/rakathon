@@ -1,8 +1,9 @@
 # Technické řešení
 
 Základ: Python 3.12 + uv, Linux / Windows PowerShell. Vývojové nástroje: pytest a Ruff.
-První implementace je samostatný `triage.py` bez runtime závislostí.
-Širší CLI a napojení LLM popsané níže jsou stále návrhem.
+Implementované jsou samostatné moduly `triage.py` a `llm_intake/` bez runtime
+závislostí. Jejich propojení, pacientská karta a celá aplikace zatím nejsou
+implementované. Rozhraní obou modulů popisují následující oddíly.
 
 ## Implementováno: malá deterministická triáž
 
@@ -62,9 +63,47 @@ Silná bolest bez potvrzeného přetrvávání po SOS dávce zůstává k posouz
 
 Jde o omezenou sadu, nikoli úplnou triáž ani klinicky ověřený systém.
 Zatím nezpracovává zimnici, pokles saturace proti obvyklé hodnotě, další
-příznaky, trendy ani kontakty. Načítání historie, LLM a rozhovor nejsou zapojené.
+příznaky, trendy ani kontakty. Načítání historie ani napojení na `llm_intake/`
+nejsou v triáži zapojené.
 Zdroj: [pravidla triáže](../rakathon_meddi_onco_data/docs/pravidla_triaze.md),
 oddíly 3–4. Rozšiřování pravidel bude pokračovat po review tohoto souboru.
+
+## Samostatný modul LLM intake
+
+[llm_intake/README.md](../llm_intake/README.md) popisuje CLI, Python API,
+konfiguraci a export `schema_version=2`. Modul používá jednu explicitně vybranou
+otázku z definic: slovní odpověď → přiřazení k interní možnosti → pacientovo
+potvrzení slovního znění nebo oprava. Při nejasnosti LLM položí krátkou navazující
+otázku podle chybějícího rozlišení možností; neopakuje celý dotaz. Kontext zahrnuje
+otázky i odpovědi. Výchozí limit dvě doptání řídí kód; bez vyřešení zůstane stav
+`unresolved`, bez vymyšleného výběru. Export obsahuje historii a počty tahů.
+Pacient předem nevidí možnosti ani barvy.
+Stav drží Python; potvrzení nevytváří LLM. Kolegové se napojují přes `Intake`
+a potvrzený JSON, bez závislosti na CLI. Nejde zatím o obecné schéma karty pacienta.
+
+Výchozí model je `gpt-6.1-sol`, jeho deployment `gpt-6-1-sol-dz-eu` se nastavuje
+přes `MEDDI_LLM_MODEL`. Dodaná brána vyžaduje `MEDDI_LLM_KEY_HEADER=api-key`.
+Adaptér používá dodanou OpenAI kompatibilní bránu a Chat Completions se striktním
+JSON schématem. Implementace používá jen standardní knihovnu, `pyproject.toml`
+a `uv.lock` nebylo potřeba měnit. Klíč v `MEDDI_LLM_API_KEY` se načítá z prostředí;
+lokální `llm_intake/.env` lze načíst přes uv a Git ho ignoruje.
+
+```text
+uv run python -m llm_intake --list
+uv run --env-file llm_intake/.env python -m llm_intake --question unava
+uv run python -m pytest tests/test_llm_intake.py -q
+```
+
+Rozsah: jedna otázka a potvrzovací cyklus; průchod podmíněnými otázkami,
+pacientská karta, časování a triáž zůstávají oddělené. Testy nahrazují LLM i HTTP
+transport. Živé volání brány se syntetickou odpovědí je ověřené; systematické
+měření kvality modelu zůstává další krok. Export přidává `signaly_odpovedi`:
+původní barvy možností načítá deterministicky kód, nejsou výslednou triáží.
+V CLI se interní JSON vypisuje pouze s `--debug`, Python rozhraní jej vrací přímo.
+Nový kontrakt extraktoru: `extract(question, source_messages, source_questions)`.
+Pro současný počet možností nepřidáváme RAG ani embeddingy. Správnost přiřazení
+a nutnost doptání budeme měřit na označených scénářích; skóre podobnosti ani
+nekalibrované procento LLM zatím nepoužíváme jako rozhodovací práh.
 
 ## Směr určený týmem
 
@@ -81,6 +120,9 @@ oddíly 3–4. Rozšiřování pravidel bude pokračovat po review tohoto soubor
   událostí s předem zaznamenanými odpověďmi; potvrdil tým 16. 10. 2026.
 
 ## Rozdělení odpovědnosti
+
+Následující text popisuje cílové propojení; aktuální rozsah samostatných modulů
+je uveden výše.
 
 LLM převádí volný text na pozorování s vazbou na zdroj. Výstupní schéma
 extrakce neobsahuje triážní rozhodnutí. Strukturované odpovědi dotazníků
@@ -117,7 +159,7 @@ nejprve ověřit, zda neprozrazují budoucí vývoj. Dostupnost výsledku nemus�
 totožná s časem odběru; význam časových polí je třeba dořešit při tvorbě adaptéru.
 
 Pro prototyp nad smyšlenými daty organizátor povoluje libovolný LLM
-(README balíčku, oddíl 6). Poskytovatele zatím nevybíráme. Klinická pravidla
+(README balíčku, oddíl 6). Výchozího kandidáta a adaptér popisuje modul výše. Klinická pravidla
 bereme z dodaných podkladů; kvalifikované lidské ověření zůstává nutné.
 
 ## Zpřesnění k diskusi
@@ -187,8 +229,8 @@ s. 7 a 10. Rozdělení komponent výše je náš návrh, ne předepsaná archite
 - Po funkčním průchodu: jednoduché UI, ukládání stavu a způsob předvedení.
 - Nakonec: popis budoucí integrace MEDDI. API na akci není (zadání, s. 12).
 
-Externí AI služba zatím není vybraná ani zapojená. Pracujeme s dodanými
-syntetickými daty a do budoucího LLM volání předáme jen potřebný kontext.
+API adaptér je ověřený na dodané bráně se syntetickou odpovědí. LLM dostává
+pouze jednu otázku, interní texty možností a odpovědi k ní, nikoli barvy.
 
 ## Příkazy
 
@@ -200,5 +242,6 @@ uv run ruff check .
 uv run pytest
 ```
 
-V repozitáři zatím není testovací sada pro pytest. Ověření prvního `triage.py`
+Testy pytest existují pro `llm_intake/`. Ověření prvního `triage.py`
 proběhlo samostatnými kontrolami funkce a CLI; rozsah a výsledek jsou v tasks.md.
+Oba moduly mají vlastní CLI výše; společná aplikace zatím nemá spouštěcí příkaz.

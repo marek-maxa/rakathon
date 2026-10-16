@@ -8,8 +8,14 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 | Nový začátek pro MEDDI; README.md, AGENTS.md, docs/, documents/, pyproject.toml, uv.lock a lokální cache | Aktuální relace / main | done | Zdrojované zadání, plán a archiv; odstraněné duplicity, cache a nepotřebné závislosti; ověřené odkazy, integrita podkladů a prostředí |
 | Zhodnotit představu týmu a zpřesnit návrh; docs/architecture.md, docs/decisions.md, docs/tasks.md, docs/challenge.md, README.md, documents/README.md | Aktuální relace / main | done | Zapsaný CLI proof of concept, karta a role LLM; doporučení odlišená od rozhodnutí; tým potvrdil simulovaný čas, zaznamenané odpovědi a dodaná data |
 | Dohledat MEDDI JSON, pravidla a popis výstupu; docs/challenge.md, documents/README.md | Aktuální relace / main | done | Otevřená ukázka; lokálně 14 pacientů / 171 check-inů, přečtené README a pravidla; výstup se páruje přes checkin_id |
+| Samostatný modul extrakce a potvrzení; llm_intake/, tests/__init__.py, tests/test_llm_intake.py, docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Výběr modelu podložen dokumentací; pevné otázky, extrakce do validovaného JSON, pacientovo potvrzení a oprava; CLI a Python rozhraní a testy bez sítě; API adaptér oddělený, živé připojení ověřuje navazující úkol |
+| Opravit 401 a upřesnit slovní sběr; llm_intake/, tests/test_llm_intake.py, docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Ověřená autentizace api-key a deployment gpt-6-1-sol-dz-eu; pacient vidí otázku a slovní návrh, možnosti a barvy zůstávají interní; volba se deterministicky mapuje na metadata z definic |
+| Cílené doptání při nejasné odpovědi; llm_intake/, tests/test_llm_intake.py, docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | LLM naváže konkrétní otázkou na chybějící rozlišení možností; zachová kontext otázek a odpovědí, omezený počet doptání, měřitelné počty tahů; bez nuceného výběru a bez nové RAG infrastruktury |
+| Samostatné vyhodnocení přiřazení a nutnosti doptání; llm_intake/ | Nepřiřazeno | todo | Označené případy oddělené od promptových příkladů, přímé i nejasné odpovědi, negace, opravy a slovenština; správnost volby, zbytečná doptání, počet tahů a nevyřešené relace mají jmenovatele; případný práh podobnosti teprve podle výsledků |
+| Živé ověření LLM brány se syntetickými odpověďmi; llm_intake/ | Aktuální relace / main | done | Lokální klíč, deployment a autentizace ověřeny; striktní schéma přijato; počáteční odpověď, negace v opravě a nejasnost ověřeny skutečným LLM. Klíč do Gitu ani chatu nepatří |
 | Zapsat rozhodnutí o triáži v kódu; docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Extrakce LLM oddělená od veškeré triáže, odstraněná varianta návrhu úrovně modelem; ověřeno čtením změn a git diff --check |
 | Malá deterministická triáž; triage.py, docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Jeden soubor přijímá JSON, vrací barvu s důvody a nejistotou; ověřené hranice, priority pravidel a chybné vstupy; připraveno k review |
+| Sloučit dokumentaci triáže a LLM intake před commitem; docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Zachované obě implementace a historie rozhodnutí, sjednocený popis aktuálního stavu; 59 testů a Ruff prošly |
 | S mentorem potvrdit nejasnosti pravidel a časových údajů; docs/challenge.md, docs/architecture.md | Tým + mentor | todo | Známá dostupnost údajů v čase, vyřešené interpretační otázky, případné dodatečné hodnoticí rozhraní, termín a způsob odevzdání |
 | Společně projít jeden případ a domluvit schéma extrakce a karty; docs/architecture.md | Tým | todo | Definovaná pozorování se zdrojem a časem, jejich použití v pravidlech a výstupy pro pacienta i zdravotníka; zvolený nejmenší implementační krok |
 | První průchod načtení → triáž → výstup | Nepřiřazeno | todo | Po domluvě předchozího kroku konkretizovat soubory; jeden případ běží s dohledatelnými důvody a bez budoucích dat či referencí ve vstupu |
@@ -66,3 +72,35 @@ funkce mají anglický popis a odkaz na konkrétní oddíl pravidla. Agregace
 nadále používá max a JSON zachovává číselná skóre.
 Ověřeno 11 kontrolami enumu, pravidel, agregace a JSON serializace v Pythonu
 3.12; Ruff check, format --check a git diff --check prošly.
+
+LLM intake 16. 10. 2026: `uv run --locked python -m pytest -q` — 40 testů prošlo;
+`uv run --locked ruff check .` a `git diff --check` prošly. Ověřen běh CLI `--list`,
+místní odkazy, osm syntetických příkladů a ignorování `llm_intake/.env` Gitem.
+Testy nahrazují model i HTTP transport. `MEDDI_LLM_API_KEY` nebyl v prostředí
+nastaven, skutečná dostupnost brány, autentizace, deployment a kvalita extrakce
+proto nejsou ověřené. `pyproject.toml`, `uv.lock` ani zdrojová data se neměnily.
+
+Oprava připojení a upřesnění průchodu 16. 10. 2026: 401 reprodukováno,
+hlavička `api-key` opravila autentizaci. Po dodání deploymentu
+`gpt-6-1-sol-dz-eu` prošla živá extrakce, odmítnutí a oprava (index 0 → 1),
+potvrzení i samostatná nejasná odpověď (`needs_answer`, žádná domyšlená hodnota).
+Šlo pouze o syntetické zprávy, nikoli benchmark nebo klinické ověření.
+`uv run --locked python -m pytest -q` — 48 testů prošlo; Ruff a
+`git diff --check` prošly, místní odkazy ověřeny. Lokální `.env` má opravený
+deployment a hlavičku, klíč zachován; soubor je ignorovaný Gitem.
+
+Cílené doptání 16. 10. 2026: 59 testů prošlo (`uv run --locked python -m pytest -q`),
+Ruff, `git diff --check` a místní odkazy prošly. Skutečný LLM na syntetickém
+„ne, nejde mi spat“ položil otázku na odpočinek bez spánku. Ve scénáři s úplnějším
+doplněním stačilo jedno doptání; s krátkými odpověďmi následovalo druhé na omezení
+aktivit a pak potvrditelná možnost index 1. Ověřeno uchování kontextu otázek.
+Nejde o obecný benchmark. Export je nyní v2, extraktor přijímá třetí argument
+`source_questions`; limity, opakování otázky a nemožnost nuceně potvrdit nevyřešenou
+odpověď ověřují automatické testy. Závislosti ani zdrojová data se neměnily.
+
+Sloučení před commitem 16. 10. 2026: začleněn commit `6f0d09e` z `origin/main`
+a zachovány lokální změny LLM intake. Konflikty ve třech týmových dokumentech
+vyřešeny se zachováním obou modulů; jejich propojení zůstává dalším krokem.
+`uv run --locked python -m pytest -q`: 59 testů prošlo;
+`uv run --locked ruff check .` prošel. Kontroly proběhly na Linuxu,
+bez živého volání LLM a bez nového klinického ověření.
