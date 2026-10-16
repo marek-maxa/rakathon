@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body>
-    <h1>MEDDI ONCO</h1>
+    <main class="chat">
+      <h1>Jak se dnes cítíte?</h1>
+      <form class="chat-form">
+        <label for="message">Vaše zpráva</label>
+        <textarea id="message" name="message" placeholder="Napište, co vás trápí…" required></textarea>
+        <button type="button">Next <span aria-hidden="true">→</span></button>
+      </form>
+    </main>
   </body>
 </html>
