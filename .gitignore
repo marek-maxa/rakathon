@@ -1,25 +1,32 @@
-# Local secrets; sanitized examples may be committed after review.
+# Secrets and private data
 .env
 .env.*
 !.env.example
 !.env.*.example
 /.secrets/
-/.aws/
-/.codex/auth.json
-/.codex/sessions/
-/.claude/settings.local.json
-/.gemini/oauth_creds.json
-/.gemini/google_accounts.json
-CLAUDE.local.md
-
-# Keep actual patient data outside the repository whenever possible.
 /private-data/
 
-# Local worktrees and disposable scratch files only.
+# Local tool credentials and sessions (not project configuration)
+/.aws/
+/.codex/
+/.claude/
+/.gemini/
+CLAUDE.local.md
+
+# Local environments and worktrees
 /.venv/
-__pycache__/
 /.worktrees/
-/.claude/worktrees/
 /.scratch/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Generated files
+.coverage
+htmlcov/
+*.egg-info/
+/build/
+/dist/
 *~
 *.swp
