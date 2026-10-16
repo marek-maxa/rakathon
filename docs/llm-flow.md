@@ -1,5 +1,11 @@
 # Kontrola LLM modulu a průchod otázkami
 
+Aktualizace 17. 10.: předání celého paketu do společné triáže již implementuje
+[backend.md](backend.md). Aktuální [plán pipeline a webu](meddi-onco-plan.md)
+zahrnuje bezpečnostní bod před dalším LLM voláním, kartu a kontroly. Níže je
+historické review sběru z 16. 10.; jeho „budoucí adaptér“ už existuje,
+nadřazená orchestrace, ukládání a časování zatím ne.
+
 16. 10. 2026. Rozsah této změny je sběr informací, větvení a předání dat.
 MASTER QUESTION má nyní samostatný extraktor a návrh kandidátů z katalogu;
 omezené propojení s intake je nyní v `MasterDialogue`. Triáž, karta a časování

@@ -3,8 +3,11 @@
 AI společník onkologického pacienta mezi kontrolami: vývoj obtíží,
 vysvětlitelná triáž a srozumitelný další krok pro pacienta i zdravotnický tým.
 
-Začínáme návrhem. Aplikace zatím není implementovaná. Nejdříve projdeme
-datový balíček MEDDI a domluvíme jeden průchod od hlášení k výstupu.
+Implementované jsou LLM intake a společný backend triáže. Úplný průchod
+s kartou, sledováním nálezů, doporučením a předáním týmu zbývá propojit.
+[Aktuální plán pipeline a webu](docs/meddi-onco-plan.md) obsahuje zdrojované
+požadavky a malé integrační kroky. Web existuje v dostupné větvi `origin/web`;
+jeho napojení vyžaduje opravu API a exportu. Tato revize mění pouze dokumentaci.
 
 ## Soubory
 
@@ -12,6 +15,7 @@ datový balíček MEDDI a domluvíme jeden průchod od hlášení k výstupu.
 | --- | --- |
 | [documents/](documents/README.md) | Aktivní podklady MEDDI a stav dostupnosti dat |
 | [docs/challenge.md](docs/challenge.md) | Zadání a rozsah dema |
+| [docs/meddi-onco-plan.md](docs/meddi-onco-plan.md) | Úplná revize požadavků, závislosti a plán začlenění do webu |
 | [docs/architecture.md](docs/architecture.md) | Stack, rozhraní a spuštění projektu |
 | [docs/tasks.md](docs/tasks.md) | Úkoly, vlastníci a stav |
 | [docs/decisions.md](docs/decisions.md) | Důležitá rozhodnutí |
@@ -35,11 +39,14 @@ uv sync --locked
 | `uv run python cesta/skript.py` | Spuštění vlastního Python skriptu |
 | `uv add NAZEV` / `uv add --dev NAZEV` | Přidání knihovny / vývojového nástroje |
 | `uv run ruff check .` | Lint |
-| `uv run pytest` | Testy, až je přidáme |
+| `uv run --locked python -m pytest -q` | Existující offline testy |
+| `uv run --locked python main.py` | Strukturované porovnání s oddělenými referencemi |
 | `git status --short` / `git diff` | Přehled změn |
 
-Zatím pouze vývojové nástroje pytest a Ruff. Knihovny pro aplikaci přidáme,
-až je bude potřebovat konkrétní krok. Testy přibudou s implementací.
+Na main nejsou runtime závislosti; testy používají pytest a Ruff. Kontrakt
+a syntetický CLI průchod popisuje [docs/backend.md](docs/backend.md).
+LLM konfigurace a použití jsou v [llm_intake/README.md](llm_intake/README.md).
+Webové knihovny a spuštění patří do navazující integrace ve větvi web.
 
 ## Startovní prompt pro agenta
 

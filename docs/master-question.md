@@ -1,5 +1,11 @@
 # MASTER QUESTION a propojení pipeline
 
+Aktualizace 17. 10.: aktuální stav a cílové kroky jsou ve
+[specifikaci pipeline a webu](meddi-onco-plan.md). Společný adaptér již
+existuje podle [backend.md](backend.md); níže je zachovaný návrh z 16. 10.,
+jehož tvrzení o chybějícím adaptéru a jen čtyřech pravidlech už nejsou aktuální.
+Karta, bezpečnostní orchestrace a plánované sledování zůstávají další práce.
+
 Návrh k projití týmem, 16. 10. 2026. Z širšího návrhu už existuje první
 [samostatný kontrakt, katalog a extraktor](../llm_intake/MASTER_CONTRACT.md);
 omezený dialog už existuje v `llm_intake/dialogue.py`. Plná bezpečnostní

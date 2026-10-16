@@ -5,6 +5,44 @@ Implementované jsou `llm_intake/` a společné výpočetní jádro `meddi/` bez
 závislostí. Kořenový `triage.py` zachovává starší vstupní funkce a deleguje do
 `meddi/`. Pacientská karta a celá aplikace zatím nejsou implementované.
 
+## Aktuální cílový plán pipeline a webu (17. 10. 2026)
+
+[Zdrojovaná specifikace a kroky K0–K10](meddi-onco-plan.md) jsou aktuálním
+plánem po nové revizi všech podkladů MEDDI. Obsahují požadavky P01–P27,
+klinický inventář, datové závislosti, otevřené otázky a podmínky dokončení.
+V této relaci tým zvolil pouze plán; přenos do `web` následuje po domluvě.
+Dosavadní odklad webu a interpretace zpráv byl omezením předchozích etap,
+nikoli cílovým omezením tohoto plánu.
+
+Cílová aplikační služba: uložit původní událost → kontext dostupný v čase →
+strukturované vstupy / obecná extrakce každé zprávy → `evaluate_contact` →
+urgentní instrukce a předání podle potřeby → nálezy, cílené doptání a sledování.
+Na konci dotazníku znovu vypočítat a uložit revizi triáže, doporučení a souhrn.
+Bezpečnostní bod musí být před dalším cíleným LLM voláním, nikoli až po návratu
+`MasterDialogue.start/submit`, které dnes uvnitř pokračují k další extrakci.
+Tyto nadřazené komponenty nejsou implementované tímto zápisem.
+
+Rozhraní zachovat: interní `llm_intake/v1` → `meddi_contact_assessment/v1`
+podle [backend.md](backend.md); český finální check-in export je samostatný
+adaptér podle README pořadatele. Karta ukládá celý kontakt i revize, má stabilní
+`patient_id`, otevřené epizody a sledování. Klíčové nálezy zahrnou všechny
+nezelené odpovědi/nálezy i relevantní zlepšení a kontext; aktuální varovné
+nálezy vedoucí k 3/4 tvoří jejich podmnožinu. Doporučení vychází z nálezů,
+úrovně a pravidel i při úrovni 1/2. Poslední skutečná chemoterapie a odstup
+se dokládají zdrojem, ne jen existencí cyklu.
+
+Webový snapshot `origin/web=6aeb385` má nekompatibilní potvrzovací API a
+ztrátový export. Přesný plán zachování Flasku, formuláře, stylů a JS je
+v §8 specifikace. Aktuální main modul `web` nemá; příkaz
+`uv run --locked python -m web.app` bude platný až po K1 ve větvi web.
+Existující backendový příkaz je níže. Nové úložné/API návrhy ve specifikaci
+nejsou dosud volatelné moduly.
+
+Následující aktuální backendový kontrakt zůstává platný. Starší revize a
+popisy původních prototypů níže jsou historie vývoje: tvrzení o dvou jádrech,
+chybějícím adaptéru, neexistujících testech či neplatné validaci nepřebírat
+jako dnešní stav. Klinické výjimky a nejasnosti shrnuje §10 aktuálního plánu.
+
 ## Společný backend — stav 17. 10. 2026
 
 `meddi.pipeline.evaluate_contact(packet, patient_snapshot=None, *, context=None,

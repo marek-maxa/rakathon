@@ -3,8 +3,25 @@
 Stavy: `todo`, `doing`, `blocked`, `done`. Jeden vlastník na úkol.
 Implementační kroky zahajujeme po společné domluvě, postupně.
 
+Aktuální navazující pořadí K1–K10 a přijímací podmínky určuje
+[plán pipeline a webu](meddi-onco-plan.md), §9. V této relaci tým výslovně
+zvolil pouze plán. Starší `todo` níže zůstávají jako historie a tematický
+backlog; při další práci je konkretizovat příslušným K krokem, nespouštět
+všechny souběžně. Dřívější odklad webu není cílovým omezením nového plánu.
+
 | Úkol / rozsah souborů | Vlastník | Stav | Hotovo, když |
 | --- | --- | --- | --- |
+| Úplná revize zadání a plán pipeline → web; docs/meddi-onco-plan.md, challenge.md, architecture.md, decisions.md, tasks.md, README.md, historické přehledy | Aktuální relace / main | done | Všechny dostupné podklady MEDDI znovu přečtené; 27 zdrojovaných požadavků, zpracované komentáře týmu, 12 otevřených závislostí a kroky K0–K10 s podmínkami dokončení. Prošlo 543 testů, Ruff, strukturovaný replay, 65 místních odkazů a kontrola úplnosti seznamů. Pouze dokumentace podle upřesnění týmu; aplikace ani větve se neměnily |
+| K1 · kompatibilní webový základ; existující web/, manifest a lock ve větvi web | Tým | todo | Domluvené převzetí aktuálního backendu, zachovaný formulář a vzhled, skutečné API MASTER/doptání/potvrzení/opravy; podmínky v plánu §9 |
+| K2 · stabilní identita a úplné uložení; úložný adaptér, karta, web/app.py a export | Tým | todo | Originál před LLM, celý paket a revize po načtení, neúplnost a autor zachované, ochrana před duplicitami; závisí na domluveném kontraktu |
+| K3 · časový kontext a poslední chemoterapie; patient_inputs, karta a adaptér | Tým | todo | Skutečné podání oddělené od plánu a typu cyklu, odstup se zdrojem, časová hranice bez budoucích informací; po K2 |
+| K4 · průběžná a závěrečná orchestrace; aplikační služba, dialogue, web | Tým | todo | Vyhodnocení před dalším cíleným LLM voláním, okamžitá red instrukce, závěrečná/přerušená revize uložená bez ztráty faktů; po K2/K3 |
+| K5 · klíčové/varovné nálezy a cílené sledování; karta, kontroly, existující flow | Tým | todo | Nezelené nálezy sledované, zlepšení zachované, varovné podmnožinou, bez duplicitních otázek a vymyšlených intervalů; po K2–K4 |
+| K6 · doporučení, kontakty, předání a souhrn; výstupní politika a adaptéry | Tým | todo | Zdůvodněný krok pro všechny úrovně, pracovní doba a zvláštní lhůty, evidované předání a souhrn se zdroji; po K3–K5 |
+| K7 · text, nejistota a klinické mezery; registry adaptéru, mapování a doptání | Tým + mentor | todo | Vyřešené relevantní alternativy a zdrojové rozpory podle plánu §10, bez ladění pravidel podle ID/reference; návazně na K3–K6 |
+| K8 · karta a pohled týmu v existujícím webu; Flask/Jinja/CSS | Tým | todo | Aktuální nálezy, časová osa a kontroly s dohledatelnými zdroji, srozumitelný krok a oddělená oprávnění; po K1–K7 |
+| K9 · úplný replay a soutěžní demo; evaluátor, fixtures a testy | Tým | todo | Všech 171 check-inů a šest situací bez budoucích dat, oddělené reference, záchyt i falešné eskalace a záložní demo; po K4–K8 |
+| K10 · MEDDI/AWS a provozní připravenost; adaptéry, konfigurace a dokumentace | Tým + pracoviště | todo | Rozhraní, EU cesta dat/LLM, přístupy, obnova a doručení i klinické/provozní převzetí vyřešené; skutečné nasazení je další krok |
 | Vymezit klíčové nálezy, varovné příznaky a doporučení; AGENTS.md | Aktuální relace / main | done | Pracovní výklad týmu je v kořenových instrukcích: varovné příznaky tvoří podmnožinu klíčových nálezů, vedou k 3/4, klíčové nálezy obsahují i zlepšení a jsou podkladem doporučení |
 | Research neshod triáže a konkrétní plán změn; docs/tasks.md, lokální .scratch/ | Aktuální relace / main | done | Nový běh všech 171 check-inů, vysvětlení všech lower/higher, kontrolní dosazení chybějících vstupů, primární zdroje pro spornou gradaci a kroky oddělené od neschválených klinických výkladů; bez změny aplikačního kódu. Rozbor je na konci tohoto souboru v oddílu Research neshod triáže |
 | Sjednotit výpočetní backend a opravit doložené chyby; meddi/pipeline.py, meddi/validation.py, meddi/triage.py, meddi/clinical_rules.py, meddi/form.py, triage.py, ukázky, testy a docs/ | Aktuální relace / main | done | Jediné jádro pravidel, evaluate_contact a kompatibilní kořenová API; degC, konflikty podle času, NaN/nekonečno a dlouhodobá bolest opravené. 543 testů (41 nových), Ruff, formát, syntetické CLI a JSON prošly; kontrakt v backend.md. Replay zůstává 132/171, 30 nižších a 9 vyšších. Web, karta a plné klinické ověření mimo rozsah |
@@ -33,12 +50,41 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 | Vyhodnotit celý MASTER dialog; llm_intake/ a oddělené evaluační příklady | Nepřiřazeno | todo | Katalog všech otázek a samostatná regrese rozpoznání témat už existují; zbývají nezávislé scénáře správnosti potvrzené možnosti, počtu dotazů, rozporů a nevyřešených kontaktů. Samostatně klinická integrace a pravidla |
 | Zpřesnit klinické alternativy a smlouvu s kartou; docs/master-question.md, docs/backend.md, docs/architecture.md | Tým | todo | Základní kontrakt nad meddi/ již implementován. Zbývají podložené intervaly/alternativy, obecný relativní čas, výběr aktuální epizody producentem karty a rozpory definic průjmu a NRS |
 | Opravit doložené chyby před integrací; triage.py, meddi/clinical_rules.py, hranice vstupů a regresní testy | Aktuální relace / main | done | Zahrnuto do společného backendu 17. 10.; degC, pořadí/čas/konflikty, nekonečná/NaN měření a dlouhodobá bolest pokryté regresními testy |
-| Navázat společný backend na kartu, orchestraci a později web API | Tým | todo | LLM → meddi a syntetické uložení/načtení celého JSON již ověřeno. Další krok: orchestrátor volá evaluate_contact po zprávě/potvrzení, ukládá zdroje i vyhodnocení do karty; web používá existující potvrzovací API a stabilní patient_id. Web zatím odložen na pokyn týmu |
+| Navázat společný backend na kartu, orchestraci a web API | Tým | todo | LLM → meddi a syntetické uložení/načtení celého JSON již ověřeno. Aktuální konkretizace je K1–K8: bezpečnostní bod před dalším cíleným LLM, závěrečná revize, úplné úložiště, stabilní patient_id a skutečné potvrzovací API. Přenos do webu je nový cíl; tato relace pouze plán |
 | S mentorem potvrdit nejasnosti pravidel a časových údajů; docs/challenge.md, docs/architecture.md | Tým + mentor | todo | Známá dostupnost údajů v čase, vyřešené interpretační otázky, případné dodatečné hodnoticí rozhraní, termín a způsob odevzdání |
 | Společně projít jeden případ a domluvit schéma extrakce a karty; docs/architecture.md | Tým | todo | Definovaná pozorování se zdrojem a časem, jejich použití v pravidlech a výstupy pro pacienta i zdravotníka; zvolený nejmenší implementační krok |
 | První průchod načtení → triáž → výstup | Nepřiřazeno | todo | Po domluvě předchozího kroku konkretizovat soubory; jeden případ běží s dohledatelnými důvody a bez budoucích dat či referencí ve vstupu |
 | Vyhodnocení všech šesti povinných situací a hraničních vstupů | Nepřiřazeno | todo | Časové přehrávání, podhodnocení závažnosti a zbytečné poplachy mají ověřitelné výsledky; klinickou interpretaci prošel mentor |
 | Demo pro pacienta a tým, návrh integrace | Nepřiřazeno | todo | Srozumitelný další krok, souhrn a simulované upozornění; opakovatelný scénář i záloha bez externí služby |
+
+Revize zadání a plán 17. 10. 2026: znovu přečteno celé pořadatelské PDF
+(13 stran, s. 5–12 také vizuálně), všech 6 slidů PPTX včetně poznámek, README
+balíčku, pravidla §1–6, pacientská cesta, čtyři vzorové souhrny a všech
+49 otázek. Přečtena týmová dokumentace a LLM kontrakty/prompty; čtením kódu
+ověřeny hranice backendu a dostupný web `origin/web=6aeb385`, bez fetch,
+přepnutí větve či spuštění Flasku. Aktuální main `ca8ebd1`.
+[Výstup](meddi-onco-plan.md): požadavky P01–P27, komentáře týmu,
+úplný inventář klinických skupin, návrh datového toku a záznamů, otevřené
+závislosti O1–O12 a kroky K0–K10 se soubory, návaznostmi a podmínkami dokončení.
+Zásadní nález: bezpečnostní vyhodnocení musí předcházet dalšímu cílenému LLM
+volání uvnitř dnešního dialogu. Web má nekompatibilní potvrzovací API
+a ztrátový export; první krok využije existující UI a skutečné API.
+
+Skutečně provedené kontroly této revize: `uv run --locked python -m pytest -q`
+— **543 prošlo**; `uv run --locked ruff check --no-cache .` prošel;
+`uv run --locked python main.py` — **132/171 shod, 30 lower, 9 higher,
+171 review**, nadále dvě podhodnocené referenční červené. Místní audit potvrdil
+14 pacientů, 171 check-inů, 96 neprázdných zpráv, 3 nevyplněné check-iny,
+4 dotazníky/49 otázek a reference 115/37/13/6; žádná reference úrovně 1/2
+nemá neprázdné varovné příznaky. Reference byly použity jen pro oddělený
+audit/porovnání. První pomocný auditní skript chybně předpokládal objekt
+reference místo seznamu; po opravě kontrola prošla, zdrojové soubory beze změny.
+Prošlo 65 místních odkazů v osmi měněných Markdown souborech, kontrola úplnosti
+27 požadavků / 11 kroků / 12 závislostí, uzavření bloků kódu a `git diff --check`.
+Kontroly na Linuxu / Pythonu 3.12, bez živého LLM, Windows, webového serveru,
+nasazení či nového klinického ověření. Měnila se pouze dokumentace;
+žádný commit/push, změna aplikace, zdrojů nebo závislostí. Zbývá po domluvě
+začít K1 a potvrdit příslušné otevřené výklady s mentorem.
 
 Sjednocení backendu 17. 10. 2026: `uv run --locked python -m pytest -q` —
 543 testů prošlo (41 nových případů v `tests/test_backend_pipeline.py`).

@@ -1,5 +1,13 @@
 # Rozhodnutí
 
+Revize požadavků a cíl webu (17. 10. 2026): aktuální
+[plán K0–K10](meddi-onco-plan.md) vychází z opětovného přečtení všech
+dostupných podkladů MEDDI a komentářů týmu. Tým upřesnil rozsah této relace
+na plán a seznam kroků; aplikace a větve se nemění. Následná implementace
+má využít existující prvky ve větvi web. Nahrazuje to starší cílový odklad
+webu a interpretace zpráv; historická omezení auditu zůstávají popisem
+tehdejšího rozsahu, ne novým omezením výsledného produktu.
+
 Společný backend (17. 10. 2026): `meddi.pipeline.evaluate_contact` převádí
 potvrzené odpovědi a přesně doložené fakty do širšího jádra `meddi/`.
 Kořenové funkce zůstávají kompatibilními vstupy, klinická pravidla již nekopírují.
@@ -22,6 +30,11 @@ tvrdém pravidle. Důvody a zdroje jsou v návrhu.
 
 | Datum | Rozhodnutí | Důvod |
 | --- | --- | --- |
+| 2026-10-17 | V této etapě pouze zdrojovaný plán; další cíl začlenění pipeline do existující větve web | Výslovné upřesnění týmu. Zachovat hotové prvky, nejprve kompatibilita API, pak identita/úložiště a propojení; přenos do větve neznamená ostré klinické nasazení |
+| 2026-10-17 | Všechny nezelené odpovědi i klinické nálezy zařadit mezi klíčové a sledovat jako epizody; zahrnout zlepšení a kontext | Komentáře týmu. Barva odpovědi není úroveň triáže, proto zahrnout také významné zelené/neobarvené vstupy. Aktivní varovné nálezy vedoucí k 3/4 jsou podmnožina klíčových; u 1/2 varovné prázdné. Nejde o nově implementovaný registr |
+| 2026-10-17 | Průběžné urgentní vyhodnocení a závěrečná uložená triáž jsou dva spouštěče stejné služby | Známé kritické minimum nesmí čekat na další cílené LLM volání ani na potvrzení; konec dotazníku vždy vytvoří revizi. Přerušení a chyba mají vlastní neúplný stav, nikoli green |
+| 2026-10-17 | Doporučení odvozovat kódem z klíčových nálezů, výsledné úrovně a pravidel také pro 1/2; zprávu zpracovat jako samostatný zdroj | Komentáře týmu a pravidla §1–6. Nepoužít jen varovné příznaky nebo spojení upozornění možností; zachovat autora, citace, čas, rozpory a přílohy |
+| 2026-10-17 | Evidovat poslední skutečnou chemoterapii a odstup se zdrojem; oddělit podání od plánu a typu cyklické léčby | Pravidla §3/§5 a komentář týmu. Rizikové okno není jen nadir a cyklus sám neprokazuje chemoterapii. Neznámé podání není negativní léčebný kontext |
 | 2026-10-17 | Jediné klinické jádro meddi/; nový evaluate_contact a kompatibilní kořenové vstupy | Opravit doložené chyby a sjednotit backend na pokyn týmu. Potvrzené odpovědi procházejí původními definicemi, doložená fakta normalizací a stejnými pravidly; žádný web, nové závislosti nebo LLM požadavky |
 | 2026-10-17 | Oddělit minimum_color, color a assessment_status; celý intake zachovat ve výstupu | Neúplné zelené minimum se nesmí vydávat za úplné posouzení. Známé riziko může být vyhodnoceno před potvrzením, aniž by se označilo za potvrzenou zkušenost pacienta. Rozsahy/nejisté alternativy zůstávají k dořešení, nikoli odhadnutou hodnotou |
 | 2026-10-17 | Snapshot je aktuální výběr karty s patient_id/as_of; zdroje mají dostupnost a volitelný skutečný čas/expiraci | Novější pozorování stejného parametru nahrazuje starší, současné konfliktní hodnoty se zachovají pro maximum pravidel. Neužívat trvale maximum celé historie ani první položku JSON. Obecné relativní časy a klinická expirace se nevymýšlejí; §6.2–6.4 pravidel |
