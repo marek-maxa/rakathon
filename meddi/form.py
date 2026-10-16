@@ -74,20 +74,10 @@ def _answer_colors(
     return []
 
 
-def evaluate_checkin(patient: dict, checkin_id: str) -> Severity | None:
+def evaluate_checkin(checkin: dict) -> Severity | None:
     """Return the highest color derived from the questionnaire definitions."""
-    checkins = [
-        checkin
-        for checkin in patient["checkiny"]
-        if checkin["checkin_id"] == checkin_id
-    ]
-    if not checkins:
-        raise LookupError(f"Check-in not found: {checkin_id}")
-    if len(checkins) > 1:
-        raise ValueError(f"Duplicate check-in ID: {checkin_id}")
-
     colors = []
-    for questionnaire in checkins[0]["dotazniky"]:
+    for questionnaire in checkin["dotazniky"]:
         questionnaire_id = questionnaire["dotaznik_id"]
         definition = QUESTIONNAIRE_DEFINITIONS[questionnaire_id]
         questions = {question["id"]: question for question in definition["otazky"]}

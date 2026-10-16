@@ -25,8 +25,9 @@ def compare_patient(patient: dict, references: list[dict]) -> list[dict]:
         raise ValueError("Patient check-ins and ground-truth check-ins do not match")
 
     results = []
-    for checkin_id in checkin_ids:
-        questionnaire_color = evaluate_checkin(patient, checkin_id)
+    for checkin in checkins:
+        checkin_id = checkin["checkin_id"]
+        questionnaire_color = evaluate_checkin(checkin)
         reference_color = Severity(references_by_id[checkin_id]["uroven"])
         comparison = (
             "no_questionnaire_color"
