@@ -5,6 +5,8 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 
 | Úkol / rozsah souborů | Vlastník | Stav | Hotovo, když |
 | --- | --- | --- | --- |
+| Vymezit klíčové nálezy, varovné příznaky a doporučení; AGENTS.md | Aktuální relace / main | done | Pracovní výklad týmu je v kořenových instrukcích: varovné příznaky tvoří podmnožinu klíčových nálezů, vedou k 3/4, klíčové nálezy obsahují i zlepšení a jsou podkladem doporučení |
+| Research neshod triáže a konkrétní plán změn; docs/tasks.md, lokální .scratch/ | Aktuální relace / main | done | Nový běh všech 171 check-inů, vysvětlení všech lower/higher, kontrolní dosazení chybějících vstupů, primární zdroje pro spornou gradaci a kroky oddělené od neschválených klinických výkladů; bez změny aplikačního kódu. Rozbor je na konci tohoto souboru v oddílu Research neshod triáže |
 | Porovnat a sloučit pipeline adaptér s d1b58f4; docs/, triage.py, llm_intake/__init__.py, tests/ | Aktuální relace / main | done | Obnovená historie LLM, zachované nové jádro a veřejná API, zdůvodněné rozdíly v merge-review.md, opravená záměna délky za teplotu; 502 testů a Ruff prošly |
 | Ověřit efektivitu a přesnost LLM; client.py, master.py, dialogue.py, evaluate_topics.py, testy a docs/ | Aktuální relace / main | done | Skutečné API měření: MASTER −28,2 % a cílená únava −56,1 % vstupních tokenů; zachovaná sémantika všech 49 otázek. Konečná varianta 68/68 živých případů, 74/74 očekávaných témat, 0 nepovolených přiřazení v 15 přísně označených případech; 9 cílených scénářů a 260 automatických testů prošlo. Objevená regrese filtru brány opravena, podrobnosti níže |
 | Úplné směrování témat MASTER; llm_intake/question_topics.json, question_catalog.py, master_contract.py, master.py, master_schema.json, master_prompt.md, dialogue.py, evaluate_topics.py, testy a docs/ | Aktuální relace / main | done | 49/49 otázek má klíčová slova, kontext a přesné ID; celý katalog v promptu, enum ve schématu, mechanické párování a zachované odložené otázky. 250 testů a Ruff prošly; 53 živých syntetických případů zachytilo 55/55 očekávaných témat, omezené požadavky opakovány pomaleji; podrobnosti níže |
@@ -313,3 +315,186 @@ Ruff prošel. Zdroje organizátorů, závislosti a nové klinické pravidlové j
 se při řešení konfliktů neměnily. Živý LLM ani Windows se nespouštěly.
 Zbývá časově a zdrojově doložený adaptér do meddi/ a domluva politiky
 nejistoty; původní pipeline adaptér zůstává omezeným prototypem.
+
+## Research neshod triáže: podklady a kroky
+
+Tento oddíl je aktuální rozbor cesty `main.py` → `meddi/`, nikoli návrh
+změnit barvy podle ground truth. Aplikační kód nebyl v tomto kroku měněn.
+Dřívější pokyny týmu stále platí: zprávy nyní automaticky nezpracovávat,
+nepřidávat vlastní klinické prahy, neznámé podmínky přeskakovat a uchovat.
+Texty jsou zde přečtené pro vysvětlení neshod, ne jako nově zapojené vstupy.
+
+### Ověřený výchozí stav a metoda
+
+Nově spuštěno `uv run python main.py`: **132/171 shod, 30 lower, 9 higher,
+0 undetermined, 171 review**. Každý záznam má některá nevyhodnocená kritéria;
+green je minimum ze známých pravidel při současné vývojové politice, ne
+potvrzení, že všechny příznaky jsou mírné nebo nepřítomné.
+
+Byly přečteny aktuální odpovědi, měření, dostupný kontext a oddělené reference
+všech 39 neshod. Referenční soubor slouží pouze k porovnání výsledku.
+Zdroj konkrétního případu je vždy `rakathon_meddi_onco_data/pacienti/ONC-xxx.json`,
+`checkiny[].checkin_id`; reference je stejné ID v odděleném `ground_truth/`.
+Pravidla používají jen informace dostupné k času check-inu.
+
+Provedeno také **24 kontrolních dosazení** strukturovaných pozorování do
+existujícího jádra. Nejde o pacientem potvrzené údaje ani novou dosaženou
+přesnost: jde o ověření, zda po dodání dané podmínky už existující pravidlo
+vrátí očekávanou barvu. Výstupy jsou v ignorované lokální složce:
+
+- `.scratch/triage-research-audit.json`: původních 39 neshod se vstupy a důvody.
+- `.scratch/triage-research-counterfactuals.json`: 24 kontrolních dosazení,
+  explicitně označených jako výzkumné a nepotvrzené skutečnosti.
+
+### O co se opírá interpretace
+
+Rozhodnutí o barvě čerpáme z
+[pravidla_triaze.md](../rakathon_meddi_onco_data/docs/pravidla_triaze.md):
+
+- **§3:** konkrétní podmínky minimální oranžové a červené.
+- **§4, první odrážka:** obecný příznak 2. stupně bez varovných příznaků.
+  Výčet nevolnosti, zácpy, aftů, paronychie a ruka-noha není nadepsán jako
+  úplný seznam všech možných příznaků. Konkrétní mapování stupňů ale vyžaduje
+  doložit, co daná odpověď skutečně znamená.
+- **§4, odrážka Smutek nebo úzkost:** střední psychická zátěž, zátěž pečujícího,
+  neadherence. Neobsahuje číselnou hranici škály 1–10.
+- **§5:** léčba, chronický obvyklý stav a cyklická pauza mění posouzení.
+- **§6.1:** trend; **§6.2:** přednost zprávy a řešení rozporu; **§6.3:** aktuální
+  zlepšení po zásahu týmu; **§6.4:** doptání a vyšší možná úroveň.
+  Poslední bod je v aktuální aplikaci dočasně nahrazen výslovným pokynem
+  přeskakovat chybějící podmínky. Research tuto politiku potichu nemění.
+
+Úvod pravidel odkazuje na CTCAE **v5**. Primární doplňkový zdroj pro význam
+stupně je [NCI CTCAE v5](https://dctd.cancer.gov/research/ctep-trials/for-sites/adverse-events/ctcae-v5-8x11.pdf):
+úzkost, s. 109; artralgie, s. 89; periferní senzitivní neuropatie, s. 104;
+hypertenze, s. 145. U prvních tří je 2. stupeň spojen se středními obtížemi
+a omezením instrumentálních denních činností. To je kandidátní opora pro
+mapování konkrétních slovních odpovědí, není to převod libovolného skóre 1–10.
+NCI také [výslovně rozlišuje pacientská skóre a klinické stupně](https://healthcaredelivery.cancer.gov/pro-ctcae/faqs.html)
+v oddílech o skórování a vztahu PRO-CTCAE k CTCAE. MOÚ screening navíc není
+v balíčku doložen jako totožný nástroj PRO-CTCAE.
+
+Ve [veřejném popisu MEDDI Onkologie](https://www.meddi.com/cz/onkologie)
+je screening uveden, ale nalezená stránka nedává jeho skórovací klíč.
+Hledání na veřejných stránkách MOÚ a MEDDI neověřilo převod použité škály
+1–10 na střední stupeň. To není důkaz neexistence klíče; potřebujeme jej
+od zadavatele. Z jiného dotazníku, například HADS nebo teploměru distresu,
+nepřebíráme hranici pro tento formulář.
+
+### Konkrétně ONC-004-C08
+
+Vstup obsahuje úzkost **6/10**, depresivitu **2/10**, zvládání **5/10**,
+zájem o psychologa a obavu z další léčby. Referenční nález označuje úzkost
+jako 2. stupeň. Při takto potvrzené střední úzkosti je podle §4 očekávaná
+**yellow**. Referenční klinický stupeň ale není součástí vstupního dotazníku.
+
+V kódu už je `moderate_psychological_distress` v `meddi/clinical_rules.py`.
+Kontrolní dodání `moderate_anxiety=true` změnilo tento check-in z green na
+yellow. Problém tedy není chybějící žluté pravidlo, ale chybějící doložené
+mapování z odpovědi na jeho vstup. Nezakódovat `uzkost >= 6` na základě
+jednoho referenčního případu. Konkrétní další krok je získat skórovací klíč,
+nebo zachytit dopad úzkosti na činnosti a kvalifikovaně potvrdit stupeň.
+Původní hodnota 6/10 i její zdroj mají zůstat zachované vedle odvozeného údaje.
+
+### Kroky pro implementaci v doporučeném pořadí
+
+| Priorita | Co přesně změnit | Kde | Opora a podmínka dokončení |
+| --- | --- | --- | --- |
+| 1 | Dodat do jádra již strukturovaná, zdrojovaná pozorování. Přijmout skutečné hodnoty včetně false a unknown, autora a čas dostupnosti. Neodvozovat je z reference | `meddi/patient_inputs.py`, volající `main.py`; využít existující argument `observations` v `meddi/triage.py` | §3–4 a §6.6. Například `slow_breathing` musí aktivovat stávající red, `orthopnea` stávající orange. Při aktuálním omezení bez textu se údaje dodají přímo strukturovaně |
+| 2 | Získat klíč psychoonkologického screeningu. Do té doby neodvozovat střední úzkost nebo depresi z číselného skóre. Umět předat potvrzené `moderate_anxiety` / `moderate_sadness` | Mapování v `meddi/clinical_rules.py` a vstupní adaptér; původní skóre uchová `meddi/form.py` | §4 psychická zátěž; pro význam stupně CTCAE v5, s. 109. Ověřit C08 i nízká skóre, negace a žádost o psychologa, která sama neprokazuje 2. stupeň |
+| 3 | Navrhnout a klinicky ověřit mapování slovních odpovědí `bol_klouby` a `brneni` na symptom a jeho stupeň. Pro potvrzený 2. stupeň použít obecné existující žluté pravidlo; nepředstírat konkrétní NRS ani jemnou motoriku | Vstupní mapování `meddi/clinical_rules.py`; časový kontext v `meddi/patient_inputs.py`; regresní případy v existujících testech | §4 první odrážka + CTCAE uvedené výše. Součástí musí být vyhodnocení přínosu i nových vyšších výsledků, nikoli jen opravených lower |
+| 4 | Pro kožní obtíže potvrdit typ a stupeň: paronychie / ruka-noha / jiný problém. Obecné `kuze=1` nepřekládat automaticky na konkrétní diagnózu | Vstupní údaje a mapování `meddi/clinical_rules.py` | §4 první odrážka. Dodat typ obtíže nebo schválené mapování obecného stupně; ověřit 009-C08 a 017-C03/C04 i negativní případy |
+| 5 | Předávat délku zácpy, čas poslední průjmovité stolice, schopnost udržet tekutiny a konkrétní odpověď na SOS. Samotná nespokojenost s analgezií není údaj o účinku SOS | `meddi/patient_inputs.py` / vstupní formulář; existující pravidla v `meddi/clinical_rules.py` a `meddi/triage.py` | Přesné kombinace §3, zácpa §4 a interval 12 h v §5. Testy mají pokrýt neznámý údaj a hranice, ne pouze potvrzenou hodnotu |
+| 6 | Dodat stav řešeného problému a lékařský plán s časem: co tým posoudil, zda se aktuálně stav zlepšil, změnil či zhoršil. Oddělit samotnou existenci kontaktu od klinického rozhodnutí | `meddi/patient_inputs.py`, posouzení typických pravidel v `meddi/triage.py` | §5 a §6.3. Mentor musí upřesnit, kdy přetrvávající 2. stupeň nebo NRS 4–6 při řešeném stavu může být green. Tvrdé minimum §3 nesnižovat |
+| 7 | Domluvit přesnou operacionalizaci obecných trendů, obvyklého tlaku a nejistoty. Uchovat aktuální řadu měření jako důkaz | `meddi/patient_inputs.py`, pravidla/politika v `meddi/triage.py` | §5 a §6.1, §6.4. Nevymýšlet nový práh typu „každé tři rostoucí váhy = yellow“, „106/66 = hypotenze“ nebo „každá obava = střední úzkost“ |
+
+Zpracování zpráv je další samostatná etapa podle §6.2. V této etapě musí
+zůstat odložené podle pokynu týmu; proto nelze slibovat opravu všech textových
+případů jen doplněním dalších podmínek do `clinical_rules.py`.
+
+### Důležitá kontrola navržené obecné gradace
+
+Research zkusil nad všemi 171 vstupy jednoduchý návrh: `brneni` nebo
+`bol_klouby` s indexem 1 označit jako potvrzený 2. stupeň. Tento návrh
+**nebyl implementován** a index sám není validovaným klinickým stupněm.
+
+Výsledek pokusu: **130 shod, 27 lower, 14 higher** oproti současným
+132 / 30 / 9. Opravil by 002-C12, 016-C02 a 016-C04, ale přidal by pět
+vyšších výsledků: 002-C13, 002-C14, 002-C15, 002-C16 a 005-C04.
+První skupinu reference považuje za stav známý týmu, druhou za mechanickou
+bolest po práci na zahradě. Z toho neplyne právo tyto případy natvrdo vyjmout;
+plyne potřeba validovat mapování a kontext. Předchozí tvrzení, že u kloubní
+bolesti pomůže pouze NRS, bylo příliš úzké: obecné pravidlo 2. stupně je
+relevantní, jeho nasazení však vyžaduje vyřešit tyto souvislosti.
+
+### Všech 30 lower: údaj, konkrétní změna a zdroj
+
+Ve sloupci barva je aktuální výstup → reference. Zkratky §§ odkazují na
+`pravidla_triaze.md`, nikoli na nově vymyšlenou sadu podmínek.
+
+| Check-in | Barva | Co doložit nebo změnit | Přesná opora / hranice závěru |
+| --- | --- | --- | --- |
+| ONC-002-C05 | green → yellow | `neuropathy_persistent_between_cycles`; přetrvávání je nyní pouze ve zprávě | §4 neuropatie; více samostatných hlášení brnění samo nedokládá, že mezi nimi nikdy nevymizelo |
+| ONC-002-C12 | green → yellow | Potvrdit jemnou motoriku ze zdrojového popisu, nebo ověřit mapování obecného 2. stupně z dotazníku | §4 neuropatie a první odrážka; obecné omezení ADL nevydávat za konkrétní jemnou motoriku |
+| ONC-004-C08 | green → yellow | Potvrzený střední stupeň úzkosti / klíč převodu 6/10 | §4 psychická zátěž; existující pravidlo funguje po dodání vstupu, viz výše |
+| ONC-007-C06 | green → yellow | Stupeň otoků a potvrzené hodnocení trendu; nyní třídenní přírůstek pouze 0,9 kg | §4 otoky nebo >2 kg / 3 dny; §6.1 trend. Rýhy od ponožek nepovažovat automaticky za ověřený 2. stupeň |
+| ONC-007-C07 | green → yellow | Stav přetrvávajícího problému, otoky/trend; nyní přírůstek v okně 0,8 kg | §4, §6.1 a §6.3; delší řadu nepřepsat na nesplněný přesný třídenní práh |
+| ONC-007-C08 | green → orange | `orthopnea`; informace o polštářích je v textu. Třídenní přírůstek 1,4 kg sám práh nesplňuje | §3 oranžová / Dýchání; po kontrolním dodání ortopnoe pravidlo vrací orange |
+| ONC-008-C03 | green → yellow | `polydipsia` a `frequent_urination` vedle známé glykémie 17,8 | §4 glykémie >15 se žízní a častým močením; samotná glykémie není celá kombinace |
+| ONC-008-C06 | green → yellow | `constipation_days=3`, nyní pouze ve zprávě | §4 zácpa ≥3 dny; trvalá zácpa v nabídce neudává přesný počet dní |
+| ONC-008-C07 | green → yellow | Pokračování stejné epizody a její potvrzená délka | §4 zácpa ≥3 dny; po doložení trvání lze počítat čas, nelze automaticky slepovat všechny výskyty |
+| ONC-009-C04 | green → yellow | Kvalifikovaně posoudit 2. stupeň zvýšeného tlaku vůči výchozímu stavu | §4 obecný 2. stupeň, §5 antiangiogenní léčba; CTCAE v5 s. 145 je doplňková opora. 152/95 nesplňuje orange 160/100 a zatím jsou jen dvě vysoká měření |
+| ONC-009-C08 | green → yellow | Typ/stupeň kožního problému a pokračování známé toxicity | §4 první odrážka, §5 kontext; `kuze=1` neprokazuje samo typ obtíže |
+| ONC-009-C12 | green → yellow | Hypotenzi se závratí potvrdit v kontextu obvyklého tlaku, pauzy a antihypertenziv | §4 ortostatická hypotenze a §5 pauza léčby; 106/66 samotné nestačí ke klinickému závěru |
+| ONC-010-C03 | yellow → orange | `cannot_keep_fluids`; po dodání se aktivují dvě existující orange podmínky | §3 oranžová / Příjem a Zvracení; minimální příjem neznamená automaticky neudržení tekutin |
+| ONC-010-C10 | green → yellow | Potvrdit klinickou psychickou zátěž a potřebu návaznosti před další léčbou | §4 psychická zátěž, §5–6 kontext. Úzkost 2/10 ani samotná běžná obava nejsou ve zdroji jednoznačný práh yellow |
+| ONC-011-C05 | yellow → orange | `new_only_liquid_food` + `pain_uncontrolled`; dotazník potvrzuje tekutou stravu, ale ne konkrétní účinek morfinu | §3 oranžová / Příjem a tekutiny; `spokojenost=Ne` může mít více důvodů |
+| ONC-011-C08 | yellow → orange | `cannot_keep_fluids`, případně potvrzené přetrvávání silné bolesti po SOS | §3 oranžová / Příjem nebo Bolest; NRS 7 bez účinku SOS nesplňuje samo uvedenou kombinaci |
+| ONC-011-C09 | orange → red | Ověřit konkrétní red příznak nebo rozhodnutí klinika; automatické pravidlo pro „oligurii po cisplatině = red“ ve zdroji není | §3 červená / Zvracení a Dehydratace/oběh. Kontrolní dodání nízké diurézy, sníženého příjmu a závratí ponechalo orange; nevymýšlet >10 h anurie ani nemožnost pít |
+| ONC-014-C02 | green → yellow | `constipation_days=4` ze strukturovaného potvrzení | §4 zácpa ≥3 dny; počet je nyní jen ve zprávě |
+| ONC-014-C07 | green → yellow | Potvrdit psychický stupeň / potřebu podpory; zachovat ESAS depresi 8 jako zdrojové skóre | §4 psychická zátěž, §5 paliativní kontext; ESAS číslo není přímo CTCAE stupeň |
+| ONC-014-C08 | green → yellow | `caregiver_exhaustion`; zátěž patří pečující osobě | §4 vyčerpání pečující osoby a §6.7; nezaměňovat únavu pacienta a pečujícího |
+| ONC-014-C09 | orange → red | `slow_breathing` / `unresponsiveness` / nová nápadná spavost; nyní jsou v textu | §3 červená / Opioidy, případně Neurologie. Kontrolní dodání pomalého dýchání vrací red. §5 paliativní péče nesnižuje povinnost pomoci |
+| ONC-016-C02 | green → yellow | Ověřené mapování střední artralgie s omezením činností na obecný 2. stupeň | §4 první odrážka a CTCAE uvedené výše; není nutné vymýšlet NRS, ale nelze ignorovat nové vyšší výsledky z plošného mapování |
+| ONC-016-C03 | green → yellow | Potvrzená střední úzkost nebo smutek; klíč použitého screeningu | §4 psychická zátěž. Dvě skóre 6/10 a zájem o psychologa jsou důležité nálezy, ne doložený automatický převod |
+| ONC-016-C04 | green → yellow | `medication_nonadherence`; případně ověřené mapování 2. stupně artralgie | §4 vynechávání léků / první odrážka; nepřipisovat vynechání léčby všem bolestem kloubů |
+| ONC-016-C05 | green → orange | `hopelessness` ze skutečného výroku; dotazník suicidalitu popírá | §3 oranžová / Psychika a §6.2; beznaděj je samostatná podmínka vedle kladné suicidální odpovědi |
+| ONC-016-C07 | green → yellow | Stav otevřeného psychického problému a aktuální posouzení, nikoli slepé přenesení dřívější orange | §4 psychická zátěž, §6.3; aktuální check-in psychický stupeň neobsahuje |
+| ONC-017-C03 | green → yellow | `paronychia_limits_activity` s doloženou lokalizací a omezením | §4 paronychie; obecná kožní otázka sama neurčuje typ, aktuální popis nehtu je textový |
+| ONC-017-C04 | green → yellow | Potvrdit pokračování stejného nehtového problému a současný stupeň | §4 a §6.3; z absence nové zprávy neodvozovat uzdravení ani novou eskalaci |
+| ONC-018-C03 | green → orange | Zachytit rozpor zprávy s formulářem a doptat se na počet nad normál | §3 oranžová / Průjem a §6.2–4. Šest celkových stolic nevydávat za šest nad normál. Potvrzený probíhající průjem při irinotekanu dává aspoň yellow; potvrzených 4–6 nad normál orange |
+| ONC-018-C04 | green → yellow | `hours_without_diarrhea` nebo právě probíhající průjem a stav epizody | §5 irinotekan: <12 hodin bez průjmu; součet stolic za 24 h tento interval neurčuje |
+
+### Všech 9 higher: co lze a nelze bezpečně snížit
+
+| Check-iny | Výstup a příčina | Konkrétní další krok a opora |
+| --- | --- | --- |
+| ONC-004-C07 | yellow → referenční green; aktuálně mírný průjem při imunoterapii | §4 průjem na imunoterapii dává typickou yellow, reference používá stav po léčbě a zlepšení (§6.3). Potřebujeme posouzený aktuální stav a upřesnění, kdy má tento kontext změnit barvu |
+| ONC-011-C01, ONC-011-C10, ONC-011-C13 | yellow → green; afty omezující jídlo, u C10 navíc NRS 4–6 | §4 příjem/bolest versus §6.3. Doložit lékařský plán a aktuální zlepšení; samotné probíhající ozařování nebo existence analgetik není uvedená automatická výjimka |
+| ONC-014-C06 | yellow → green; NRS 4 po zlepšení po úpravě analgezie | §4 bolest NRS 4–6, §6.3 aktuální stav. Reference používá klinický kontext, ale text nedává algoritmus, kdy trvající NRS 4 přebít na green. Vyjasnit s mentorem |
+| ONC-018-C06, ONC-018-C08, ONC-018-C12, ONC-018-C13 | yellow → green; tři zvýšená měření, pacient má hypertenzi a podobné výchozí hodnoty | §4 ≥3 měření, §5 obvyklý chronický stav a §6.3. Doplnit schválený obvyklý tlak a klinický plán. Nevypínat celé tlakové pravidlo a nevymýšlet vlastní toleranci rozdílu |
+
+Úvod pravidel výslovně rozlišuje tvrdá minima §3 a klinický úsudek v §4–6.
+Proto devět higher automaticky neznamená devět chybných číselných podmínek.
+Je třeba odlišit barvu závažnosti od toho, zda už tým upozornění přijal;
+potlačení duplicitní notifikace samo neprokazuje nižší závažnost.
+
+### Hotový návrh ověření dalších změn
+
+Před každou implementací z výše uvedených kroků připravit malou cílenou změnu
+a ověřit původní neshodu i kontrolní případy: C08 střední úzkost proti nízkým
+skóre; nový 2. stupeň proti známému řešenému stavu; aktuální varovný příznak
+proti odeznělému; pečující proti pacientovi; celkový počet stolic proti změně
+nad normál; budoucí léčbu a zásah týmu proti časově dostupnému kontextu.
+Zachovat maximum tvrdých minim a reference vždy až v hodnoticí větvi.
+
+Skutečně provedené kontroly tohoto research kroku: úplné přehrání main.py,
+audit 39 neshod, 24 kontrolních dosazení a experiment mapování stupně na celé
+sadě. Nové jednotkové testy ani změny aplikačního kódu nejsou výsledkem tohoto
+kroku; výše uvedené testovací body jsou požadavky pro navazující implementaci.
+
+Výchozí kód výzkumu je commit `0420073`. Kontrola úplnosti ověřila, že rozpis
+obsahuje všech 39 aktuálních neshod, součty 30 lower / 9 higher a všech 24
+kontrolních dosazení; lokální odkazy výzkumu existují. `git diff --check`
+prošel. Změny tohoto kroku jsou pouze `docs/tasks.md` a výslovně požadované
+vymezení výstupních polí v `AGENTS.md`; zbývající neznámé údaje nebyly domyšleny.
