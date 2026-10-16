@@ -5,6 +5,416 @@ Implementované jsou samostatné moduly `triage.py` a `llm_intake/` bez runtime
 závislostí. CLI intake po potvrzení odpovědi volá triáž; pacientská karta
 a celá aplikace zatím nejsou implementované. Rozhraní popisují následující oddíly.
 
+## Aktuální stav pravidel a vstupů po auditu
+
+Poslední pokyn týmu: implementovat podmínky barvy ze zdrojových pravidel,
+**neinterpretovat zprávy a nevytvářet další klinická pravidla**. Následující
+oddíl nahrazuje starší tvrzení níže, že CLI nedodává kontext léčby. Automatické
+kontakty, interpretace týmových zásahů a zpracování textu jsou mimo tento krok.
+`text_observations.py` a `followup.py` nejsou součástí výsledné implementace.
+
+Tok: `patient_inputs.build_triage_inputs(patient, checkin)` → připravený
+dotazník z `form.py`, kontext léčby a číselná pozorování →
+`triage.evaluate_checkin(prepared, context, observations)` → `main.py`
+porovná výsledek s oddělenou referencí. Samotná pravidla nečtou pacientský
+soubor ani ground truth. `form.py` dál pouze připravuje hotový dotazník.
+
+Adaptér používá výhradně názvy z `lecba.leky`, časově platné `leky.lek`,
+již nastalé `lecba.cykly[].datum_d1`, komorbidity a předchozí měření/check-iny.
+Nečte `nazev_scenare`, popis režimu ani poznámky obsahující budoucí změny.
+Laboratoře, zprávy a týmové události neinterpretuje. Lék nově nasazený v den
+check-inu bez času dostupnosti nepovažuje automaticky za známý. Bez času
+check-inu nepoužije jiné záznamy z téhož dne. Den D1 je interpretován podle
+README balíčku §5; datum cyklu v těchto datech považujeme za údaj o podání,
+nikoli pouhý budoucí plán. To je třeba ověřit pro případné jiné schéma dat.
+
+Z historie počítá pouze podmínky s konkrétními mezemi ve zdroji: tři zvýšená
+měření tlaku, změnu váhy za nejvýše tři dny, úbytek váhy v posledním
+kalendářním měsíci, změnu soběstačnosti proti výchozímu ECOG a počet
+nevyplněných check-inů za sebou. Nevymýšlí číselný práh pro obecný trend,
+psychické skóre, stav „řešený týmem“, hypotenzi ani vysoký věk. Obecný
+nepříznivý trend a příznak 2. stupně jsou přijatelné jako explicitní
+`unfavorable_trend` / `grade_2_symptom_without_warning_signs` ve vstupu.
+
+### Původ DRUG_CLASSES
+
+`DRUG_CLASSES` je ručně sestavené omezené mapování názvů léčiv na vstupní
+příznaky léčby, **není to dodaný číselník ani další sada pravidel triáže**.
+Neznámý název nebo nedoložené podání vrací `None`; nepřítomnost rozpoznaného
+léku nepovažujeme za důkaz nepřítomnosti léčby. V důkazech kontextu jsou
+původní rozpoznané názvy a jejich zdrojová pole. Kvalifikované klinické
+ověření mapování a dostupnosti léků v čase zůstává otevřené.
+
+| Přiřazení | Zdroj |
+| --- | --- |
+| 5-FU / kapecitabin → fluoropyrimidin; irinotekan; sunitinib / bevacizumab → antiangiogenní léčba; trastuzumab → kardiotoxická léčba; cisplatina; warfarin → antikoagulace | `rakathon_meddi_onco_data/docs/pravidla_triaze.md`, §3–5, přímo uvedené názvy a skupiny |
+| Doxorubicin → antracyklin a cytotoxická chemoterapie | [EMA Caelyx, How does it work](https://www.ema.europa.eu/en/medicines/human/EPAR/caelyx-pegylated-liposomal); kardiotoxické antracykliny uvádí §4 pravidel |
+| Fluorouracil / kapecitabin / oxaliplatina jako chemoterapeutické léky | [EMA Xeloda, Overview a How does it work](https://www.ema.europa.eu/en/medicines/human/EPAR/xeloda) |
+| Cyklofosfamid / vinkristin / etoposid jako složky chemoterapie | [NCI Ewing Sarcoma Treatment, Chemotherapy](https://www.cancer.gov/types/bone/hp/ewing-treatment-pdq) |
+| Cisplatina / karboplatina jako chemoterapie; irinotekan | [NCI Cisplatin](https://www.cancer.gov/about-cancer/treatment/drugs/cisplatin), [NCI CanMED Carboplatin](https://seer.cancer.gov/oncologytoolbox/canmed/ndconc/69339-0367/), [NCI Irinotecan](https://www.cancer.gov/about-cancer/treatment/drugs/irinotecanhydrochloride); etoposid pokrývá předchozí řádek NCI |
+| Nivolumab → anti-PD-1; ipilimumab → anti-CTLA-4 | [EMA Opdivo, How does it work](https://www.ema.europa.eu/en/medicines/human/EPAR/opdivo), [EMA společné hodnocení, Opdivo/Yervoy](https://www.ema.europa.eu/en/documents/withdrawal-report/withdrawal-assessment-report-opdivo-and-yervoy-ws1372_en.pdf), popis mechanismu |
+| Atezolizumab → anti-PD-L1 | [EMA hodnocení Opdivo/Yervoy](https://www.ema.europa.eu/en/documents/variation-report/opdivo-h-c-ws-2717-epar-assessment-report-variation_en.pdf), popis schválené léčby HCC |
+| Morfin → opioid | [EMA Modified-released oral opioids, Overview](https://www.ema.europa.eu/en/medicines/human/referrals/modified-released-oral-opioids) |
+| Inzulin / insulin → inzulinová léčba | Doslovný název třídy ze §3 pravidel; bez odvození inzulinu pouze z diagnózy diabetu |
+
+Tyto zdroje dokládají pouze třídy léčiv, nepřebíráme z nich nové prahy nebo
+rozhodovací podmínky. Není to univerzální katalog léčiv ani odhad léčby z ID.
+Odkazovaný souhrn RMP Imfinzi se při kontrole nepodařilo otevřít; pro tyto
+závěry proto používáme výše uvedené dostupné primární zdroje NCI.
+
+### Pokrytí podmínek barvy
+
+Všechny následující podmínky přijímají explicitní strukturovaná pozorování;
+existence pravidla neznamená, že jsou potřebné údaje přítomné v dotazníku.
+Zdroj všech řádků: `rakathon_meddi_onco_data/docs/pravidla_triaze.md`, uvedený
+oddíl. Důvody zachovávají zdroj a skutečné vstupní důkazy.
+
+| Oddíl / skupina | Implementace |
+| --- | --- |
+| §3 červená: horečka / zimnice při chemoterapii | `fever`, `reported_fever`, `chemotherapy_chills` |
+| §3 červená: dýchání / hrudník | klidová dušnost, SpO2 <90, náhlá dušnost + hrudník/palpitace, nová bolest na hrudi |
+| §3 červená: neurologie / krvácení | jednotlivé neurologické příznaky; konkrétní místa krvácení, nos >20 minut, úraz hlavy + antikoagulace |
+| §3 červená: průjem / zvracení / oběh / břicho | ≥7 nad normál nebo krev; >5 epizod nebo neudržení tekutin + dehydratace; anurie >10 h, mdloba, systolický tlak <90; zástava plynů i stolice + zvracení/kolika |
+| §3 červená: tlak / metabolismus / opioidy / psychika | prahy 180/110, vysoký tlak + varovné příznaky; metabolická kombinace; opioidové varovné příznaky; suicidalita + plán/úmysl/prostředky |
+| §3 oranžová: pocit / dýchání | pocit 5; SpO2 <92, pokles ≥3 body, ortopnoe |
+| §3 oranžová: průjem | 4–6 při rizikové léčbě; neúčinný loperamid **při potvrzeném dodržení schématu**; průjem + břicho na imunoterapii |
+| §3 oranžová: příjem / zvracení / tlak / krvácení | všechny uvedené kombinace příjmu, bolesti, močení a závratí; zvracení 3–5 + neudržení tekutin; antiangiogenní tlak 160/100; krvácení/modřiny na antikoagulaci |
+| §3 oranžová: další skupiny | jednostranný otok + bolest lýtka; bolest NRS ≥7 po SOS; ranní bolest hlavy + zvracení při mozkovém nádoru; metabolické příznaky při imunoterapii; glykémie <4 při inzulinu; suicidalita nebo beznaděj; zhoršení přes plánované vyšetření |
+| §4: příznak 2. stupně | obecná potvrzená podmínka; nevolnost s omezením příjmu, zácpa ≥3 dny, afty omezující jídlo, paronychie a ruka-noha |
+| §4: průjem / zvracení / tlak / glykémie | ≤3 nad normál na imunoterapii; zvracení 3–5 při pití; ≥3 zvýšená měření nebo ortostatická hypotenze; glykémie >15 + žízeň + polyurie |
+| §4: neuropatie / tinnitus / otoky / funkční stav | přetrvávání mezi cykly nebo jemná motorika; nový tinnitus + cisplatina; otoky 2. stupně nebo >2 kg / 3 dny při kardiotoxické léčbě; ≥5 % / měsíc nebo soběstačnost horší o ≥2 stupně nebo postupný pokles příjmu |
+| §4: bolest / psychika / pečující / adherence / výpadek | NRS 4–6 nebo SOS ≥3; potvrzený střední smutek/úzkost; vyčerpání pečujícího; vynechávání léků; ≥3 nevyplněné záznamy |
+| §5 a §6.1: kontext a trend | nové uvedené příznaky při imunoterapii, irinotekan a potvrzený interval <12 h bez průjmu nebo právě probíhající průjem; explicitní nepříznivý trend |
+
+U vysokého tlaku s varovnými příznaky už nevytváříme dříve domyšlenou hranici
+140/90: požadujeme explicitní `high_blood_pressure`. Párové prahy 180/110,
+160/100 a 140/90 nadále používají obvyklé překročení kterékoliv složky; tento
+výklad zkratky musí potvrdit mentor. Screeningové škály a ESAS nemají ve
+zdroji převod na „střední psychickou zátěž“; numerický práh nepřidáváme.
+Neuropatie s obecným omezením ADL neprokazuje specificky jemnou motoriku.
+Volba průjmu za posledních 24 hodin neprokazuje interval <12 hodin od poslední
+epizody; toto byla opravená záměna při auditu.
+
+Chybějící údaje se podle dřívějšího výslovného pokynu týmu přeskakují a zůstávají
+v `skipped_rules`; tato vývojová výjimka ze §6.4 stále platí. Texty se uchovávají
+k review, neodvozují pozorování ani barvu. Aktuální údaje se nekombinují se
+starými urgentními příznaky způsobem, který by trvale nesl starou červenou.
+Stav „řešený týmem a zlepšující se“ zatím není strukturovaný vstup pro snížení
+typické žluté (§6.3); barevné přepisy podle textu reference se neprovádějí.
+
+Přehrání a audit:
+
+```text
+uv run python main.py
+uv run python main.py --comparison lower --details
+uv run python main.py --comparison higher --details
+uv run pytest -q
+uv run ruff check .
+```
+
+`--comparison` filtruje řádky, souhrn stále počítá všechny záznamy. Přesný
+rozpis zbývajících neshod a skutečně provedené kontroly jsou v `docs/tasks.md`.
+
+## Příprava celého check-inu pro triáž
+
+`meddi.form.prepare_checkin(checkin)` přijímá hotový check-in ve formátu
+datového balíčku (`dotazniky`, `odpovedi`, `odpoved_index`, `odpoved`).
+Vrací samostatný slovník připravený k JSON serializaci. Data uchovává v paměti;
+nezapisuje soubor a neprovádí interaktivní dotazování.
+
+```python
+from meddi.form import prepare_checkin
+from meddi.loader import load_patient
+
+patient = load_patient("ONC-001")
+prepared = prepare_checkin(patient["checkiny"][0])
+answers = prepared["answers"]
+non_green_answers = prepared["non_green_answers"]
+```
+
+`answers` je seznam všech dodaných odpovědí v původním pořadí, včetně zelených,
+neobarvených, číselných a textových. Každá položka obsahuje:
+
+- `questionnaire_id`, `questionnaire_instance_id`, `questionnaire_name`
+  a `questionnaire_note` pro identifikaci zdroje a význam škál;
+- `question_id`, `question`, `type`, `condition`, `instructions` a `note`
+  podle definic;
+- `value` a `option_indices` jako zachovanou původní odpověď a výběr;
+- `selected_options`: zvolené možnosti s `index`, `text`, `color` a `warning`;
+- `color`: nejvyšší známou barvu zvolených možností, případně barvu škály ESAS.
+
+Barvy jsou anglické řetězce `green`, `yellow`, `orange`, `red` nebo `null`.
+`non_green_answers` obsahuje celé záznamy odpovědí s barvou yellow/orange/red,
+aby později bylo možné zobrazit konkrétní otázku, odpověď a upozornění.
+`null` znamená chybějící výběr nebo absenci barevného klíče, nikoli zelenou.
+Například kladná odpověď na otázku `sebevrazda` nemá v definicích barvu,
+ale zůstává v `answers` a zpracovává ji samostatné pravidlo triáže.
+
+Barvy a upozornění se načítají z
+`rakathon_meddi_onco_data/docs/dotazniky_definice.json`, nikoli z uložených
+barev vstupního check-inu. ESAS používá zjednodušení uvedené v `poznamka`
+definice: 1–3 green, 4–5 yellow, 6–10 red. Podmínky otázek se zachovávají,
+ale v tomto kroku se nepřepočítávají ani nedoplňují nezodpovězené otázky.
+
+Výstup dále obsahuje `patient_id`, `checkin_id`, `date`, `time`,
+`monitoring_day`, `cycle`, `cycle_day`, `status`, `filled_by`, `vital_signs`,
+`patient_message` a `attachments`. Měření v `vital_signs` zachovávají původní
+názvy polí, hodnoty a zdroje z `vitalni_funkce`. Nedodané údaje zůstávají
+`null`; nic se neodhaduje z volného textu, teplotního rozmezí nebo počtu SOS dávek.
+Výstupní seznamy a slovníky nesdílejí měnitelná data se vstupem ani definicemi.
+
+Příprava neurčuje finální barvu ani důvod eskalace. Navazující funkce
+`meddi.triage.evaluate_checkin` zpracovává její výstup podle následujícího oddílu.
+Zdroj: pravidla triáže, §3 (minimální úroveň) a §6.6 (vysvětlitelnost);
+README balíčku, §4 / Dotazníky (barvy odpovědí jsou vstupem).
+
+`meddi.form.evaluate_checkin(checkin)` zůstává jako pomocné porovnání nejvyšší
+dotazníkové barvy. Používá tentýž připravený výstup; nejde o finální triáž.
+`main.py` již porovnává skutečný výstup `meddi.triage.evaluate_checkin`.
+Kořenový `triage.py` pro LLM intake je nadále samostatný.
+
+Ověření přípravy: `uv run --locked python -m pytest tests/test_form.py -q`.
+
+## Připravený check-in → triáž s důvody
+
+`meddi.triage.evaluate_checkin(prepared, context=None, observations=None)` přijímá výstup
+`prepare_checkin`. Kód vybere nejvyšší úroveň ze spuštěných pravidel, nikoli
+maximum barev odpovědí. Formulář se nemění a nevolá triáž při přípravě dat.
+
+```python
+from meddi.form import prepare_checkin
+from meddi.triage import evaluate_checkin
+
+prepared = prepare_checkin(checkin)
+result = evaluate_checkin(prepared, context={
+    "chemotherapy_within_6_weeks": True,
+})
+print(result["color"])
+print(result["reasons"])
+print(result["non_green_answers"])
+```
+
+Základní `context` přijímá explicitně známé boolean/null údaje
+`chemotherapy_within_6_weeks`, `pain_persists_after_rescue_dose` a
+`suicide_plan_intent_or_means`. Poslední údaj znamená přítomnost plánu, úmyslu
+nebo prostředků u kladné odpovědi na otázku o sebevraždě. Aplikace je musí
+dodat jen podle informací dostupných v okamžiku check-inu. Tato funkce
+neodvozuje léčbu z názvu režimu, nenačítá celý pacientský soubor, historii,
+reference ani budoucí události. Počet SOS dávek neurčuje účinek SOS dávky.
+
+README datového balíčku, §5 / Záznam, definuje `den_cyklu`: den 1 = aplikace.
+U známého příslušného režimu tedy `den_cyklu - 1` udává dny od začátku cyklu.
+`ONC-001-C07` má cyklus 1 a den 10, tedy 9 dní od začátku cyklu
+(`pacienti/ONC-001.json`, `lecba.cykly` a příslušný check-in).
+Samotný cyklus ale neurčuje chemoterapii: `ONC-004.json`, `lecba.rezim`,
+obsahuje cyklickou imunoterapii; `ONC-007.json` a `ONC-009.json` cílenou léčbu.
+Pouhé nenulové `cycle`/`cycle_day` se proto nepřevádí na kontext chemoterapie.
+Pravidlo horečky používá období během chemoterapie nebo do 6 týdnů po ní
+(pravidla, §3 / Horečka), nikoli jen nadir D7–14 (§5). Automatické rozpoznání
+typu léčby a ověření skutečné aplikace zůstávají dalším krokem.
+
+Implementovaný rozsah podle `pravidla_triaze.md`, §3–4:
+
+| Vstup | Pravidlo / úroveň |
+| --- | --- |
+| `vital_signs.teplota_c.hodnota` nebo zvolený teplotní rozsah `teplota` | ≥38 °C v kontextu chemoterapie: red |
+| `vital_signs.spo2_pct.hodnota` | <90 % red, jinak <92 % orange |
+| `nezadouci_ucinky/pocit`, index 4 | Pocit 5: orange |
+| `bolest_analgeticka_terapie/nrs` | 4–6 yellow; ≥7 s přetrváváním po SOS dávce orange |
+| `bolest_analgeticka_terapie/sos` | ≥3 dávky denně: yellow (§4) |
+| `nezadouci_ucinky/dusnost`, index 3 | Dušnost v klidu: red |
+| `nezadouci_ucinky/bol_hrud`, index 1 | Nová bolest na hrudi: red |
+| `nezadouci_ucinky/zvraceni`, index 2 | >5 epizod za 24 h: red; nově v clinical_rules.py |
+| `nezadouci_ucinky/prujem`, index 2 | Odpověď „více než 7 nad normál“: red |
+| `psychoonkologicky_screening/sebevrazda`, index 0 | Nejméně orange; s plánem, úmyslem či prostředky red |
+
+Výstup obsahuje `patient_id`, `checkin_id`, `color`, `scores`, `reasons`,
+`non_green_answers`, `skipped_rules`, `requires_review`, `review_issues` a
+`scope="supported_structured_checkin_rules"`.
+Každý důvod obsahuje `rule_id`, `color`, český `message`, `source` se souborem
+a oddílem, `evidence` s úplnými zdrojovými odpověďmi/měřeními/kontextem,
+`provisional` a případný `uncertainty_source` (zachované atributy rozhraní;
+současná politika už neznámé podmínky prozatímně neeskaluje). Důvody zahrnují všechny
+spuštěné eskalace, tedy i nižší než výslednou barvu. Nejde o porovnání
+s předchozím check-inem. Nezelené odpovědi zachovávají své původní barvy
+a nemusejí odpovídat výsledné úrovni; ESAS se automaticky nepřevádí na NRS.
+
+Na výslovný pokyn týmu používáme dočasnou vývojovou politiku: podmínka
+s chybějícím vstupem se přeskočí při určení barvy. `skipped_rules` uchovává
+`rule_id`, seznam `missing_fields` a dostupné `evidence`. Chybějící vstup se
+nenahradí nulou, false ani zeleným skóre; příslušné skóre zůstane `null`.
+Například horečka s neznámou chemoterapií neaktivuje červenou a silná bolest
+s neznámým účinkem SOS dávky neaktivuje oranžovou. Kladná odpověď na otázku
+o sebevraždě sama potvrzuje oranžovou; bez podrobností se přeskočí pouze
+červené pravidlo plánu, úmyslu či prostředků.
+
+Barva je maximum vyhodnotitelných pravidel a může být green i při
+`requires_review=true`. Pouze pokud se nedá vyhodnotit vůbec žádné pravidlo,
+zůstává `color=null`. Nepodporované odpovědi/měření, zprávy, přílohy a nevyplněné
+check-iny se dál zachovávají v `review_issues` a samy nepřebarvují známý výsledek.
+Rozpor mezi teplotním rozsahem a měřením nadále zachovává nejvyšší prokázanou
+úroveň a přidá `conflicting_temperature`.
+
+Tato politika na pokyn týmu nahrazuje předchozí prozatímní vyšší úrovně;
+nenaplňuje automaticky požadavek organizátora na eskalaci při nejistotě
+(§6.4). Green nyní znamená jen absenci eskalace ve skutečně vyhodnocených
+pravidlech, nikoli dokončené posouzení pacienta. Ani zachování zprávy v review
+nenahrazuje zpracování jejího obsahu a přednosti podle §6.2.
+
+Další skupiny tlaku, krvácení, dehydratace, neurologie, metabolismu a opioidů
+implementuje `meddi/clinical_rules.py`, viz následující oddíl. Stále nepokrýváme
+celý protokol (např. zimnici, pokles saturace proti obvyklému stavu, všechna
+pravidla průjmu a časové trendy), kontakty a doporučené kroky. Definice otázky `prujem`
+říká „více než 7“, zatímco tvrdé pravidlo začíná na ≥7. Vybraná možnost
+podmínku splňuje; přesně 7 stolic vyžaduje samostatně zachycený údaj v dalším
+kroku. Obecná odpověď „hospitalizace“ u zvracení/průjmu sama nedokládá
+konkrétní počet epizod a je předána k review. Klinický výklad i politika
+prozatímních úrovní nadále vyžadují kvalifikované lidské ověření.
+
+CLI zachovává plochý vstup a přidává volitelný režim připraveného check-inu:
+
+```text
+uv run --locked python -m meddi.triage prepared.json --checkin
+uv run --locked python -m meddi.triage prepared.json --checkin --context context.json
+uv run --locked python -m pytest tests/test_checkin_triage.py -q
+```
+
+Také ploché `meddi.triage.evaluate_triage(data)` přeskakuje chybějící vstupy
+a vrací `skipped_rules`; známá zelená není blokovaná neznámými kritérii.
+Kořenový `triage.py`, používaný LLM intake, se v této úpravě nemění.
+
+## Nevolnost a další skupiny klinických pravidel
+
+`meddi/clinical_rules.py` doplňuje požadované skupiny podle pravidel §3–4.
+`meddi.triage.evaluate_checkin` jej volá automaticky a sloučí skóre, důvody,
+přeskočené podmínky i rozpory s dosavadními pravidly. Plochý prototyp
+`evaluate_triage(data)` a kořenový modul pro LLM intake tento nový modul nevolají.
+
+| Skupina | Implementované podmínky |
+| --- | --- |
+| Příjem jídla (§4) | Nevolnost se sníženým příjmem a afty omezující jídlo: nejméně yellow |
+| Tlak (§3–4) | 180/110 red; zvýšený tlak s varovným příznakem red; 160/100 při antiangiogenní léčbě orange; ≥3 zvýšená měření yellow; hypotenze se závratí při vstávání yellow |
+| Krvácení (§3) | Krev ve stolici/zvratcích/moči či černá stolice red; nos >20 minut red; úraz hlavy na antikoagulaci red; krvácení nebo nové modřiny při antikoagulaci orange |
+| Dehydratace a oběh (§3–4) | Nemočení >10 hodin, mdloba nebo systolický tlak <90 red; neudrží tekutiny a známky dehydratace red; neudrží tekutiny orange; nově tekutá strava s nekontrolovanou bolestí orange; snížený příjem s málo močí/závratí orange |
+| Zvracení a břicho (§3–4) | >5 epizod red; 3–5 a neudrží tekutiny orange; 3–5 a pije yellow; zástava plynů i stolice se zvracením nebo kolikou red |
+| Neurologie (§3) | Zmatenost, porucha vědomí/probuditelnosti, nereagování, záchvat, nová slabost končetin či porucha řeči red; ranní bolest hlavy se zvracením u mozkového nádoru orange |
+| Metabolismus (§3–4) | Zvracení + bolest břicha + zrychlené dýchání při diabetu/imunoterapii red; žízeň + časté močení + hubnutí při imunoterapii orange; glykémie <4 při inzulinu orange; >15 se žízní a častým močením yellow |
+| Opioidy (§3) | Nová nápadná spavost, nereagování nebo zpomalené dýchání při opioidech red |
+
+Pro párové prahy tlaku používáme konzervativně překročení kterékoliv složky
+(systolický ≥180 **nebo** diastolický ≥110; obdobně 160/100). „Zvýšený tlak“
+pro kombinaci s varovnými příznaky operacionalizujeme jako systolický ≥140
+nebo diastolický ≥90 podle hranice z §4. Zadání výslovně neříká AND/OR ani
+práh pro tuto kombinaci; oba výklady je nutné ověřit s mentorem. Nové příznaky
+se neoznačují diagnózou a pravidla nemění léky ani dávky.
+
+Přímé mapování vstupů:
+
+- `vital_signs.tk_sys.hodnota`, `tk_dia.hodnota`, `glykemie_mmol_l.hodnota`
+  dodají tlak a glykémii se zachováním zdroje měření.
+- `nezadouci_ucinky/nevolnost`, index ≥1, prokazuje snížený příjem; index 0
+  ho neprokazuje. Výsledkem je žluté minimum, nikoli automatické vyloučení
+  závažnějšího stavu. `ONC-001-C02` je ověřený regresní případ bez reference
+  ve vstupu. `nechutenstvi` index ≥1 dodává snížený příjem pro kombinovaná
+  pravidla; samo se nezaměňuje za nevolnost.
+- `afty` index ≥1 prokazuje omezení jídla. Odpověď „pouze tekutá strava“
+  sama nedokládá, že jde o novou změnu; `new_only_liquid_food` se nedoplňuje.
+- `krvaceni` index 1 dodává společný signál krvácení/modřin. Nedokládá konkrétní
+  místo krvácení. Ani „ano“ u `moceni` nedokládá krev v moči.
+- `zvraceni` zachovává rozsahy jako podmínky (1–2, 3–5, >5); nevymýšlí přesné
+  číslo. Odpověď pouze o obavě z hospitalizace neprokazuje konkrétní počet.
+- `bol_bricho` dokládá bolest břicha a `bol_hrud` bolest na hrudi pro kombinace;
+  samy neurčují další dosud neznámé příznaky.
+
+Dodatečný `context` podporuje boolean/null: `anticoagulation`,
+`antiangiogenic_treatment`, `diabetes`, `immunotherapy`, `insulin_treatment`,
+`brain_tumor`, `opioid_treatment`. Tyto skutečnosti dodává aplikace podle
+údajů dostupných k danému okamžiku; z názvů léčiv či režimů se zde neodhadují.
+
+`observations` přijímá explicitní pozorování, nikoli volnou zprávu:
+
+```python
+result = evaluate_checkin(prepared,
+    context={"opioid_treatment": True},
+    observations={
+        "slow_breathing": {
+            "value": True,
+            "source": {"field": "patient_message", "quote": "Syntetické potvrzené sdělení"},
+        },
+    },
+)
+```
+
+Hodnota může být přímo boolean/číslo nebo záznam `{"value": ..., "source": ...}`.
+`source` je volitelné a celé se zachová v důkazu. Číselná pozorování jsou konečná
+a nezáporná; boolean není číslo. Přijímaná pole:
+
+| Typ/skupina | Pole observations |
+| --- | --- |
+| Čísla | `systolic_bp`, `diastolic_bp`, `glucose_mmol_l`, `nosebleed_minutes`, `hours_without_urine`, `vomiting_episodes_24h`, `elevated_bp_measurements` |
+| Příjem / tekutiny | `nausea_reduced_intake`, `mouth_sores_limit_eating`, `reduced_intake`, `cannot_keep_fluids`, `dehydration_signs`, `new_only_liquid_food`, `pain_uncontrolled`, `low_urine`, `orthostatic_dizziness`, `drinking_maintained`, `fainting` |
+| Tlak a varovné příznaky | `hypotension`, `severe_headache`, `vision_disturbance`, `speech_disturbance`, `chest_pain` |
+| Krvácení | `blood_in_stool`, `blood_in_vomit`, `black_stool`, `blood_in_urine`, `head_injury`, `bleeding_or_new_bruises`, `bleeding`, `new_bruises` |
+| Neurologie | `confusion`, `consciousness_disturbance`, `difficulty_waking`, `seizure`, `new_limb_weakness`, `speech_disturbance`, `unresponsiveness`, `morning_headache` |
+| Metabolismus / břicho | `vomiting`, `abdominal_pain`, `rapid_breathing`, `polydipsia`, `frequent_urination`, `weight_loss`, `no_gas`, `no_stool`, `colicky_abdominal_pain` |
+| Opioidy | `new_marked_drowsiness`, `unresponsiveness`, `slow_breathing` |
+
+`elevated_bp_measurements` znamená počet skutečně známých měření alespoň
+140 systolicky nebo 90 diastolicky; nesmí zahrnovat budoucí měření. Zde se
+historie nesčítá ani nenačítá. Z dechové frekvence se bez zadané klinické
+definice neodvozuje `slow_breathing` ani `rapid_breathing`. Diagnózy a nové
+příznaky, které existují jen ve zprávě, vyžadují navazující extrakci/potvrzení.
+
+Složené podmínky rozlišují true/false/unknown: u AND známé false vyloučí
+pravidlo bez dalších údajů, u OR známé true stačí ke spuštění. Jinak se
+zaznamenají přesně chybějící pole do skipped_rules. Rozporné hodnoty se
+zachovají v review_issues a použije se nejvyšší prokázaná úroveň; není přepsán
+původní formulář ani pozorování. Volný text se automaticky neparsuje a
+reference zůstávají oddělené od rozhodování.
+
+```text
+uv run --locked python -m meddi.triage prepared.json --checkin --context context.json --observations observations.json
+uv run --locked python -m pytest tests/test_clinical_rules.py -q
+```
+
+## Porovnání ground truth a pravidel po check-inech
+
+`main.py` spouští `prepare_checkin` → `meddi.triage.evaluate_checkin`
+pro každý check-in. Reference páruje přes `checkin_id` až pro porovnání;
+do triáže předává pouze připravený aktuální check-in, bez reference,
+názvu scénáře, budoucích záznamů nebo celého pacientského souboru.
+Duplicitní ID a chybějící či přebývající reference odmítá.
+
+```text
+uv run --locked python main.py
+uv run --locked python main.py ONC-001
+uv run --locked python main.py ONC-001 --details
+```
+
+Výchozí tabulka obsahuje CHECK-IN, GROUND TRUTH, RULES, COMPARISON a REVIEW.
+Barvy jsou anglicky; `undetermined` znamená neurčený výsledek, nikoli zelenou
+ani automaticky nižší úroveň. COMPARISON je match/lower/higher/undetermined
+vůči referenci. Hvězdička u RULES označuje prozatímní výslednou úroveň;
+potvrzená červená není označena hvězdičkou jen kvůli nižšímu prozatímnímu
+oranžovému pravidlu. Souhrn ukazuje shody vůči všem záznamům, počet neurčených
+výsledků a počet záznamů k review. `--details` přidá zdůvodnění reference,
+důvody pravidel s odkazy na zdroj, kódy položek k review a přeskočená pravidla
+s konkrétními chybějícími vstupy.
+CLI nastavuje výstup na UTF-8, aby i v PowerShellu prošla zdůvodnění
+s českou diakritikou a symboly jako ≥.
+
+`compare_patient` vrací po check-inech `rules_color`, `reference_color`,
+`reference_reason`, `comparison`, `requires_review`, `provisional`,
+`reasons`, `review_issues` a `skipped_rules`. Nahrazuje předchozí dotazníkový baseline
+(`questionnaire_color`); dřívější shoda 117/171 se vztahovala k tomuto baseline.
+
+CLI zatím nedodává kontext léčby. Jde o průběžné vývojové porovnání omezené
+sady pravidel, nikoli o úplné vyhodnocení klinické správnosti. Neurčené
+výsledky zůstávají jen tam, kde není žádné vyhodnotitelné pravidlo. Chybějící
+SpO2 či NRS se zaznamenají do skipped_rules a neblokují jinou známou barvu;
+nevyhodnocené odpovědi a zprávy zůstávají k review. Chybějící měření samo
+není totéž jako pravidlo o nevyplněných check-inech (§4 pravidel).
+
 ## Minimální propojení intake → triáž
 
 ```text

@@ -4,36 +4,8 @@ Minimální propojení intake a triáže: `evaluate_intake` převádí pouze pot
 celkový pocit a NRS. CLI zobrazí známou minimální barvu a neúplnost posouzení;
 jiné otázky zatím nemají mapování. Bez dalšího LLM volání a bez nových závislostí.
 
-MASTER QUESTION (16. 10. 2026): tým požaduje otevřený popis stavu a následný
-výběr jen potřebných otázek, použitelný také pro pozdější kontrolu parametrů.
-Zdrojovou zprávu zpracovávat společně se `zprava_pacienta`; zachovat čas a autora.
-Rozpracovaný [návrh propojení](master-question.md) odděluje fakta, odpovědi,
-prozatímní riziko a plán kontrol. Klinická interpretace nejistoty a konkrétní
-intervaly vyžadují upřesnění; nejde zatím o implementovanou pipeline.
-
-Technický návrh: zachovat oba aktuální moduly a přidat adaptér a katalog vazeb,
-zatím bez RAG. Vyšší úroveň z možných podložených interpretací počítá kód;
-nezapisuje se jako pacientem potvrzená horší hodnota. Bezpečnostní kontrolu
-neomezovat vyhledanými otázkami a nečekat na dokončení rozhovoru při známém
-tvrdém pravidle. Důvody a zdroje jsou v návrhu.
-
 | Datum | Rozhodnutí | Důvod |
 | --- | --- | --- |
-| 2026-10-16 | Ponechat katalog a zprávu ve stejném uživatelském vstupu, katalog před proměnlivým textem | Při měření přesun katalogu do samostatné systémové části způsobil u jednoho citlivého syntetického screeningu HTTP 400 content_filter, původní i opravené uspořádání prošlo. Zachovat dotazníkový kontext a možnost opakovat statický prefix. Blokace má vlastní hlášení, chybná úvodní analýza uchová zprávu se stavem processing_error |
-| 2026-10-16 | Zmenšit reprezentaci MASTER a omezit cílené příklady, zachovat všech 49 témat a přesné možnosti | MASTER vynechá pouze mechanická metadata, poznámku formuláře předá jednou a celý katalog tvoří statický prefix. Cílené volání má nejvýše 3 příklady stejné otázky/typu, API JSON je kompaktní. Po limitu kontaktu se další cílená extrakce nevolá; neomezujeme pokrytí filtrem klíčových slov nebo top-k |
-| 2026-10-16 | Měřit tokeny z API a přesnost na plně označené syntetické sadě | Volitelný on_usage callback ukládá jen počty a dobu, bez textů a klíčů. Oddělit chybějící metriky od nuly, záchyt minimálních témat od nepovolených přiřazení, ověřovat negaci a subjekt. Cache měřit přes cached_tokens; slevu a latenci neslibovat z jediného měření. Klinické ověření je samostatné |
-| 2026-10-16 | Úplný katalog 49/49 otázek místo prvních šesti témat; klíčová slova, aliasy a kontext v question_topics.json | Celý katalog a aktuální balíčky otázek jsou v promptu; fakt vrací topic_ids omezené dynamickým enumem. Kód mapuje přesná ID a zachová pořadí i podmínky; žádné top-k nebo filtrování jen doslovnými slovy. Chybějící položka katalogu vyvolá chybu. Úplnost struktury nezaručuje sémantickou úplnost LLM; tu ověřuje oddělená syntetická regrese |
-| 2026-10-16 | Oddělit rozpoznaná témata od rozpočtu dotazování; zbývající otázky exportovat jako dialogue.pending_topic_ids | Všechna rozpoznaná fakta a kandidáti zůstávají v paketu i při limited; pacient se nezahltí automatickým kladením všech otázek. Popření a potíže pečujícího nevyvolávají cílený dotaz pacientovi; neznámé pojmy zůstávají viditelné |
-| 2026-10-16 | Propojit MASTER se stávajícím Intake přes seed původních zpráv a oddělené MasterDialogue | Úplná odpověď jde k potvrzení, neúplná k doptání. Zachovat skutečné otázky, autory, ID a dostupnost zdrojů; nepředstírat, že MASTER odpověď vznikla na cílený dotaz. Původní API i kolegovo napojení cíleného CLI na triáž zůstávají zachované |
-| 2026-10-16 | Výchozí limit kontaktu 6 zahrnuje MASTER, doptání, potvrzení i opravy; limit doptání parametru zůstává 2 | Omezení zátěže a opakovaných odmítnutí bez vynucování hodnoty. Limity lze nastavit; po vyčerpání limited, nepotvrzené hodnoty zůstávají návrhy. Jde o prototypovou politiku, nikoli klinicky schválené časování |
-| 2026-10-16 | Obecná extrakce každé další slovní odpovědi a přidání nových témat po uzavření aktivní relace | Nové potíže se nesmějí ztratit kvůli cílené otázce ani porušit její rozpracované pořadí. Naléhavost a reakce na riziko nadále patří do nezávislé integrace; MASTER dialog tuto bezpečnostní větev neimplementuje |
-| 2026-10-16 | Rozhraní modulu pro pipeline: find_question, QuestionnaireFlow.for_targets a create_targeted_session | Zjednodušení integrace cíleného dotazování na parametr bez nutnosti znát interní ID dotazníku; jednotná fasáda balíčku llm_intake; pro 49 otázek zatím ponechán přímý katalog bez RAG/embeddingů; srovnávací benchmark neproběhl, validace schématu je nezávislá na vyhledávání |
-| 2026-10-16 | MASTER extraktor vytěžuje fakta, kandidátní otázky vybírá kód přes dosavadní katalog | Samostatný prompt, striktní schéma a pět syntetických příkladů; LLM nevrací triáž ani potvrzení. Zachovat neznámá témata a neurčený subjekt, neptat se pacienta automaticky na potíže pečujícího nebo popřený příznak. Zatím šest témat, kandidáti nejsou hotový plán |
-| 2026-10-16 | Sdílet HTTP transport Client.send a tvorbu striktního požadavku s oběma extraktory | Zachovat dosavadní autentizaci a chybové stavy bez kopie klienta. Modelu pro MASTER poslat pouze text, otázku a autora; zdroj, ID a simulovaný čas zůstanou v aplikační obálce |
-| 2026-10-16 | Sdílený balíček otázky a možností pro model, katalog, příklady i export; volitelné /moznosti | Tým chce usnadnit pacientovi odpovídání a přitom přesně zachovat definice. Příklady odkazují ID místo kopií textů. Výlučné „žádné“ nelze kombinovat s účinky; popis barev se modelu nepředává |
-| 2026-10-16 | Pořadí a podmínky řídit QuestionnaireFlow ze zdrojového JSON; rozlišit celý formulář a cílený vstup | Tým požaduje původní větvení a budoucí kontrolu jednoho parametru. Cílený vstup nevyplňuje rodiče mimo rozsah, uvnitř rozsahu platí potvrzené podmínky; nevyřešené větve zůstávají viditelné |
-| 2026-10-16 | Nový pipeline paket llm_intake / v1 vedle původního intake v2 | Normalizované hodnoty, potvrzení a zdroje bez barev; odmítnutý návrh není aktuální odpověď. MASTER extraktor, karta, časování a triáž zůstávají oddělené následující úkoly |
-| 2026-10-16 | Nejbližší krok MASTER QUESTION omezit na samostatný kontrakt zprávy/faktů a první katalog v LLM části | Tým vyvíjí LLM nezávisle; triáž, karta a plánovač jsou nyní pouze kontext budoucího zapojení. Zachovat intake v2, intervaly, zdroj a nejasnost; nepokryté pojmy nezahazovat. Paket faktů má vlastní schema_version=1 a potvrzení unconfirmed přidává aplikace; obecný extraktor bude další krok |
 | 2026-10-16 | Python 3.12 + uv | Společný základ pro Python/ML na Linuxu i Windows |
 | 2026-10-16 | Obecné AGENTS.md + startovní prompt v README; práce podle docs/tasks.md | Jedno zadání pro libovolné agenty bez dalších šablon |
 | 2026-10-16 | documents/ pro zdroje, docs/ pro týmové zápisy | Podklady lze rovnou vkládat bez správy indexu |
