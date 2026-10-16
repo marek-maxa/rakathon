@@ -6,13 +6,12 @@
 - [MEDDI_Onco_Rakathon_2026.pptx](MEDDI_Onco_Rakathon_2026.pptx) — úvodní prezentace,
   kontext a směr řešení na slidech 2–5.
 
-**JSON s daty, pravidly a referencemi zatím není v repozitáři.** Po převzetí
-potvrdíme podmínky použití a teprve pak rozhodneme o uložení a zpracování.
-Pacientské údaje ani klíče sem nepatří.
+**JSON s daty, pravidly a referencemi je v [rakathon_meddi_onco_data/](../rakathon_meddi_onco_data/README.md).**
+Obsahuje 14 fiktivních pacientů a 171 check-inů, oddělené `ground_truth/`,
+triážní pravidla a definice dotazníků. README balíčku, oddíl 6, dovoluje pro
+prototyp nad těmito smyšlenými daty libovolný LLM. Skutečné pacientské údaje
+ani klíče sem nepatří.
 
-[archive/](archive/) obsahuje ostatní zadání, související data a společné materiály
-organizátorů přesunuté beze změny obsahu 16. 10. 2026. Nejsou vstupem MEDDI.
-Tři přesné dodatečné kopie z původního `_duplicates/` byly po opětovném ověření
-shody odstraněny; primární soubory zůstávají v archivu.
-
-Předchozí výběr tématu je v [historickém zápisu](../docs/archive/vyber-tematu.md).
+Aktivní týmové zadání a návrh jsou v [docs/challenge.md](../docs/challenge.md)
+a [docs/architecture.md](../docs/architecture.md). Archiv ostatních témat už
+není součástí aktuálního checkoutu.

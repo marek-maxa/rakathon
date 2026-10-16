@@ -17,7 +17,7 @@ datový balíček MEDDI a domluvíme jeden průchod od hlášení k výstupu.
 | [docs/decisions.md](docs/decisions.md) | Důležitá rozhodnutí |
 | [AGENTS.md](AGENTS.md) | Společné instrukce pro libovolné agenty |
 | `pyproject.toml` + `uv.lock` | Knihovny a uzamčené verze |
-| [docs/archive/](docs/archive/README.md), [documents/archive/](documents/archive/) | Historie výběru a podklady ostatních témat |
+| [rakathon_meddi_onco_data/](rakathon_meddi_onco_data/README.md) | Fiktivní pacienti, pravidla, dotazníky a oddělené reference |
 
 ## Příkazy
 

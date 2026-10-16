@@ -10,3 +10,8 @@
 | 2026-10-16 | Ostatní podklady přesunout do documents/archive/, výběr tématu a staré úkoly do docs/archive/; odstranit tři znovu ověřené duplicity a lokální cache | Nový začátek na pokyn týmu, zachování původních podkladů a předchozí práce; nahrazuje rozhodnutí o uchování _duplicates/ |
 | 2026-10-16 | Odstranit předem zvolené runtime knihovny, ponechat Python 3.12 + uv, pytest a Ruff | Bez implementace nemají ML/HTTP knihovny využití; závislosti přidávat podle konkrétní potřeby |
 | 2026-10-16 | Nejprve data a jeden průchod v čase, potom implementace po domluvených krocích | Architektura je návrh k diskusi; MEDDI JSON zatím chybí, framework ani AI poskytovatel nejsou vybrané |
+| 2026-10-16 | První prototyp bude CLI, prioritu mají data a funkčnost; frontend a nasazení odkládáme | Výslovná představa týmu, snadné testování a přehlednost |
+| 2026-10-16 | Pacientská karta s vývojem v čase, LLM pro personalizované dotazy a strukturované zpracování odpovědí | Směr určený týmem; podoba historie, hranice rozhodování LLM, časování a schéma zůstávají k diskusi v docs/architecture.md |
+| 2026-10-16 | První CLI používá simulovaný čas a předem zaznamenané odpovědi | Výslovná odpověď týmu; umožní opakovatelné přehrávání, odpovědi na nové otázky se nesmějí domýšlet |
+| 2026-10-16 | MEDDI balíček je dostupný v rakathon_meddi_onco_data/ | Potvrzeno týmem a lokálně ověřeno 14 pacientů / 171 check-inů; reference zůstávají oddělené, podmínky pro LLM popisuje README balíčku, oddíl 6 |
+| 2026-10-16 | Veškerou triáž určuje náš kód; LLM pouze extrahuje informace pro rozhodování | Výslovná volba týmu. Kód vyhodnotí také kontext, trendy a nejistotu a určí úroveň, další krok, kontakt a upozornění; LLM nadále personalizuje formulaci otázek |

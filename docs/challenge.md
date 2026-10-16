@@ -27,8 +27,10 @@ nebo 155 (s. 7). Zpráva pacienta má přednost před dotazníkem, souhrn má b�
 
 Zadavatel slibuje JSON: 14 fiktivních pacientů, 171 záznamů, 4 dotazníky,
 kontext léčby a léků, zprávy, měření, triážní pravidla a referenční souhrny
-(s. 8). **Datový balíček zatím v repu není.** Podmínky jeho sdílení a použití
-externí AI je třeba potvrdit při převzetí.
+(s. 8). **Datový balíček je v [rakathon_meddi_onco_data/](../rakathon_meddi_onco_data/README.md).**
+Lokálně ověřeno 14 pacientských JSON a 171 check-inů. README balíčku potvrzuje
+fiktivní data a v oddílu 6 dovoluje pro tento prototyp libovolný jazykový model.
+Obsahuje také triážní pravidla, definice dotazníků a oddělené reference.
 
 Povinné situace (s. 9):
 
@@ -59,8 +61,11 @@ Hlas, ostré notifikace, produkční nasazení a trénování vlastního modelu
 odkládáme. MEDDI API během akce nebude; integraci máme navrhnout, hlas je bonus
 (s. 12). Konkrétní UI a AI službu teprve vybereme.
 
-S mentorem / organizátorem zbývá potvrdit datový balíček, klinická pravidla,
-hodnoticí vstup a výstup, termín a způsob odevzdání. Lokální PDF termín neuvádí.
+README balíčku, oddíl 4, definuje výstup na každý check-in a párování referencí.
+S mentorem / organizátorem zbývá dořešit nejasnosti v interpretaci pravidel,
+případné dodatečné hodnoticí rozhraní, termín a způsob odevzdání. Lokální PDF
+termín neuvádí. První verze podle týmu poběží v CLI, se simulovaným časem
+a předem zaznamenanými odpověďmi.
 
 Doplňující [prezentace MEDDI](../documents/MEDDI_Onco_Rakathon_2026.pptx),
 slidy 2–5, potvrzuje zaměření na koordinaci a kontext. Podrobné soutěžní
