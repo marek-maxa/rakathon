@@ -4,11 +4,11 @@ Only explicit observations, measurements, and selected answers enter rules.
 True/False/None represent a proven condition, its rejection, or missing data.
 """
 
-import math
 from copy import deepcopy
 from dataclasses import dataclass
 
 from .common_types import Severity
+from .validation import number
 
 RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
 CONTEXT_FLAGS = {
@@ -191,13 +191,8 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
     def put(field, value, evidence):
         if value is None:
             return
-        if field in OBSERVATION_NUMBERS and (
-            isinstance(value, bool)
-            or not isinstance(value, (int, float))
-            or not math.isfinite(value)
-            or (value < 0 and field != "weight_gain_3_days_kg")
-        ):
-            raise ValueError(f"Observation {field} must be a finite nonnegative number")
+        if field in OBSERVATION_NUMBERS:
+            number(field, value)
         facts.setdefault(field, []).append((value, evidence))
 
     for field in CONTEXT_FLAGS:
@@ -225,23 +220,41 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
             },
         )
     for field in OBSERVATION_FLAGS | OBSERVATION_NUMBERS:
-        supplied = observations.get(field)
-        value = supplied.get("value") if isinstance(supplied, dict) else supplied
-        if field in OBSERVATION_FLAGS and value is not None and type(value) is not bool:
-            raise ValueError(f"Observation {field} must be bool or None")
-        evidence = {"kind": "observation", "field": field, "value": value}
-        if isinstance(supplied, dict) and "source" in supplied:
-            evidence["source"] = deepcopy(supplied["source"])
-        put(field, value, evidence)
-        if field == "vomiting_episodes_24h" and value is not None:
-            put("vomiting", value > 0, evidence)
-            put("vomiting_3_to_5", 3 <= value <= 5, evidence)
-            put("vomiting_over_5", value > 5, evidence)
-        if field == "stools_above_baseline_24h" and value is not None:
-            put("diarrhea", value > 0, evidence)
-            put("diarrhea_4_to_6", 4 <= value <= 6, evidence)
-            put("diarrhea_up_to_3", 0 < value <= 3, evidence)
-            put("diarrhea_at_least_7", value >= 7, evidence)
+        supplied_values = observations.get(field)
+        # A list of source records preserves contradictory CURRENT reports.
+        # The adapter chooses the episode/time; predicates keep every value.
+        entries = (
+            supplied_values if isinstance(supplied_values, list) else [supplied_values]
+        )
+        for supplied in entries:
+            if isinstance(supplied_values, list) and not isinstance(supplied, dict):
+                raise TypeError("Multiple observations require source records")
+            value = supplied.get("value") if isinstance(supplied, dict) else supplied
+            if (
+                field in OBSERVATION_FLAGS
+                and value is not None
+                and type(value) is not bool
+            ):
+                raise ValueError(f"Observation {field} must be bool or None")
+            if field in OBSERVATION_NUMBERS:
+                number(
+                    field,
+                    value,
+                    supplied.get("unit") if isinstance(supplied, dict) else None,
+                )
+            evidence = {"kind": "observation", "field": field, "value": value}
+            if isinstance(supplied, dict) and "source" in supplied:
+                evidence["source"] = deepcopy(supplied["source"])
+            put(field, value, evidence)
+            if field == "vomiting_episodes_24h" and value is not None:
+                put("vomiting", value > 0, evidence)
+                put("vomiting_3_to_5", 3 <= value <= 5, evidence)
+                put("vomiting_over_5", value > 5, evidence)
+            if field == "stools_above_baseline_24h" and value is not None:
+                put("diarrhea", value > 0, evidence)
+                put("diarrhea_4_to_6", 4 <= value <= 6, evidence)
+                put("diarrhea_up_to_3", 0 < value <= 3, evidence)
+                put("diarrhea_at_least_7", value >= 7, evidence)
 
     for raw_field, field in (
         ("tk_sys", "systolic_bp"),
@@ -278,7 +291,8 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
         elif name == "bol_bricho":
             put("abdominal_pain", True, evidence)
         elif name == "bol_hrud":
-            put("chest_pain", index == 1, evidence)
+            # Both options report pain; only the second reports NEW pain.
+            put("chest_pain", True, evidence)
         elif name == "prujem":
             put("diarrhea", True, evidence)
             if index in (0, 1, 2):

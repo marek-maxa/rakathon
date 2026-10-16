@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from .common_types import Severity
 from .loader import DATA_DIRECTORY
+from .validation import prepared_inputs
 
 QUESTIONNAIRE_COLORS = {
     "zelena": Severity.GREEN,
@@ -136,7 +137,7 @@ def prepare_checkin(checkin: dict) -> dict:
             prepared["questionnaire_instance_id"] = questionnaire.get("vyplneni_id")
             answers.append(prepared)
 
-    return {
+    result = {
         "patient_id": checkin.get("patient_id"),
         "checkin_id": checkin.get("checkin_id"),
         "date": checkin.get("datum"),
@@ -156,6 +157,8 @@ def prepare_checkin(checkin: dict) -> dict:
         "patient_message": checkin.get("zprava_pacienta"),
         "attachments": deepcopy(checkin.get("prilohy")),
     }
+    prepared_inputs(result)
+    return result
 
 
 def evaluate_checkin(checkin: dict) -> Severity | None:

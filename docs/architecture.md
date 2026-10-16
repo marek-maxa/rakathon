@@ -1,11 +1,59 @@
 # Technické řešení
 
 Základ: Python 3.12 + uv, Linux / Windows PowerShell. Vývojové nástroje: pytest a Ruff.
-Implementované jsou samostatné moduly `triage.py` a `llm_intake/` bez runtime
-závislostí. CLI intake po potvrzení odpovědi volá triáž; pacientská karta
-a celá aplikace zatím nejsou implementované. Rozhraní popisují následující oddíly.
+Implementované jsou `llm_intake/` a společné výpočetní jádro `meddi/` bez runtime
+závislostí. Kořenový `triage.py` zachovává starší vstupní funkce a deleguje do
+`meddi/`. Pacientská karta a celá aplikace zatím nejsou implementované.
 
-## Stav po sloučení s d1b58f4
+## Společný backend — stav 17. 10. 2026
+
+`meddi.pipeline.evaluate_contact(packet, patient_snapshot=None, *, context=None,
+now=None)` propojuje skutečný LLM paket s širším jádrem pravidel. Převádí potvrzené
+možnosti i přesně doložená pozorování; zachovává celý původní kontakt, zdroje,
+potvrzení, čas a nevyřešené údaje. Nevytváří další LLM požadavky.
+
+```text
+MasterDialogue / build_pipeline_packet
+    → meddi.pipeline.evaluate_contact + aktuální snapshot karty
+    → časový výběr, validace a zachování současných rozporů
+    → prepared / context / observations
+    → meddi.triage.evaluate_checkin
+    → meddi_contact_assessment / v1: minimum + úplnost + zdroje + celý intake
+```
+
+Rozhraní, časový kontrakt karty, mapování, omezení a příklady jsou v
+[backend.md](backend.md). Funkci lze volat i během dialogu před potvrzením;
+samotný `MasterDialogue` zůstává nezávislý, volání řídí budoucí orchestrátor.
+Neúplné zelené minimum se navenek vrací jako `color=null`, známé vyšší minimum
+zůstává zachováno. Společná validace odmítá NaN/nekonečno, neplatné domény
+a jednotky. Dlouhodobá bolest na hrudi již není chybně vykládána jako její negace.
+
+Offline syntetický průchod na Linuxu i v PowerShellu:
+
+```text
+uv run --locked python -m meddi.pipeline meddi/contact.example.json --snapshot meddi/snapshot.example.json --output assessment.json
+```
+
+Web ani jeho API se neupravovaly. Historické review níže vysvětluje důvody
+změny; popis dvou nezávislých sad pravidel už není aktuálním integračním rozhraním.
+
+## Revize připravenosti před sjednocením (16. 10.)
+
+[Revize main a větve web](pipeline-readiness.md) vyhodnocuje stav na `0420073`
+a `origin/web` na `6aeb385`. Lze zahájit integrační CLI prototyp, ale hotové
+propojení LLM → širší pravidla → karta zatím neexistuje. Kořenový pipeline
+adaptér používá pouze čtyři původní podmínky a web očekává další API dialogu,
+které na main není. Revize neměnila běžící aplikační kód ani neslučovala větve.
+
+Doporučený nejbližší krok: po opravě doložených chyb jeden adaptér nad
+`meddi.triage.evaluate_checkin`, který převede LLM paket a aktuální kontext
+karty na `prepared`, `context`, `observations`. Zachovat zdroj, subjekt,
+jednotku, čas, nejistotu, potvrzení a nevyřešené údaje. Karta má ukládat
+původní události i odvozený stav; export organizačního dotazníku není celý
+záznam kontaktu. Konkrétní návrh, ověření 502 testy, výsledek 171 check-inů
+a známé chyby jsou v revizi. Jde o doporučení, nikoli již zavedenou fasádu.
+
+## Historický stav po sloučení s d1b58f4
 
 Existují dvě oddělené cesty triáže:
 

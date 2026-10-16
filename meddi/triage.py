@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .clinical_rules import HANDLED_QUESTIONS, HANDLED_VITALS, evaluate_clinical_rules
 from .common_types import Severity
+from .validation import number, prepared_inputs
 
 RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
 
@@ -25,6 +26,9 @@ def fever_score(temperature, recent_chemotherapy):
     Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
     section 3, Red / Horečka. Chills are not covered by this function.
     """
+    number("temperature_c", temperature)
+    if recent_chemotherapy is not None and type(recent_chemotherapy) is not bool:
+        raise ValueError("chemotherapy_within_6_weeks must be bool or None")
     if temperature is None:
         return None
     if temperature < 38:
@@ -40,6 +44,7 @@ def oxygen_score(spo2):
     Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
     section 3, Red and Orange / Dýchání. Baseline changes are not covered.
     """
+    number("spo2_pct", spo2)
     if spo2 is None:
         return None
     if spo2 < 90:
@@ -55,6 +60,7 @@ def overall_feeling_score(feeling):
     Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
     section 3, Orange / Celkový stav.
     """
+    number("overall_feeling", feeling)
     if feeling is None:
         return None
     return Severity.ORANGE if feeling == 5 else Severity.GREEN
@@ -67,6 +73,12 @@ def pain_score(pain, persists_after_rescue_dose):
     section 3, Orange / Bolest; section 4, pain NRS 4–6.
     Other severe-pain cases return None pending review.
     """
+    number("pain_nrs", pain)
+    if (
+        persists_after_rescue_dose is not None
+        and type(persists_after_rescue_dose) is not bool
+    ):
+        raise ValueError("pain_persists_after_rescue_dose must be bool or None")
     if pain is None:
         return None
     if pain < 4:
@@ -142,6 +154,7 @@ def evaluate_checkin(
     Additional treatment flags and symptom observations are documented in
     clinical_rules.py and docs/architecture.md; only explicit facts are used.
     """
+    prepared_inputs(prepared)
     context = context or {}
     clinical = evaluate_clinical_rules(prepared, context, observations or {})
     for field in (

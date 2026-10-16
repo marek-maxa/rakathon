@@ -1,24 +1,32 @@
 # Rozhodnutí
 
-Minimální propojení intake a triáže: `evaluate_intake` převádí pouze potvrzený
-celkový pocit a NRS. CLI zobrazí známou minimální barvu a neúplnost posouzení;
-jiné otázky zatím nemají mapování. Bez dalšího LLM volání a bez nových závislostí.
+Společný backend (17. 10. 2026): `meddi.pipeline.evaluate_contact` převádí
+potvrzené odpovědi a přesně doložené fakty do širšího jádra `meddi/`.
+Kořenové funkce zůstávají kompatibilními vstupy, klinická pravidla již nekopírují.
+Výstup odděluje známé minimum od úplnosti; zachovává zdroje a celý LLM kontakt.
+Bez dalšího LLM volání a bez nových závislostí; kontrakt v [backend.md](backend.md).
 
 MASTER QUESTION (16. 10. 2026): tým požaduje otevřený popis stavu a následný
 výběr jen potřebných otázek, použitelný také pro pozdější kontrolu parametrů.
 Zdrojovou zprávu zpracovávat společně se `zprava_pacienta`; zachovat čas a autora.
 Rozpracovaný [návrh propojení](master-question.md) odděluje fakta, odpovědi,
 prozatímní riziko a plán kontrol. Klinická interpretace nejistoty a konkrétní
-intervaly vyžadují upřesnění; nejde zatím o implementovanou pipeline.
+intervaly vyžadují upřesnění; propojení LLM s triáží již existuje, karta a
+plánování kontrol zatím implementované nejsou.
 
-Technický návrh: zachovat oba aktuální moduly a přidat adaptér a katalog vazeb,
-zatím bez RAG. Vyšší úroveň z možných podložených interpretací počítá kód;
+Technický směr: oddělené LLM a triáž propojuje adaptér, zatím bez RAG.
+Vyšší úroveň z možných podložených interpretací počítá kód;
 nezapisuje se jako pacientem potvrzená horší hodnota. Bezpečnostní kontrolu
 neomezovat vyhledanými otázkami a nečekat na dokončení rozhovoru při známém
 tvrdém pravidle. Důvody a zdroje jsou v návrhu.
 
 | Datum | Rozhodnutí | Důvod |
 | --- | --- | --- |
+| 2026-10-17 | Jediné klinické jádro meddi/; nový evaluate_contact a kompatibilní kořenové vstupy | Opravit doložené chyby a sjednotit backend na pokyn týmu. Potvrzené odpovědi procházejí původními definicemi, doložená fakta normalizací a stejnými pravidly; žádný web, nové závislosti nebo LLM požadavky |
+| 2026-10-17 | Oddělit minimum_color, color a assessment_status; celý intake zachovat ve výstupu | Neúplné zelené minimum se nesmí vydávat za úplné posouzení. Známé riziko může být vyhodnoceno před potvrzením, aniž by se označilo za potvrzenou zkušenost pacienta. Rozsahy/nejisté alternativy zůstávají k dořešení, nikoli odhadnutou hodnotou |
+| 2026-10-17 | Snapshot je aktuální výběr karty s patient_id/as_of; zdroje mají dostupnost a volitelný skutečný čas/expiraci | Novější pozorování stejného parametru nahrazuje starší, současné konfliktní hodnoty se zachovají pro maximum pravidel. Neužívat trvale maximum celé historie ani první položku JSON. Obecné relativní časy a klinická expirace se nevymýšlejí; §6.2–6.4 pravidel |
+| 2026-10-17 | Sdílená validace číselných domén a jednotek před pravidly | NaN nesmí přes porovnání znamenat negativní nález. Validace není nová sada klinických prahů; degC přijato, bolest přítomna oddělena od novosti bolesti; zdrojové definice zůstávají beze změny |
+| 2026-10-16 | Revize připravenosti pipeline bez zásahu do aplikačního kódu; doporučení jednoho adaptéru nad meddi/ | Dvě současné cesty triáže mají odlišný rozsah i kontrakt, vzdálený web očekává chybějící API. Nejprve doložené chyby a společný vstup se zdroji/časem, pak jeden CLI průchod a připojení karty/webu. Podrobnosti a meze měření v pipeline-readiness.md; sjednocení nebylo tímto zápisem implementováno |
 | 2026-10-16 | Sloučení d1b58f4: zachovat širší meddi/ i omezený pipeline adaptér, obnovit historii LLM | Odlišné datové kontrakty a politika neúplných dat nedovolují automatickou záměnu. Přesné porovnání, reprodukce chyby mapování a oprava jsou v [merge-review.md](merge-review.md); klinické prahy a pravidla origin zůstávají beze změny |
 | 2026-10-16 | Adaptér evaluate_pipeline_packet v triage.py a export MasterDialogue z kořene | Triage modul přijímá celý pipeline packet s odpověďmi a fakty i volitelný kontext (chemoterapie z karty); kořen llm_intake exportuje MasterDialogue, load_topic_catalog a resolve_topics |
 | 2026-10-16 | Ponechat katalog a zprávu ve stejném uživatelském vstupu, katalog před proměnlivým textem | Při měření přesun katalogu do samostatné systémové části způsobil u jednoho citlivého syntetického screeningu HTTP 400 content_filter, původní i opravené uspořádání prošlo. Zachovat dotazníkový kontext a možnost opakovat statický prefix. Blokace má vlastní hlášení, chybná úvodní analýza uchová zprávu se stavem processing_error |

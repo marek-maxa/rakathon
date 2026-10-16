@@ -1,0 +1,42 @@
+{
+  "kind": "llm_intake",
+  "schema_version": 1,
+  "message": {
+    "id": "synthetic-contact",
+    "patient_id": "synthetic-patient",
+    "text": "Za posledních 24 hodin jsem zvracel šestkrát a nyní mám teplotu 38,2 °C.",
+    "available_at": "2026-10-17T10:00:00+02:00",
+    "source": "master_question",
+    "author": "patient",
+    "question": "Jak se dnes cítíte?"
+  },
+  "facts": [
+    {
+      "concept": "vomiting.episodes",
+      "presence": "present",
+      "evidence": "Za posledních 24 hodin jsem zvracel šestkrát",
+      "subject": "patient",
+      "value": 6,
+      "unit": "episodes",
+      "time_text": "Za posledních 24 hodin",
+      "certainty": "stated",
+      "topic_ids": [],
+      "source_message_id": "synthetic-contact",
+      "confirmation": "unconfirmed"
+    },
+    {
+      "concept": "temperature",
+      "presence": "present",
+      "evidence": "nyní mám teplotu 38,2 °C",
+      "subject": "patient",
+      "value": 38.2,
+      "unit": "degC",
+      "time_text": "nyní",
+      "certainty": "stated",
+      "topic_ids": [],
+      "source_message_id": "synthetic-contact",
+      "confirmation": "unconfirmed"
+    }
+  ],
+  "question_answers": []
+}

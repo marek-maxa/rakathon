@@ -7,6 +7,8 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 | --- | --- | --- | --- |
 | Vymezit klíčové nálezy, varovné příznaky a doporučení; AGENTS.md | Aktuální relace / main | done | Pracovní výklad týmu je v kořenových instrukcích: varovné příznaky tvoří podmnožinu klíčových nálezů, vedou k 3/4, klíčové nálezy obsahují i zlepšení a jsou podkladem doporučení |
 | Research neshod triáže a konkrétní plán změn; docs/tasks.md, lokální .scratch/ | Aktuální relace / main | done | Nový běh všech 171 check-inů, vysvětlení všech lower/higher, kontrolní dosazení chybějících vstupů, primární zdroje pro spornou gradaci a kroky oddělené od neschválených klinických výkladů; bez změny aplikačního kódu. Rozbor je na konci tohoto souboru v oddílu Research neshod triáže |
+| Sjednotit výpočetní backend a opravit doložené chyby; meddi/pipeline.py, meddi/validation.py, meddi/triage.py, meddi/clinical_rules.py, meddi/form.py, triage.py, ukázky, testy a docs/ | Aktuální relace / main | done | Jediné jádro pravidel, evaluate_contact a kompatibilní kořenová API; degC, konflikty podle času, NaN/nekonečno a dlouhodobá bolest opravené. 543 testů (41 nových), Ruff, formát, syntetické CLI a JSON prošly; kontrakt v backend.md. Replay zůstává 132/171, 30 nižších a 9 vyšších. Web, karta a plné klinické ověření mimo rozsah |
+| Revize připravenosti pipeline LLM → triáž → karta; docs/pipeline-readiness.md, architecture.md, decisions.md, tasks.md | Aktuální relace / main | done | Main 0420073, fetch web 6aeb385, 502 testů a Ruff prošly; reference 132/171 shod, 30 nižších, 9 vyšších. Reprodukovány nesoulad degC, závislost na pořadí, NaN, chybná negace dlouhodobé bolesti, ztrátový web export a nekompatibilní API. Konkrétní integrační krok v pipeline-readiness.md; bez změny aplikačního kódu |
 | Porovnat a sloučit pipeline adaptér s d1b58f4; docs/, triage.py, llm_intake/__init__.py, tests/ | Aktuální relace / main | done | Obnovená historie LLM, zachované nové jádro a veřejná API, zdůvodněné rozdíly v merge-review.md, opravená záměna délky za teplotu; 502 testů a Ruff prošly |
 | Ověřit efektivitu a přesnost LLM; client.py, master.py, dialogue.py, evaluate_topics.py, testy a docs/ | Aktuální relace / main | done | Skutečné API měření: MASTER −28,2 % a cílená únava −56,1 % vstupních tokenů; zachovaná sémantika všech 49 otázek. Konečná varianta 68/68 živých případů, 74/74 očekávaných témat, 0 nepovolených přiřazení v 15 přísně označených případech; 9 cílených scénářů a 260 automatických testů prošlo. Objevená regrese filtru brány opravena, podrobnosti níže |
 | Úplné směrování témat MASTER; llm_intake/question_topics.json, question_catalog.py, master_contract.py, master.py, master_schema.json, master_prompt.md, dialogue.py, evaluate_topics.py, testy a docs/ | Aktuální relace / main | done | 49/49 otázek má klíčová slova, kontext a přesné ID; celý katalog v promptu, enum ve schématu, mechanické párování a zachované odložené otázky. 250 testů a Ruff prošly; 53 živých syntetických případů zachytilo 55/55 očekávaných témat, omezené požadavky opakovány pomaleji; podrobnosti níže |
@@ -29,12 +31,33 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 | Extraktor MASTER QUESTION nad připraveným kontraktem; llm_intake/master.py, master_prompt.md, master_schema.json, client.py, ukázkové JSON, tests/test_master_extraction.py a docs/ | Aktuální relace / main | done | Striktní extrakce s pěti příklady a sdíleným transportem, kandidáti a nepokryté pojmy, CLI nad zaznamenanou zprávou; 149 testů a tři živé syntetické scénáře prošly. Bez triáže, karty a automatického rozhovoru |
 | Napojit kandidáty MASTER na omezený dialog a potvrzování; llm_intake/dialogue.py, core.py, client.py, flow.py, pipeline.py, prompt.md, tests/test_master_dialogue.py a docs/ | Aktuální relace / main | done | Interaktivní MASTER i vstup ze souboru, původní otázky a zdroje, potvrzení/oprava, nová témata a podmíněné větve, rozpočet včetně potvrzení a JSON; 183 testů, Ruff a dva živé syntetické CLI průchody prošly; cílené CLI a triáž zachované |
 | Vyhodnotit celý MASTER dialog; llm_intake/ a oddělené evaluační příklady | Nepřiřazeno | todo | Katalog všech otázek a samostatná regrese rozpoznání témat už existují; zbývají nezávislé scénáře správnosti potvrzené možnosti, počtu dotazů, rozporů a nevyřešených kontaktů. Samostatně klinická integrace a pravidla |
-| Domluvit budoucí napojení LLM faktů na pravidla a kartu; docs/master-question.md, docs/architecture.md | Tým | todo | Mapování k triage.py, pokrytí tvrdých pravidel, rozpočet kontaktu a práce s nejistotou; vyjasněné mezery hranic průjmu a NRS. Samostatná práce LLM části tím není blokovaná |
+| Zpřesnit klinické alternativy a smlouvu s kartou; docs/master-question.md, docs/backend.md, docs/architecture.md | Tým | todo | Základní kontrakt nad meddi/ již implementován. Zbývají podložené intervaly/alternativy, obecný relativní čas, výběr aktuální epizody producentem karty a rozpory definic průjmu a NRS |
+| Opravit doložené chyby před integrací; triage.py, meddi/clinical_rules.py, hranice vstupů a regresní testy | Aktuální relace / main | done | Zahrnuto do společného backendu 17. 10.; degC, pořadí/čas/konflikty, nekonečná/NaN měření a dlouhodobá bolest pokryté regresními testy |
+| Navázat společný backend na kartu, orchestraci a později web API | Tým | todo | LLM → meddi a syntetické uložení/načtení celého JSON již ověřeno. Další krok: orchestrátor volá evaluate_contact po zprávě/potvrzení, ukládá zdroje i vyhodnocení do karty; web používá existující potvrzovací API a stabilní patient_id. Web zatím odložen na pokyn týmu |
 | S mentorem potvrdit nejasnosti pravidel a časových údajů; docs/challenge.md, docs/architecture.md | Tým + mentor | todo | Známá dostupnost údajů v čase, vyřešené interpretační otázky, případné dodatečné hodnoticí rozhraní, termín a způsob odevzdání |
 | Společně projít jeden případ a domluvit schéma extrakce a karty; docs/architecture.md | Tým | todo | Definovaná pozorování se zdrojem a časem, jejich použití v pravidlech a výstupy pro pacienta i zdravotníka; zvolený nejmenší implementační krok |
 | První průchod načtení → triáž → výstup | Nepřiřazeno | todo | Po domluvě předchozího kroku konkretizovat soubory; jeden případ běží s dohledatelnými důvody a bez budoucích dat či referencí ve vstupu |
 | Vyhodnocení všech šesti povinných situací a hraničních vstupů | Nepřiřazeno | todo | Časové přehrávání, podhodnocení závažnosti a zbytečné poplachy mají ověřitelné výsledky; klinickou interpretaci prošel mentor |
 | Demo pro pacienta a tým, návrh integrace | Nepřiřazeno | todo | Srozumitelný další krok, souhrn a simulované upozornění; opakovatelný scénář i záloha bez externí služby |
+
+Sjednocení backendu 17. 10. 2026: `uv run --locked python -m pytest -q` —
+543 testů prošlo (41 nových případů v `tests/test_backend_pipeline.py`).
+`uv run --locked ruff check --no-cache .`, kontrola formátu všech sedmi
+měněných Python souborů a `git diff --check` prošly. Spuštěno skutečné offline
+CLI `python -m meddi.pipeline` nad syntetickým kontaktem/snapshotem, ověřen
+JSON roundtrip, zachování celého intake a nahrazení staré normální teploty
+novým údajem. MasterDialogue s falešným extraktorem ověřil červené minimum
+před potvrzením i po něm. Nové regrese pokrývají pořadí/rozpory, nízkou i vysokou
+glykemii, budoucí a expirované vstupy, identitu pacienta, doslovnost citací,
+nejasný čas/interval, jednotky a neplatná čísla; shodná možnost a přesné měření
+nevytvářejí falešný rozpor, skutečný rozpor teploty zachová červené minimum. CLI `--help` prošlo.
+Opakované porovnání dodaných fiktivních dat: 132/171 shod, 30 nižších a
+9 vyšších úrovní, 171 případů k review; z šesti červených referencí čtyři
+červené a dvě oranžové. Tato čísla se proti revizi nezměnila a nejsou
+klinickým potvrzením správnosti; doplnění textových pozorování a plné §6.4
+zůstává otevřené. Nový kontrakt a příkaz v [backend.md](backend.md).
+Kontroly na Linuxu / Pythonu 3.12, Windows se nespouštěl. Bez volání LLM,
+změny závislostí, zdrojových dat, webu nebo uložení skutečné karty.
 
 Ověření úklidu 16. 10. 2026: `uv sync --locked --offline` a
 `uv run --locked ruff check --no-cache .` prošly. SHA-256 potvrdily nezměněný
@@ -498,3 +521,10 @@ obsahuje všech 39 aktuálních neshod, součty 30 lower / 9 higher a všech 24
 kontrolních dosazení; lokální odkazy výzkumu existují. `git diff --check`
 prošel. Změny tohoto kroku jsou pouze `docs/tasks.md` a výslovně požadované
 vymezení výstupních polí v `AGENTS.md`; zbývající neznámé údaje nebyly domyšleny.
+
+Pull a příprava publikace 17. 10. 2026: začleněn `ddb4789` s výkladem
+výstupních polí v AGENTS.md a rozborem neshod. Konflikt v tabulce úkolů
+vyřešen zachováním obou sad záznamů: vzdálený research a lokální sjednocení
+backendu jsou odlišné dokončené kroky. Prošlo 543 testů, Ruff, offline CLI
+meddi.pipeline nad syntetickými ukázkami a načtení jeho výstupního JSON;
+23 místních odkazů ověřeno. Linux, bez živého LLM a bez Windows.
