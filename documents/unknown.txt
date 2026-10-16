@@ -1,0 +1,91 @@
+Copy of Podklady
+Schránka vzpomínek
+
+Místo pro slova, která mohou zůstat nablízku
+
+Rakathon 2026 · Průvodce pro vývojový tým
+
+Schránka vzpomínek pomáhá rodičům uchovat osobní dopisy, příběhy a vzpomínky pro své děti. Zvláštní význam může mít pro rodiny, které procházejí závažným onemocněním. Rodič má mít možnost začít jednou větou, tvorbu kdykoli přerušit a bezpečně se k ní vrátit.
+
+Cíl rakathonu: spustitelné demo s jedním dokončeným scénářem od výběru dítěte až po znovuotevření uloženého dopisu.
+
+
+
+01 · Co má fungovat v první verzi
+
+* Profil dítěte: alespoň jedno fiktivní dítě a jeho vlastní prostor pro vzkazy.
+* Textový dopis: vytvořit, otevřít a upravit vlastní text přiřazený k dítěti.
+* Koncept a hotový vzkaz: rozepsaný dopis uložit a později dokončit.
+* Přehled: rozlišit stavy a znovu najít i otevřít uložené vzkazy.
+* Trvalé uložení: obsah i jeho stav musí přežít zavření a restart dema.
+
+Hlavní průchod
+
+1. Otevřít aplikaci a vybrat dítě.
+2. Z profilu dítěte začít nový dopis.
+3. Napsat text a uložit jej jako koncept.
+4. Koncept znovu otevřít, upravit a uložit jako hotový.
+5. Hotový dopis najít v přehledu a znovu otevřít.
+6. Restartovat demo a ukázat, že dopis zůstal zachovaný.
+
+Hotovo znamená: celý průchod skutečně funguje a tým jej předvede na telefonu nebo emulátoru. Součástí předání je stručné vysvětlení technického řešení a návrhu bezpečného ukládání.
+
+
+
+02 · Jak má aplikace působit
+
+Laskavě a jednoduše. Krátké, srozumitelné texty a snadné ovládání i při únavě. Jedna věta stačí. Uživatel může kdykoli přestat a vrátit se později.
+
+Bez tlaku. Žádné povinné úkoly, odpočítávání ani hodnocení výkonu. Potvrzení uložení má jemně podpořit, nikoli vyvolávat pocit povinnosti.
+
+Soukromě. Pro demo používat výhradně fiktivní data. Žádné veřejné profily ani automatické sdílení. Předání obsahu dítěti a jeho budoucí přístup patří do další fáze.
+
+Vizuální směr: světlý podklad, teplé přírodní a pastelové odstíny, čitelné písmo a klidná atmosféra. Přiložené obrazovky slouží jako inspirace. Důležitý je funkční a vizuálně konzistentní výsledek.
+
+
+
+03 · Knihovna podkladů
+
+Diagram aplikace
+
+Diagram aplikace.drawio — editovatelný podklad pro orientaci v návaznosti obrazovek. Originál lze otevřít a upravovat v diagrams.net / draw.io.
+
+
+Hlavní uživatelský průchod
+
+1. Homepage.png — vstup do aplikace, hlavní navigace a výzva k malému prvnímu kroku.
+
+2. Moje děti.png — výběr dítěte a vstup do jeho osobního prostoru.
+
+3. Profil dítěte.png — výchozí bod tvorby vzkazu a přehled obsahu konkrétního dítěte.
+
+4. Co již bylo vytvořeno.png — knihovna vzpomínek a rozlišení stavů. V MVP stačí textové dopisy a stavy koncept / hotové.
+
+5. Vytvoř vzkaz.png — inspirace pro editor dopisu a uložení konceptu nebo hotového vzkazu. Ozdoby a detailní personalizace jsou volitelné.
+
+6. Ocenění za vzkaz.png — klidné potvrzení úspěšného uložení a možnost pokračovat nebo se vrátit později.
+
+
+Kontext a inspirace
+
+7. Proč to má smysl.png — srozumitelné vysvětlení smyslu vzpomínkových darů.
+
+8. Inspirace a tipy.png — otázky a náměty, které rodiči pomáhají začít tvořit.
+
+9. Mimo aplikaci.png — inspirace pro fyzické vzpomínkové dary, například dopisy, fotoknihu nebo krabici vzpomínek.
+
+
+
+04 · Možnosti dalšího rozvoje
+
+Fotografie, hlas a video, převod řeči na text, milníky a plánované vzkazy, uložené inspirace, evidence fyzických darů a export. Tyto části mohou rozšířit hotové jádro podle času a možností týmu.
+
+
+05 · Otázky k dohodě v týmu
+
+* Volba platformy a způsob spuštění dema.
+* Způsob ukládání a ochrany obsahu, pozdější zálohování a export.
+* Budoucí pravidla přístupu dítěte a předání vzpomínek.
+
+Odborný kontext projektu: Mgr. Lenka Fuxová a Mgr. Kateřina Holá, Ph.D., FNOL.
+
