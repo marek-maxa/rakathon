@@ -4,6 +4,8 @@ import argparse
 import json
 import sys
 
+from triage import evaluate_intake
+
 from .client import APIError, Client
 from .core import DEFINITIONS, Intake, load_question
 
@@ -53,6 +55,12 @@ def main() -> int:
                 if answer in {"ano", "a"}:
                     result = session.confirm()
                     print("Děkujeme, odpověď byla potvrzena.")
+                    triage = evaluate_intake(result)
+                    print(
+                        f"Triáž (omezená sada pravidel): {triage['color'] or 'neurčeno'}"
+                    )
+                    if triage["requires_review"]:
+                        print("Posouzení je neúplné; chybí další údaje pro triáž.")
                     if args.debug:
                         print("\nPotvrzený JSON pro navazující modul:")
                         print(

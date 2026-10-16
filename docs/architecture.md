@@ -2,8 +2,26 @@
 
 Základ: Python 3.12 + uv, Linux / Windows PowerShell. Vývojové nástroje: pytest a Ruff.
 Implementované jsou samostatné moduly `triage.py` a `llm_intake/` bez runtime
-závislostí. Jejich propojení, pacientská karta a celá aplikace zatím nejsou
-implementované. Rozhraní obou modulů popisují následující oddíly.
+závislostí. CLI intake po potvrzení odpovědi volá triáž; pacientská karta
+a celá aplikace zatím nejsou implementované. Rozhraní popisují následující oddíly.
+
+## Minimální propojení intake → triáž
+
+```text
+uv run python -m llm_intake --question pocit
+uv run python -m llm_intake --questionnaire bolest_analgeticka_terapie --question nrs
+```
+
+Po pacientově potvrzení CLI zavolá `triage.evaluate_intake(result)` a vypíše
+barvu a upozornění na neúplné posouzení. `pocit` mapuje potvrzený index 0–4
+na `overall_feeling` 1–5; `nrs` předává číselnou odpověď do `pain_nrs`.
+Jiné otázky ani nepotvrzené návrhy nepřevádí na klinická fakta. Barvy možností
+dotazníku se k určení výsledné triáže nepoužívají.
+
+Příkaz stále řeší jednu otázku. Pocit 5 tak vrátí `orange`, bolest 4–6 `yellow`;
+ostatní potřebné údaje zůstávají neznámé a `requires_review` je true.
+Bez prokázané eskalace vypíše „neurčeno“, nikoli zelenou. Výchozí otázka
+`unava` zatím nemá mapování. Kontext léčby ani měření se zde nedoplňují.
 
 ## Implementováno: malá deterministická triáž
 
@@ -244,4 +262,4 @@ uv run pytest
 
 Testy pytest existují pro `llm_intake/`. Ověření prvního `triage.py`
 proběhlo samostatnými kontrolami funkce a CLI; rozsah a výsledek jsou v tasks.md.
-Oba moduly mají vlastní CLI výše; společná aplikace zatím nemá spouštěcí příkaz.
+CLI intake navíc vypisuje omezenou triáž podle propojení popsaného výše.

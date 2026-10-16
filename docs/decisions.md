@@ -1,5 +1,9 @@
 # Rozhodnutí
 
+Minimální propojení intake a triáže: `evaluate_intake` převádí pouze potvrzený
+celkový pocit a NRS. CLI zobrazí známou minimální barvu a neúplnost posouzení;
+jiné otázky zatím nemají mapování. Bez dalšího LLM volání a bez nových závislostí.
+
 | Datum | Rozhodnutí | Důvod |
 | --- | --- | --- |
 | 2026-10-16 | Python 3.12 + uv | Společný základ pro Python/ML na Linuxu i Windows |

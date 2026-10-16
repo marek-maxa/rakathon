@@ -106,6 +106,23 @@ def evaluate_triage(data):
     return {"color": color, "scores": scores, "requires_review": requires_review}
 
 
+def evaluate_intake(answer):
+    """Map a confirmed intake answer to the fields supported by this prototype."""
+    fields = {
+        ("nezadouci_ucinky", "pocit"): "overall_feeling",
+        ("bolest_analgeticka_terapie", "nrs"): "pain_nrs",
+    }
+    data = {}
+    field = fields.get((answer.get("dotaznik_id"), answer.get("otazka_id")))
+    if answer.get("confirmed") and field:
+        data[field] = (
+            answer["odpoved_index"] + 1
+            if field == "overall_feeling"
+            else answer["odpoved"]
+        )
+    return evaluate_triage(data)
+
+
 def main():
     """Read prepared JSON and print the result; no clinical rules here."""
     parser = argparse.ArgumentParser(description=__doc__)
