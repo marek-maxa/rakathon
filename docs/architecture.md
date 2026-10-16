@@ -27,8 +27,8 @@ Bez prokázané eskalace vypíše „neurčeno“, nikoli zelenou. Výchozí ot�
 
 [master-question.md](master-question.md) propojuje otevřenou otázku se
 `zprava_pacienta`, extrakcí faktů, výběrem témat, stávajícím intake a budoucími
-kontrolami z karty. Jde o návrh, nová orchestrace ani konzervativní vyhodnocení
-alternativ zatím nejsou implementované. Stávající rozhraní modulů se nemění.
+kontrolami z karty. Omezená orchestrace LLM dialogu už existuje níže;
+konzervativní vyhodnocení alternativ a napojení na kartu jsou zatím návrh.
 
 Zásadní hranice: každá zpráva nejprve poskytne fakta pro nezávislou kontrolu
 tvrdých pravidel; běžné doptávání ani potvrzení nesmějí blokovat již známé
@@ -53,21 +53,31 @@ Neobsahuje triáž a nenahrazuje export intake v2. Čas dostupnosti a zdroj dod�
 aplikace; relativní čas ani interval se nepřevádějí na domyšlené přesné měření.
 
 `llm_intake.question_catalog.load_catalog()` čte všech 49 dvojic ID ze zdrojových
-definic. `lookup_questions(concepts)` vrací vazby na otázky a nenamapované pojmy.
-První mapování pokrývá šest témat v `nezadouci_ucinky`, nikoli všechna pravidla.
-Zachovává podmínky větvení, ale nevyhodnocuje je. Jde o kandidátní vazby,
+definic. `load_topic_catalog()` je spojí s `question_topics.json`: klíčová slova,
+anglické aliasy a kontext pro každou otázku. Kontroluje přesnou shodu 49/49;
+zdrojové otázky ani jejich možnosti nekopíruje. `resolve_topics(topic_ids)`
+vrací balíčky z přesných ID; `lookup_questions(concepts)` zůstává kompatibilní
+alternativou pro vlastní extraktory bez ID. Zachovává podmínky větvení,
+ale nevyhodnocuje je. Jde o kandidátní vazby,
 ne plánovač: i popření nebo potíž pečujícího má vazbu, kterou musí následný
 výběr posoudit podle celého faktu a kontextu.
 
 Pět syntetických příkladů v `llm_intake/master_examples.json` vymezuje požadovaný
-převod a používá je nový extraktor níže. Automatické vedení otázek a potvrzování
-těchto faktů zůstávají další malé kroky. Karta, časování a triáž se zde neimplementují.
+převod a používá je nový extraktor níže. Omezený dialog už potvrzuje vybrané
+odpovědi; samostatná fakta zůstávají návrhy. Karta, časování a triáž se zde neimplementují.
 
 ## Implementováno: extrakce MASTER QUESTION a kandidáti otázek
 
 `llm_intake.master.MasterExtractor(client)(message)` vrací validovaný seznam
 `Fact`. Vlastní `master_prompt.md` a `master_schema.json`, pět příkladů v kontextu
-a balíčky otázek šesti namapovaných témat. Model nedostává identifikátory
+a celý katalog všech 49 otázek včetně klíčových slov a možností odpovědí.
+Fakt obsahuje `topic_ids`, která striktní schéma omezuje enumem z katalogu;
+kód validuje a mechanicky mapuje ID, bez top-k nebo embeddingů.
+Pro model posílá text, typ, návod, poznámku a přesné možnosti; technická
+metadata pořadí/podmínek zůstávají v aplikaci a exportu. Poznámka formuláře
+je jednou v `questionnaire_context`. Katalog a příklady tvoří statický prefix
+před proměnlivou zprávou. JSON pro API je kompaktní.
+Model nedostává identifikátory
 pacienta ani systémový čas; časová vyjádření zachovává doslovně. Další pojmy
 uchová i bez odpovídající otázky. HTTP transport a autentizaci sdílí s intake
 přes `Client.structured_payload()` a `Client.send()`.
@@ -89,8 +99,51 @@ uv run --locked --env-file llm_intake/.env python -m llm_intake.master llm_intak
 Na stdout je JSON, při chybě zpráva na stderr a kód 1. Nevalidní či nedokončený
 výstup se nepřekládá na úspěšný prázdný výsledek. Samotné `no_facts` neznamená
 dobrý stav pacienta. [Rozhraní a živý syntetický výstup](../llm_intake/MASTER_CONTRACT.md).
-Další krok propojí kandidáty a již sdělené hodnoty s omezeným dialogem a
-potvrzováním; současná funkce neposuzuje naléhavost, stáří nebo celkový rozpočet.
+Kandidáty a již sdělené hodnoty propojuje `MasterDialogue` níže. Samotná funkce
+`analyze_message` neposuzuje naléhavost, stáří nebo celkový rozpočet.
+
+## Implementováno: omezený interaktivní MASTER dialog
+
+```text
+uv run --locked --env-file llm_intake/.env python -m llm_intake.dialogue --debug --output .scratch/master-output.json
+```
+
+`llm_intake.dialogue.MasterDialogue` spojuje extrakci zprávy, kandidáty,
+`QuestionnaireFlow` a `Intake`. `start(MessageEvent)` zahájí kontakt;
+`active` je aktuální cílená relace. Dále `submit(MessageEvent)`, `confirm()`,
+`reject()`, `cancel()` a `snapshot()`. Předávaná odpověď musí mít nové ID,
+správného pacienta, skutečnou otázku a čas ne starší než poslední zpráva.
+Fakta všech slovních odpovědí se uchovávají a nová témata vstoupí do flow
+po uzavření aktivní relace; už ukončené otázky se neopakují.
+
+`Intake.seed(messages)` využije existující zprávy bez změny jejich původních
+otázek. `submit_event(message)` připojí další odpověď se zdrojem. Úplný údaj
+jde přímo k potvrzení, neúplný k doptání. `Client.extract_events` předává
+modelu navíc autory zdrojů. Původní `submit(text)` a tříargumentový extraktor
+zůstávají funkční. Export v2 přidá `source_events` jen při použití událostí;
+pipeline `turns` pak doplní ID, čas dostupnosti a autora zdroje.
+
+Kontakt má výchozí `max_questions=6` včetně MASTER, potvrzení a oprav;
+`max_clarifications=2` dál omezuje jednotlivý parametr. Vyčerpání kontaktu je
+`limited`, nedokončená větev či nepokrytý pojem `unresolved`, přerušení
+`cancelled`, úspěšný sběr `complete` (nikoli klinické vyhodnocení). JSON
+zahrnuje všechny zpracované `messages`, `facts` se správnými zdroji,
+`question_answers` a `dialogue` se stavem, limitem a průběhem větví.
+`dialogue.pending_topic_ids` zpřístupňuje připravené i blokované otázky,
+které zbývají po vyčerpání rozpočtu; fakta a kandidáti se tím nezkracují.
+
+CLI podporuje `/moznosti`, `/konec`, `--input`, `--debug`, `--output`,
+`--max-questions`, `--max-clarifications` a simulovaný `--at`.
+Bez vstupního souboru se ptá od MASTER; se souborem pokračuje z uložené
+zprávy. Čas kontaktu se automaticky neposouvá. Chyba nezpůsobí potvrzení
+ani prázdný úspěch; CLI skončí 1, může uložit dosud zpracovaný stav a nemá
+automatické obnovení. Kódy 0/2 značí dokončený/neúplný nebo přerušený sběr.
+Vyčerpaný rozpočet se kontroluje před další cílenou extrakcí; otevřená otázka
+zůstává bez návrhu a původní rozpoznaná fakta se zachovají.
+Katalog zahrnuje všechny zdrojové otázky; karta a bezpečnostní triáž nejsou
+zapojené. To není úplné pokrytí klinických problémů ani záruka záchytu LLM.
+Nezávislou syntetickou regresi spouští `llm_intake.evaluate_topics`;
+[příkaz a interpretace](../llm_intake/README.md#ověření-rozpoznávání-témat).
 
 ## Implementováno: větvení otázek a předání LLM výstupu
 
@@ -120,11 +173,12 @@ verze 1: původní podnět `message`, nepotvrzené `facts` a `question_answers`
 s balíčky, hodnotami, potvrzením, citací a historií skutečných otázek/odpovědí.
 Nový výstup neobsahuje barvy. Odmítnuté a nevyřešené návrhy mají null;
 samostatný starší export intake v2 zůstává zachovaný. Časy tahů ani původ faktů
-se nevymýšlejí; jednotlivé časy musí později dodat adaptér událostí.
+se nevymýšlejí. Při předání událostí je již uchovává, u původního `submit(text)`
+zůstávají neznámé.
 
-CLI stále řeší jedinou otázku, nabízí `/moznosti` bez API volání a má
+Původní CLI stále řeší jedinou otázku, nabízí `/moznosti` bez API volání a má
 `--max-clarifications`. MASTER má samostatné CLI nad zaznamenanou zprávou výše.
-Propojení kandidátů s celým dialogem a rozpočet kontaktu zůstávají další práce.
+Interaktivní MASTER a rozpočet kontaktu jsou implementované v `dialogue` výše.
 Nový pipeline paket zatím nemá adaptér triáže ani karty. CLI jedné otázky
 používá pouze minimální propojení s triáží popsané výše.
 
@@ -192,6 +246,23 @@ Zdroj: [pravidla triáže](../rakathon_meddi_onco_data/docs/pravidla_triaze.md),
 oddíly 3–4. Rozšiřování pravidel bude pokračovat po review tohoto souboru.
 
 ## Samostatný modul LLM intake
+
+Cílený klient z banky třinácti příkladů posílá nejvýše tři: nejprve shodnou
+otázku, pak stejný typ. Výběr nezávisí na textu odpovědi a zachovává stabilní
+prefix. `Client(on_usage=callback)` umožňuje odečíst skutečné tokeny, cache,
+reasoning a dobu volání bez logování obsahu; nastaví se například přes
+`dataclasses.replace(Client.from_env(), on_usage=callback)`. Chybějící
+metriky jsou null. Evaluátor je připojuje do `api_usage` reportu.
+Rozhraní klinického paketu se tím nemění.
+
+```text
+uv run --locked --env-file llm_intake/.env python -m llm_intake.evaluate_topics --cases tests/fixtures/master_precision_cases.json --output .scratch/master-precision.json
+```
+
+Vedle minimálního pokrytí evaluátor umí `allowed_topics` a `fact_checks`.
+Nepovolená témata, nesprávný subjekt, negace nebo hodnota jsou neúspěch;
+`topic_precision` má jmenovatel jen na plně označené sadě. Měření tokenů
+a jeho limity popisuje [README modulu](../llm_intake/README.md#spotřeba-tokenů).
 
 [llm_intake/README.md](../llm_intake/README.md) popisuje CLI, Python API,
 konfiguraci a export `schema_version=2`. Modul používá jednu explicitně vybranou

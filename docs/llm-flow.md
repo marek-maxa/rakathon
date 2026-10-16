@@ -2,8 +2,8 @@
 
 16. 10. 2026. Rozsah této změny je sběr informací, větvení a předání dat.
 MASTER QUESTION má nyní samostatný extraktor a návrh kandidátů z katalogu;
-propojení s celým dialogem je další krok. Triáž, karta a časování patří
-do navazujících komponent.
+omezené propojení s intake je nyní v `MasterDialogue`. Triáž, karta a časování
+patří do navazujících komponent.
 
 ## Dohodnutý tok a skutečný stav
 
@@ -23,10 +23,12 @@ flowchart TD
 
 Dnes lze ručně zadat cílové otázky nebo projít celý dotazník přes stejný `Intake`.
 [MASTER extraktor](../llm_intake/MASTER_CONTRACT.md) již poskytne kandidáty podle
-faktů pro šest témat; jejich automatické propojení s celým dialogem, odstranění
-již zodpovězených dotazů, rozpočet kontaktu a časování zatím neexistují.
+faktů a přesných `topic_ids` z úplného katalogu 49 otázek; `MasterDialogue`
+je spojuje s potvrzováním a rozpočtem
+kontaktu. Již sdělené hodnoty nabízí rovnou k potvrzení. Časování zatím neexistuje.
 Každá zpráva zůstává uchovaná a lze ji samostatně zpracovat extraktorem, včetně
-informací mimo právě řešenou otázku. Cílené CLI jej zatím automaticky nevolá.
+informací mimo právě řešenou otázku. MASTER dialog zpracuje každou slovní
+odpověď obecně; samostatné cílené CLI jej zatím automaticky nevolá.
 
 ## Zjištění review
 
@@ -128,7 +130,9 @@ Spouštěč z karty později předá stejné `targets` a metadata podnětu. Vyš
 volá `next_question()`, založí `Intake`, nechá jej skončit a předá jej `record()`.
 Pro celý dotazník vynechá `targets`. `flow.snapshot()` vrací aktuální stav,
 seznam připravených/přeskočených/blokovaných otázek a původní exporty intake.
-Zatím nejde o automatický CLI průchod: CLI stále řeší jednu zvolenou otázku.
+Samostatné cílené CLI stále řeší jednu otázku. Pro celý omezený MASTER kontakt
+slouží `uv run --env-file llm_intake/.env python -m llm_intake.dialogue --debug`;
+[návod a kontrakt](../llm_intake/MASTER_CONTRACT.md).
 
 Nová obálka má `kind="llm_intake"`, `schema_version=1`, `message`, `facts`
 a `question_answers`. [Úplný syntetický JSON](../llm_intake/pipeline_example.json)
@@ -141,27 +145,34 @@ Odmítnutý či nevyřešený návrh má hodnotu null, jeho původní sdělení 
 
 `message` je původní podnět kontaktu. Citace odpovědi odkazuje přes `turn_index`
 do vlastního `turns`, nikoli nutně do MASTER zprávy. Čas `available_at` patří
-původní zprávě; časy jednotlivých tahů současný intake neměří a export je
-nevymýšlí. Pro přehrávání skutečné časové historie je musí doplnit budoucí
-adaptér událostí. Fakta zůstávají nepotvrzená nezávisle na potvrzené cílené odpovědi.
+původní zprávě; u `submit(text)` časy tahů zůstávají neznámé. Nové
+`seed(messages)` a `submit_event(message)` je uchovávají z událostí; MASTER CLI
+pracuje se stejným explicitním simulovaným časem v celém kontaktu.
+Fakta zůstávají nepotvrzená nezávisle na potvrzené cílené odpovědi.
 
 ## Co zatím ověření nedokazuje
 
 Automatické testy kontrolují strukturu a logiku, ne přesnost reálného LLM.
-Prošlo 116 testů; nové testy pokrývají všech 49 otázek a větve čtyř dotazníků.
+Při původním review prošlo 116 testů; tehdejší testy pokryly všech 49 otázek
+a větve čtyř dotazníků.
 Upravený prompt byl ověřen dvěma živými syntetickými voláními přes stávající
 bránu: „Únava a slabost, zadýchávání.“ → `[7, 10]` a „Nemám žádné nežádoucí
 účinky.“ → `[12]`; oba výsledky byly nepotvrzené návrhy. Nejde o benchmark.
 Následně přidaný MASTER extraktor již rozlišuje subjekt a popření při návrhu
-kandidátů. Stále chybí řízení podle stáří a již známých hodnot a napojení
-na celý rozhovor. Průchod neřeší naléhavost ani celkový limit
-kontaktu. Známé rozpory NRS 0 vs. 1–10 a hranice průjmu jsou nadále otevřené
+kandidátů. Nynější omezený dialog využívá již známé hodnoty a má celkový limit
+včetně potvrzení a oprav. Stále neřeší naléhavost, epizody ani stáří údajů.
+Známé rozpory NRS 0 vs. 1–10 a hranice průjmu jsou nadále otevřené
 v [návrhu](master-question.md); zdrojové definice se nemění.
 
 Při nejistotě se nepřiřadí horší možnost jako potvrzená zkušenost pacienta;
 závažnost vyhodnotí další kód z doložených faktů a alternativ. Zdroj:
 [pravidla](../rakathon_meddi_onco_data/docs/pravidla_triaze.md), oddíly 3 a 6.4.
 Nový kontrakt ani diagram nepředstavují klinické ověření.
+
+Po rozšíření katalogu prošlo 250 testů. Samostatná živá regrese 53
+syntetických případů zachytila 55/55 očekávaných témat, nikoli naměřenou
+bezchybnou přesnost všech přiřazení. Případy omezené HTTP 429 byly opakovány
+se souběhem 1; [postup, report a limity](tasks.md).
 
 Prompt zachovává explicitní instrukce, příklady a striktní schéma. Technické
 zdroje: [OpenAI Prompt engineering](https://developers.openai.com/api/docs/guides/prompt-engineering),

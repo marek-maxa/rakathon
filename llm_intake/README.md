@@ -10,8 +10,8 @@ a NRS a vypíše omezený výsledek včetně neúplnosti posouzení.
 
 Pro otevřený popis stavu je vedle tohoto průchodu připravený samostatný
 [kontrakt MASTER QUESTION a katalog vazeb](MASTER_CONTRACT.md).
-Obsahuje už LLM extraktor otevřené zprávy a kandidátní otázky podle faktů;
-automatické vedení více témat a potvrzování faktů jsou další krok.
+Obsahuje už LLM extraktor otevřené zprávy, kandidátní otázky podle faktů
+a omezený interaktivní dialog s potvrzováním vybraných odpovědí.
 Pro ručně vybraná témata už existuje `QuestionnaireFlow` a společný výstup
 `build_pipeline_packet()`: [rozhraní, diagram a výsledek review](../docs/llm-flow.md).
 
@@ -23,6 +23,133 @@ uv run --locked --env-file llm_intake/.env python -m llm_intake.master llm_intak
 
 [Návod a formát výstupu](MASTER_CONTRACT.md),
 [ukázka živého syntetického výsledku](master_output.example.json).
+
+## Interaktivní MASTER QUESTION
+
+Z kořene repa na Linuxu i Windows PowerShellu, klíč ve stávajícím `llm_intake/.env`:
+
+```text
+uv sync --locked
+uv run --locked --env-file llm_intake/.env python -m llm_intake.dialogue --debug --output .scratch/master-output.json
+```
+
+Program položí „Jak se dnes cítíte?“. Pro syntetický test napište například
+„Za posledních 24 hodin jsem dvakrát zvracel. Jsem hodně unavený, teplotu nemám.“
+Úplné údaje nabídne rovnou k potvrzení `ano/ne`; chybějící rozlišení doplní
+konkrétním dotazem. Po `ne` přijme opravu a znovu nabídne potvrzení.
+`/moznosti` ukáže texty odpovědí, `/konec` ukončí kontakt.
+
+`--debug` vypíše konečný JSON včetně návrhů a nevyřešených údajů;
+`--output` jej zároveň uloží do zadané cesty (rodičovský adresář vytvoří).
+`.scratch/` Git ignoruje. Bez obou voleb se interní JSON nezobrazuje ani neukládá.
+Výchozí `--max-questions 6` počítá MASTER, doptání, potvrzení i žádosti o opravu;
+`--max-clarifications 2` navíc omezuje doptání jednoho parametru.
+Po dosažení limitu zůstane kontakt `limited`, bez vynuceného potvrzení.
+
+Pro start ze zaznamenané zprávy:
+
+```text
+uv run --locked --env-file llm_intake/.env python -m llm_intake.dialogue --input llm_intake/master_input.example.json --debug
+```
+
+Katalog pokrývá všech 49 otázek čtyř dotazníků. LLM dostává celý katalog
+klíčových slov, kontextů a balíčků otázka + možnosti; vrací přesná `topic_ids`.
+Kód je mechanicky propojí s cíleným flow. Nastavení je v
+[question_topics.json](question_topics.json); chybějící či nadbytečná otázka
+oproti zdroji způsobí chybu, nemůže tiše vypadnout z promptu.
+
+Jde o LLM prototyp bez vyhodnocení naléhavosti a bez karty. Potíže mimo katalog
+zůstávají v JSON včetně `unmapped_concepts`. Po limitu se další rozpoznané
+otázky uchovají v `dialogue.pending_topic_ids`; úplnost katalogu tedy neznamená
+povinnost položit 49 otázek. Čas je simulovaný,
+výchozí `--at 2026-10-16T10:00:00+02:00`; během kontaktu se automaticky neposouvá.
+Podrobný kontrakt a Python rozhraní: [MASTER_CONTRACT.md](MASTER_CONTRACT.md).
+
+## Ověření rozpoznávání témat
+
+Samostatná sada 53 syntetických případů pokrývá každou otázku, více témat,
+popření, potíže pečujícího a problém mimo katalog. Tyto odpovědi nejsou
+promptovými příklady. Živé ověření přes nastavené API:
+
+```text
+uv run --locked --env-file llm_intake/.env python -m llm_intake.evaluate_topics --output .scratch/master-topics-evaluation.json
+```
+
+Provádí placená API volání; `--case ID` vybere konkrétní případ. Výchozí
+`--workers 1` omezuje souběh. Report měří záchyt očekávaných témat pouze
+u validních odpovědí, zvlášť vypíše nevyhodnocené případy, témata navíc a chyby.
+Nejde o klinické ověření ani záruku úplnosti nad libovolnou odpovědí.
+
+Pro kontrolu záměn, negací, subjektu, času, překlepů a pokynů vložených do odpovědi
+je samostatná sada s povolenými tématy a kontrolou faktů:
+
+```text
+uv run --locked --env-file llm_intake/.env python -m llm_intake.evaluate_topics --cases tests/fixtures/master_precision_cases.json --output .scratch/master-precision.json
+```
+
+Parametr `--cases` lze opakovat a spojit obě sady v jediném reportu.
+
+`topic_recall` měří zachycení očekávaných témat. `topic_precision` měří podíl
+povolených témat mezi vrácenými pouze u případů s úplným seznamem povolených
+témat; stará sada minimálního pokrytí nemá tento jmenovatel. Negace a subjekt
+se kontrolují zvlášť. Report ukládá také `api_usage` přímo z brány.
+
+Konečná varianta 16. 10. 2026 prošla spojenou sadou 68/68 případů:
+74/74 očekávaných témat zachyceno, v 15 přísně označených případech
+19/19 přiřazení povolených, kontroly negací, subjektu a hodnot prošly.
+U sady minimálního pokrytí zůstalo 8 souvisejících přiřazení navíc; její
+výsledky samy přesnost neurčují. Dalších 9 živých cílených scénářů prošlo.
+Jde o malé syntetické sady; větší nezávislé ověření celého rozhovoru zbývá.
+
+## Spotřeba tokenů
+
+MASTER stále posílá všech 49 témat i přesné texty otázek a možností.
+Modelová reprezentace vynechává technická metadata pořadí a větvení,
+která zpracovává Python; společné poznámky formuláře jsou jen jednou.
+Katalog stojí před proměnlivou zprávou, JSON pro API nemá zbytečné mezery.
+Cílený extraktor vybírá nejvýše tři příklady: nejprve pro stejnou otázku,
+potom pouze stejný typ (`MAX_TARGETED_EXAMPLES` v client.py).
+Po vyčerpání rozpočtu kontaktu se další cílená extrakce nespustí.
+
+Měření přes bránu 16. 10. 2026 na stejných syntetických vstupech:
+
+| Požadavek | Před úpravou | Po úpravě | Úspora vstupních tokenů |
+| --- | ---: | ---: | ---: |
+| MASTER | 16 169 | 11 605 | 28,2 % |
+| Cílená únava | 5 598 | 2 457 | 56,1 % |
+
+Jde o dva konkrétní požadavky, nikoli průměr všech kontaktů ani úsporu ceny.
+Výstupní tokeny, cache a skutečný tarif se liší. `Client(on_usage=callback)`
+volitelně hlásí vstupní/výstupní tokeny, cache, reasoning a dobu volání;
+chybějící údaj je null, ne nula. Callback dostává pouze metriky, bez klíče
+a textu pacienta. Při testování nastavte callback přes
+`dataclasses.replace(Client.from_env(), on_usage=callback)`.
+
+Statický prefix připravuje požadavky pro opakované použití cache podle
+[official OpenAI documentation](https://developers.openai.com/api/docs/guides/prompt-caching).
+Účinek na konkrétní bráně ověřuje `cached_tokens`; cache ani slevu nepředpokládáme.
+Katalog i zpráva zůstávají ve stejném uživatelském vstupu: během ověření se
+ukázalo, že přesun katalogu do samostatné systémové části může u citlivého
+screeningu vyvolat blokaci brány. `content_filter` se hlásí výslovně a při
+selhání úvodní extrakce se původní zpráva může uložit s `processing_error`.
+Obecnou extrakci dalších slovních odpovědí zachováváme, aby se neztratily
+nově zmíněné potíže. Potvrzení `ano/ne` a `/moznosti` samy LLM nevolají;
+potvrzení může otevřít další otázku, která vlastní extrakci potřebuje.
+
+## Samostatná cílená otázka
+
+```text
+uv run --locked --env-file llm_intake/.env python -m llm_intake --question unava --debug
+uv run --locked --env-file llm_intake/.env python -m llm_intake --question zvraceni --debug
+uv run --locked python -m llm_intake --list
+```
+
+Výchozí dotazník je `nezadouci_ucinky`. Pro jiný použijte například
+`--questionnaire esas --question unava`. Test únavy: „ne, nejde mi spát“ má
+vyvolat doptání. U zvracení odpověď „Za posledních 24 hodin dvakrát“ může
+rovnou přejít k potvrzení. JSON se vypíše po potvrzení s `--debug`.
+Toto původní CLI navíc vypisuje omezenou triáž; „neurčeno“ u nepokrytých
+parametrů neznamená chybu LLM přiřazení.
 
 ## Cílené doptání
 
@@ -144,7 +271,9 @@ První ověření s klíčem proveďte na syntetické odpovědi k únavě, např
 from llm_intake import Intake, load_question
 from llm_intake.client import Client
 
-session = Intake(load_question("nezadouci_ucinky", "unava"), Client.from_env(), max_clarifications=2)
+session = Intake(
+    load_question("nezadouci_ucinky", "unava"), Client.from_env(), max_clarifications=2
+)
 draft = session.submit("Odpočinek mi pomůže.")  # validovaný návrh, confirmed=False
 print(session.patient_summary())  # hodnoty přeložené texty definic
 
@@ -191,7 +320,8 @@ tento izolovaný modul upozorňování neimplementuje a nesmí být jeho jedinou
 ## Prompt a omezení první verze
 
 - [prompt.md](prompt.md): instrukce pro extrakci, negace, nejasnost a opravy.
-- [examples.json](examples.json): třináct syntetických příkladů pro in-context learning,
+- [examples.json](examples.json): banka třinácti syntetických příkladů pro in-context learning;
+  do cíleného požadavku vstupují nejvýše tři relevantní,
   včetně výběru více účinků a „žádné“. U otázky drží jen dvojici ID; klient
   doplní aktuální text, návod i všechny možnosti ze stejných definic.
   Posílají se v každém požadavku; model se tím trvale nepřetrénovává.
@@ -201,7 +331,8 @@ tento izolovaný modul upozorňování neimplementuje a nesmí být jeho jedinou
   se modelu neposílají. Balíček zachovává také pořadí, `podminka` a směr škály
   z poznámky dotazníku; popis barev z této poznámky se vynechává.
   CLI volí jednu otázku explicitně. Python `QuestionnaireFlow` už umí pořadí
-  a větvení celého formuláře nebo vybrané větve; automatický výběr témat zatím ne.
+  a větvení celého formuláře nebo vybrané větve; `MasterDialogue` nad ním
+  řídí kandidáty a potvrzování v rámci jednoho omezeného kontaktu.
 - Typy `jedna`, `vice`, `skala_1_10`, `cislo`, `text` mají lokální validaci.
   U `nrs` text otázky uvádí 0–10, ale typ a poznámka definují 1–10. Prototyp
   respektuje 1–10 a nulu nesmí přemapovat na jedničku; rozsah potvrdit s mentorem

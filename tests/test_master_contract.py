@@ -201,9 +201,6 @@ def test_unmapped_facts_remain_in_packet():
         [Fact.from_dict(fact) for fact in case["facts"]],
     )
     assert packet["facts"][1]["value"] == 0
-    assert lookup_questions(fact["concept"] for fact in packet["facts"])[
-        "unmapped_concepts"
-    ] == [
-        "overall_feeling",
-        "pain.nrs",
-    ]
+    result = lookup_questions(fact["concept"] for fact in packet["facts"])
+    assert result["unmapped_concepts"] == []
+    assert [q["question_id"] for q in result["questions"]] == ["pocit", "nrs"]

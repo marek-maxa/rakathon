@@ -8,14 +8,23 @@ from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 
-from .client import ASSETS, APIError, Client
+from .client import ASSETS, APIError, Client, compact_json
 from .master_contract import Fact, MessageEvent, build_packet
 from .pipeline import build_pipeline_packet
-from .question_catalog import TOPIC_QUESTIONS, load_catalog
+from .question_catalog import (
+    load_catalog,
+    load_topic_catalog,
+    lookup_questions,
+    resolve_topics,
+)
 
 
 def load_schema() -> dict:
-    return json.loads((ASSETS / "master_schema.json").read_text(encoding="utf-8"))
+    schema = json.loads((ASSETS / "master_schema.json").read_text(encoding="utf-8"))
+    schema["properties"]["facts"]["items"]["properties"]["topic_ids"]["items"][
+        "enum"
+    ] = list(load_topic_catalog())
+    return schema
 
 
 def _model_message(message: MessageEvent) -> dict:
@@ -40,6 +49,7 @@ def validate_facts(result: dict, message: MessageEvent) -> list[Fact]:
         raise ValueError("Neplatná struktura extrakce zprávy.")
     schema = load_schema()["properties"]["facts"]["items"]
     fields = set(schema["required"])
+    allowed_topics = set(schema["properties"]["topic_ids"]["items"]["enum"])
     range_fields = {"lower", "upper", "lower_inclusive", "upper_inclusive"}
     facts = []
     for item in result["facts"]:
@@ -56,7 +66,10 @@ def validate_facts(result: dict, message: MessageEvent) -> list[Fact]:
         if isinstance(item["value"], str) and not item["value"].strip():
             raise ValueError("Textová hodnota nesmí být prázdná.")
         try:
-            facts.append(Fact.from_dict(item))
+            fact = Fact.from_dict(item)
+            if not set(fact.topic_ids) <= allowed_topics:
+                raise ValueError("Neznámé ID tématu.")
+            facts.append(fact)
         except (TypeError, ValueError) as exc:
             raise ValueError("Neplatná hodnota faktu.") from exc
     build_packet(message, facts)
@@ -70,16 +83,26 @@ class MasterExtractor:
         self.client = client
 
     def payload(self, message: MessageEvent) -> dict:
-        catalog = load_catalog()
-        guide = {
-            topic: [catalog[ref] for ref in refs]
-            for topic, refs in TOPIC_QUESTIONS.items()
-        }
+        topics = load_topic_catalog()
+        contexts = {}
+        guide = []
+        for row in topics.values():
+            question = row["question"]
+            if question["questionnaire_note"]:
+                contexts[question["questionnaire_id"]] = question["questionnaire_note"]
+            # Úplné texty a možnosti zůstávají. Pořadí, podmínky a duplicitní
+            # ID vyhodnocuje kód; poznámka celého formuláře stačí jednou.
+            semantic = {
+                key: question[key]
+                for key in ("text", "type", "instruction", "note", "options")
+                if question[key] is not None
+            }
+            guide.append({**row, "question": semantic})
         messages = [
             {
                 "role": "system",
                 "content": (ASSETS / "master_prompt.md").read_text(encoding="utf-8"),
-            }
+            },
         ]
         examples = json.loads(
             (ASSETS / "master_examples.json").read_text(encoding="utf-8")
@@ -87,23 +110,28 @@ class MasterExtractor:
         for example in examples:
             # Doplnění null a uzavřenosti rozsahů podle stejného kontraktu.
             facts = [asdict(Fact.from_dict(fact)) for fact in example["facts"]]
+            for fact in facts:
+                if not fact["topic_ids"]:
+                    fact["topic_ids"] = [
+                        f"{q['questionnaire_id']}/{q['question_id']}"
+                        for q in lookup_questions([fact["concept"]])["questions"]
+                    ]
             validate_facts({"facts": facts}, MessageEvent(**example["message"]))
             messages.extend(
                 [
                     {
                         "role": "user",
-                        "content": json.dumps(
+                        "content": compact_json(
                             {
                                 "message": _model_message(
                                     MessageEvent(**example["message"])
                                 )
                             },
-                            ensure_ascii=False,
                         ),
                     },
                     {
                         "role": "assistant",
-                        "content": json.dumps({"facts": facts}, ensure_ascii=False),
+                        "content": compact_json({"facts": facts}),
                     },
                 ]
             )
@@ -111,18 +139,20 @@ class MasterExtractor:
         messages.append(
             {
                 "role": "user",
-                "content": json.dumps(
+                "content": compact_json(
                     {
+                        "topic_catalog": guide,
+                        "questionnaire_context": contexts,
                         "message": _model_message(message),
-                        "concept_guide": guide,
-                    },
-                    ensure_ascii=False,
+                    }
                 ),
             }
         )
-        return self.client.structured_payload(
+        payload = self.client.structured_payload(
             messages, load_schema(), "patient_message_facts"
         )
+        payload["max_completion_tokens"] = 8192
+        return payload
 
     def __call__(self, message: MessageEvent) -> list[Fact]:
         return validate_facts(self.client.send(self.payload(message)), message)
@@ -134,21 +164,38 @@ def analyze_message(
     """Vrací kandidáty, ne hotový plán či pacientem potvrzené odpovědi.
 
     Popření a potíže pečujícího uchováme, ale samy nespouštějí dotaz pacientovi.
-    Pojem mimo počáteční mapování se nesmí potichu ztratit.
+    ID témat se mapují přes katalog; vlastní extraktory bez ID mohou dál
+    používat explicitní anglické aliasy. Nepokrytý pojem zůstává viditelný.
     """
     facts = extract(message)
     catalog = load_catalog()
     reasons: dict[tuple[str, str], list[int]] = {}
     unmapped, unknown_subject = [], []
     for index, fact in enumerate(facts):
-        topic = fact.concept.split(".", 1)[0]
-        if topic not in TOPIC_QUESTIONS and fact.concept not in unmapped:
+        fallback = lookup_questions([fact.concept])
+        packages = (
+            resolve_topics(fact.topic_ids) if fact.topic_ids else fallback["questions"]
+        )
+        generic = {
+            "nezadouci_ucinky/jine",
+            "bolest_analgeticka_terapie/nu_jine",
+            "esas/jiny",
+        }
+        if (
+            not packages
+            or (
+                fact.topic_ids
+                and set(fact.topic_ids) <= generic
+                and fallback["unmapped_concepts"]
+            )
+        ) and fact.concept not in unmapped:
             unmapped.append(fact.concept)
         if fact.subject == "unknown":
             unknown_subject.append(index)
         if fact.subject != "patient" or fact.presence == "absent":
             continue
-        for ref in TOPIC_QUESTIONS.get(topic, ()):
+        for package in packages:
+            ref = (package["questionnaire_id"], package["question_id"])
             reasons.setdefault(ref, []).append(index)
     return {
         **build_pipeline_packet(message, facts),

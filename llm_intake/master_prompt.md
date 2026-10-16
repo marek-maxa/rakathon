@@ -15,12 +15,28 @@ Vrať pouze facts podle dodaného schématu. Jeden fakt popisuje jeden pojem,
 subjekt a časový kontext. Nevracej žádná metadata zdroje nebo stav potvrzení;
 ty připojí aplikace. Nevypisuj zdůvodnění ani procenta jistoty.
 
-- concept: používej stabilní pojmy z concept_guide, pokud význam sedí.
+- concept: používej stabilní pojmy z topic_catalog.concepts, pokud význam sedí.
   Např. vomiting, vomiting.episodes, diarrhea.episodes, fatigue, temperature,
   breathlessness a bleeding. Tečka označuje konkrétní údaj tématu.
   Pro další sdělené potíže vytvoř stručný anglický pojem ve snake_case,
   např. sleep_difficulty, pain.nrs, overall_feeling nebo confusion.
   Nenamapovaný problém nezahazuj ani nepřejmenovávej na podobný známý příznak.
+- topic_ids: vyber VŠECHNA různá témata podložená tímto faktem z topic_catalog.
+  Vracej přesná topic_id ve formátu dotaznik/otazka; přípustné hodnoty vynucuje
+  schéma. Každé téma má klíčová slova, anglické aliasy, hint a celý balíček
+  otázky s možnostmi. Rozpoznej i parafráze, hovorovou češtinu a slovenštinu;
+  nejde o požadavek na doslovný výskyt klíčového slova. Nevracej jen jedno
+  nejpodobnější téma ani top-k. Pro různé příznaky, subjekty, negace nebo časy
+  vytvoř samostatné fakty. Pro pojem bez odpovídající otázky nech topic_ids [].
+  Výslovné popření má také téma, ale presence absent; neznamená, že se má ptát.
+  Nezmíněná témata nevyplňuj jako absent. Před dokončením projdi pokrytí všech
+  sdělených potíží a informací proti CELÉMU katalogu, nic nevynechávej.
+  Rozcestník (ucinky, nnz_typ, stolice_typ, bolesti_typ) vybírej při obecné
+  nejasné potíži; pro známý konkrétní příznak rovnou konkrétní otázku.
+  Podobné otázky v různých dotaznících nejsou automaticky více témat:
+  běžná slovní únava → nezadouci_ucinky/unava; výslovná škála únavy 1–10
+  či ESAS → esas/unava. Respektuj hint, rozsah škály a časové okno.
+  Nevytvářej novou škálu, číslo ani příčinnou souvislost kvůli přiřazení.
 - presence: present pro výslovně sdělenou potíž nebo konkrétní měření,
   absent pro výslovné popření, uncertain pro sdělené „nevím, zda…“.
   Nezmíněný údaj nevytváří žádný fakt. „Cítím se dobře“ nepopírá všechny potíže.
@@ -42,7 +58,9 @@ ty připojí aplikace. Nevypisuj zdůvodnění ani procenta jistoty.
   „přibližně“, uncertain = nerozlišené alternativy nebo nejistá přítomnost.
   Toto popisuje sdělení, nikoli pravděpodobnost správnosti tvé interpretace.
 
-concept_guide obsahuje vazby témat na balíčky otázka + návod + možnosti.
+topic_catalog obsahuje VŠECHNY otázky ze všech čtyř dotazníků, nejen nežádoucí
+účinky, ale i psychiku, rodinu/podporu, analgetickou léčbu a ESAS.
+Každá položka váže topic_id na balíček otázka + návod + možnosti.
 Jsou slovníkem pro orientaci v pojmech, nikoli seznamem povinně přítomných
 příznaků. Z MASTER odpovědi nevyplňuj tyto otázky, nevytvářej rodičovské
 odpovědi a nevybírej indexy možností. Pokud zpráva nemá žádný zpracovatelný

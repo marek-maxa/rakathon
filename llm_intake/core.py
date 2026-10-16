@@ -4,8 +4,10 @@ import json
 import math
 from collections.abc import Callable
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
+
+from .master_contract import MessageEvent
 
 DEFINITIONS = (
     Path(__file__).resolve().parents[1]
@@ -242,17 +244,24 @@ class Intake:
     """
 
     def __init__(
-        self, question: Question, extract: Callable, *, max_clarifications: int = 2
+        self,
+        question: Question,
+        extract: Callable,
+        *,
+        max_clarifications: int = 2,
+        extract_with_events: Callable | None = None,
     ):
         if type(max_clarifications) is not int or max_clarifications < 0:
             raise ValueError("Limit doptání musí být nezáporné celé číslo.")
         self.question = question
         self._extract = extract
+        self._extract_with_events = extract_with_events
         self._sources: list[str] = []
         self._draft: dict | None = None
         self._state = "needs_answer"
         self._revision = 0
-        self._source_questions: list[str] = []
+        self._source_questions: list[str | None] = []
+        self._source_events: list[dict | None] = []
         self._clarifications = 0
         self._rejections = 0
         self._max_clarifications = max_clarifications
@@ -273,19 +282,47 @@ class Intake:
         return self.question.text
 
     def submit(self, text: str) -> dict:
+        return self._submit(text, self.next_question)
+
+    def submit_event(self, message: MessageEvent) -> dict:
+        if message.question != self.next_question:
+            raise ValueError("Událost musí zachovat skutečnou další otázku.")
+        return self._submit(message.text, message.question, asdict(message))
+
+    def seed(self, messages: list[MessageEvent]) -> dict:
+        """Použije existující zprávy, aniž by předstíralo cílený dotaz."""
+        if self._revision or self.state != "needs_answer" or not messages:
+            raise ValueError("Zdroje lze připojit jen na začátku prázdné relace.")
+        return self._evaluate(
+            [m.text for m in messages],
+            [m.question for m in messages],
+            [asdict(m) for m in messages],
+        )
+
+    def _submit(
+        self, text: str, question: str | None, event: dict | None = None
+    ) -> dict:
         if self.state not in {"needs_answer", "needs_correction"}:
             raise ValueError("Nejprve návrh potvrďte nebo odmítněte.")
         if not isinstance(text, str) or not text.strip():
             raise ValueError("Odpověď nesmí být prázdná.")
-        sources = [*self._sources, text]
-        source_questions = [*self._source_questions, self.next_question]
-        result = validate(
-            self.question,
-            self._extract(self.question, sources.copy(), source_questions.copy()),
-            sources,
+        return self._evaluate(
+            [*self._sources, text],
+            [*self._source_questions, question],
+            [*self._source_events, event],
         )
+
+    def _evaluate(self, sources, source_questions, events) -> dict:
+        if self._extract_with_events is None:
+            raw = self._extract(self.question, sources.copy(), source_questions.copy())
+        else:
+            raw = self._extract_with_events(
+                self.question, sources.copy(), source_questions.copy(), deepcopy(events)
+            )
+        result = validate(self.question, raw, sources)
         self._draft, self._sources = result, sources
         self._source_questions = source_questions
+        self._source_events = events
         self._revision += 1
         self._state = (
             "needs_confirmation" if result["status"] == "answered" else "needs_answer"
@@ -293,7 +330,7 @@ class Intake:
         if result["status"] == "unclear":
 
             def normalized(text):
-                return text.strip().casefold().rstrip(" .?!")
+                return (text or "").strip().casefold().rstrip(" .?!")
 
             if self._clarifications >= self._max_clarifications:
                 self._state, self._unresolved_reason = (
@@ -330,7 +367,7 @@ class Intake:
             if value is not None and self.question.kind == "vice"
             else []
         )
-        return {
+        snapshot = {
             "schema_version": 2,
             "dotaznik_id": self.question.questionnaire_id,
             "otazka_id": self.question.id,
@@ -363,6 +400,9 @@ class Intake:
                 for i in indices
             ],
         }
+        if any(event is not None for event in self._source_events):
+            snapshot["source_events"] = deepcopy(self._source_events)
+        return snapshot
 
     def confirm(self) -> dict:
         if self.state != "needs_confirmation":

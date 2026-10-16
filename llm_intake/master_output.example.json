@@ -20,6 +20,9 @@
       "unit": "episodes",
       "time_text": "Od rána",
       "certainty": "stated",
+      "topic_ids": [
+        "nezadouci_ucinky/zvraceni"
+      ],
       "source_message_id": "synthetic-master-01",
       "confirmation": "unconfirmed"
     },
@@ -28,10 +31,13 @@
       "presence": "present",
       "evidence": "jsem hodně unavený",
       "subject": "patient",
-      "value": "hodně unavený",
+      "value": "hodně",
       "unit": null,
       "time_text": null,
       "certainty": "stated",
+      "topic_ids": [
+        "nezadouci_ucinky/unava"
+      ],
       "source_message_id": "synthetic-master-01",
       "confirmation": "unconfirmed"
     },
@@ -44,6 +50,9 @@
       "unit": null,
       "time_text": null,
       "certainty": "stated",
+      "topic_ids": [
+        "nezadouci_ucinky/teplota"
+      ],
       "source_message_id": "synthetic-master-01",
       "confirmation": "unconfirmed"
     }

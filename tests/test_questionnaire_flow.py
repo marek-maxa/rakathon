@@ -223,7 +223,7 @@ def test_few_shot_questions_are_resolved_from_same_definitions():
         load_question("nezadouci_ucinky", "unava"), ["Pomůže."]
     )
     examples = payload["messages"][1:-1:2]
-    assert len(examples) == 13
+    assert len(examples) == 3
     for example in examples:
         package = json.loads(example["content"])["question"]
         assert (

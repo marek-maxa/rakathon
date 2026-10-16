@@ -441,7 +441,12 @@ def test_explicit_authentication_headers(
 
 
 @pytest.mark.parametrize(
-    "status,hint", [(401, "MEDDI_LLM_KEY_HEADER=api-key"), (404, "MEDDI_LLM_MODEL")]
+    "status,hint",
+    [
+        (401, "MEDDI_LLM_KEY_HEADER=api-key"),
+        (404, "MEDDI_LLM_MODEL"),
+        (429, "Brána omezila"),
+    ],
 )
 def test_api_errors_point_to_auth_or_deployment(monkeypatch, status, hint):
     opener = Mock()

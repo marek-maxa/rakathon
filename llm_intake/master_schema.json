@@ -9,6 +9,7 @@
         "additionalProperties": false,
         "properties": {
           "concept": {"type": "string"},
+          "topic_ids": {"type": "array", "items": {"type": "string"}},
           "presence": {"type": "string", "enum": ["present", "absent", "uncertain"]},
           "evidence": {"type": "string"},
           "subject": {"type": "string", "enum": ["patient", "caregiver", "unknown"]},
@@ -34,7 +35,7 @@
           "time_text": {"type": ["string", "null"]},
           "certainty": {"type": "string", "enum": ["stated", "approximate", "uncertain"]}
         },
-        "required": ["concept", "presence", "evidence", "subject", "value", "unit", "time_text", "certainty"]
+        "required": ["concept", "topic_ids", "presence", "evidence", "subject", "value", "unit", "time_text", "certainty"]
       }
     }
   },

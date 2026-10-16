@@ -38,7 +38,7 @@ def event(example=0):
         (1, [], ["sleep_difficulty"]),
         (2, ["prujem"], []),
         (3, ["zvraceni"], []),
-        (4, [], ["overall_feeling", "pain.nrs"]),
+        (4, ["pocit", "nrs"], []),
     ],
 )
 def test_examples_route_only_patient_findings_and_keep_all_facts(
@@ -189,20 +189,21 @@ def test_payload_keeps_actual_question_and_packages_without_patient_metadata():
     actual = json.loads(payload["messages"][-1]["content"])
     assert actual["message"]["question"] == "Zvracel jste dnes?"
     assert set(actual["message"]) == {"text", "question", "author"}
-    guide = actual["concept_guide"]
-    assert set(guide) == {
-        "vomiting",
-        "diarrhea",
-        "fatigue",
-        "temperature",
-        "breathlessness",
-        "bleeding",
+    guide = actual["topic_catalog"]
+    assert len(guide) == 49
+    assert {row["topic_id"].split("/")[0] for row in guide} == {
+        "nezadouci_ucinky",
+        "psychoonkologicky_screening",
+        "bolest_analgeticka_terapie",
+        "esas",
     }
-    assert guide["vomiting"][0]["options"]
+    assert next(row for row in guide if row["topic_id"] == "nezadouci_ucinky/zvraceni")[
+        "question"
+    ]["options"]
     assert "barva" not in json.dumps(guide)
     assert payload["response_format"]["json_schema"]["strict"] is True
     assert payload["response_format"]["json_schema"]["schema"] == load_schema()
-    for example in payload["messages"][2:-1:2]:
+    for example in (m for m in payload["messages"] if m["role"] == "assistant"):
         assert set(json.loads(example["content"])) == {"facts"}
 
 

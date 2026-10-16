@@ -39,10 +39,25 @@ def build_pipeline_packet(
                 if extraction
                 else None,
                 "turns": [
-                    {"question": q, "answer": text}
-                    for q, text in zip(
+                    {
+                        "question": q,
+                        "answer": text,
+                        **(
+                            {
+                                "source_message_id": event["id"],
+                                "available_at": event["available_at"],
+                                "author": event["author"],
+                            }
+                            if event
+                            else {}
+                        ),
+                    }
+                    for q, text, event in zip(
                         snapshot["source_questions"],
                         snapshot["source_messages"],
+                        snapshot.get(
+                            "source_events", [None] * len(snapshot["source_messages"])
+                        ),
                         strict=True,
                     )
                 ],

@@ -79,8 +79,17 @@ class Fact:
     unit: str | None = None
     time_text: str | None = None
     certainty: str = "stated"
+    topic_ids: tuple[str, ...] = ()
 
     def __post_init__(self):
+        if (
+            not isinstance(self.topic_ids, tuple)
+            or not all(isinstance(v, str) and v for v in self.topic_ids)
+            or len(set(self.topic_ids)) != len(self.topic_ids)
+        ):
+            raise ValueError(
+                "Témata faktu musí být jednoznačná neprázdná ID bez duplicit."
+            )
         if not isinstance(self.concept, str) or not self.concept.strip():
             raise ValueError("Fakt potřebuje pojmenovaný pojem.")
         if self.presence not in {"present", "absent", "uncertain"}:
@@ -106,6 +115,10 @@ class Fact:
     @classmethod
     def from_dict(cls, data: dict):
         data = data.copy()
+        if "topic_ids" in data:
+            if not isinstance(data["topic_ids"], (list, tuple)):
+                raise ValueError("topic_ids musí být seznam ID.")
+            data["topic_ids"] = tuple(data["topic_ids"])
         if isinstance(data.get("value"), dict):
             data["value"] = NumericRange(**data["value"])
         return cls(**data)
@@ -126,6 +139,7 @@ def build_packet(message: MessageEvent, facts: list[Fact]) -> dict:
         result.append(
             {
                 **asdict(fact),
+                "topic_ids": list(fact.topic_ids),
                 "source_message_id": message.id,
                 "confirmation": "unconfirmed",
             }

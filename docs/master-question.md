@@ -2,8 +2,9 @@
 
 Návrh k projití týmem, 16. 10. 2026. Z širšího návrhu už existuje první
 [samostatný kontrakt, katalog a extraktor](../llm_intake/MASTER_CONTRACT.md);
-orchestrace celého rozhovoru ještě neexistuje. Neměníme export intake v2
-ani `triage.py`. Cíl: využít volný popis stavu,
+omezený dialog už existuje v `llm_intake/dialogue.py`. Plná bezpečnostní
+orchestrace systému ještě neexistuje. Zachováváme export intake v2
+a `triage.py`. Cíl: využít volný popis stavu,
 vybrat minimum potřebných otázek a zachovat údaje pro časovou kartu a triáž.
 
 ## Co už máme a co zatím chybí
@@ -11,7 +12,7 @@ vybrat minimum potřebných otázek a zachovat údaje pro časovou kartu a triá
 | Část | Skutečný stav | Důsledek pro další krok |
 | --- | --- | --- |
 | `llm_intake/` | Jedna vybraná otázka, slovní odpověď, přiřazení k možnosti, cílené doptání, potvrzení; export v2 | Zachovat jako samostatný dialog nad jedním parametrem |
-| MASTER extraktor | `MasterExtractor` vytěžuje fakta, `analyze_message` navrhuje otázky pro šest namapovaných témat; bez triáže a potvrzení | Další krok je přenos již známých hodnot do intake a řízení celého kontaktu |
+| MASTER extraktor | `MasterExtractor` vytěžuje fakta a přesná ID témat z katalogu všech 49 otázek; `analyze_message` je mechanicky páruje, bez triáže | `MasterDialogue` již využívá sdělené hodnoty, potvrzuje a řídí rozpočet kontaktu; přesnost záchytu je nutné průběžně měřit |
 | Nejistota v intake | `unclear` má hodnotu null, po limitu vznikne `unresolved`; nejsou uložené možné alternativy | Z toho zatím nelze spočítat vyšší z reálně možných úrovní |
 | `triage.py` | Jen horečka v kontextu chemoterapie, absolutní SpO2, pocit a bolest; `None` značí posouzení | Zvracení, krvácení, zimnice, trendy a většina tvrdých pravidel nejsou implementované |
 | Definice otázek | 4 dotazníky, 49 otázek, ID se opakují mezi dotazníky; podmínky větvení | Vždy používat dvojici `questionnaire_id/question_id` a vlastní katalog vazeb |
@@ -123,16 +124,20 @@ nesmí se z něj udělat zelená. Vyčerpání rozpočtu dotazů nesnižuje záv
 
 ## Katalog a výběr otázek
 
-Vlastní katalog vytvořit vedle zdrojových dat. Organizátorské definice neměnit.
-Pro každou dvojici ID doplnit vazby na pojmy, získávané údaje, chybějící vstupy
-pravidel, podmínky použitelnosti a doporučený kontext. Jde o explicitní mapování,
-které lze společně revidovat, nikoli pouze embedding názvu otázky.
+Vlastní katalog již existuje vedle zdrojových dat jako
+`llm_intake/question_topics.json`. Pro každou z 49 dvojic ID obsahuje klíčová
+slova, aliasy a kontext. Loader jej spojí s aktuální otázkou a možnostmi ze
+zdroje; kontroluje úplnost, schéma omezuje vracená ID. Organizátorské definice
+neměníme. Vazby na chybějící vstupy pravidel zůstávají budoucí integrace.
+Jde o explicitní mapování, které lze revidovat, nikoli embedding názvu otázky.
 
-LLM z MASTER QUESTION vytěží více témat a konkrétní fakta. Může navrhnout ID
-otázek z povoleného katalogu; kód návrh ověří a doplní podle požadovaných vstupů
-pravidel. Bezpečnostní kontrola celé zprávy nesmí být omezena na top-k témat.
+LLM z MASTER QUESTION vytěží více témat a konkrétní fakta. Vrací ID otázek
+z povoleného katalogu; kód je ověří a mechanicky spáruje s otázkami.
+Budoucí adaptér může návrh doplnit podle chybějících vstupů pravidel.
+Bezpečnostní kontrola celé zprávy nesmí být omezena na top-k témat.
 
-Pořadí dotazování v kódu:
+Navržené klinické priority pro budoucí integraci (současný LLM dialog
+zachovává pořadí definic, naléhavost nevyhodnocuje):
 
 1. Chybějící údaj, který rozhoduje o okamžité eskalaci; známou urgentní situaci
    už nepodmiňovat odpovědí na další otázky.
@@ -150,8 +155,8 @@ MASTER QUESTION je otevřený text, ne automaticky ordinalita `pocit` 1–5.
 Z obecného „nic moc“ se nesmí bez opory vytvořit přesné skóre. U přímého
 přiřazení z MASTER QUESTION zachovat původní otázku jako zdroj: nepředávat
 její text do `Intake.submit()` tak, jako by pacient už odpovídal na cílený dotaz.
-Malé budoucí rozšíření pro seed z existující události musí toto zachovat;
-současné volání `submit(text)` nad jedinou otázkou zůstane funkční.
+Implementované `seed(messages)` toto zachovává; původní volání `submit(text)`
+nad jedinou otázkou zůstává funkční.
 
 ## Čas a nezahltit pacienta
 
@@ -160,10 +165,11 @@ Plánovač neklasifikuje příznaky: předá již známý problém, stáří pos
 a důvod kontroly. Kód spojí duplicitní podněty, ověří, zda nová zpráva kontrolu
 už nezodpověděla, a položí nejvýše jednu otázku najednou.
 
-Současný limit dvou doptání je jen na jednu cílenou relaci. S více tématy
-potřebujeme také celkový rozpočet otázek za kontakt, slučování potvrzení
-a rozlišení naléhavého od odložitelného. Jeho konkrétní hodnotu zatím neurčujeme.
-Odložení otázky ponechá otevřenou nejistotu a potřebné předání týmu.
+Limit dvou doptání platí pro jednu cílenou relaci. `MasterDialogue` navíc
+omezuje celý kontakt na výchozích šest dotazů včetně potvrzení a oprav;
+zbývající otázky jsou v `dialogue.pending_topic_ids`. Jde o nastavitelnou
+prototypovou politiku. Slučování potvrzení a rozlišení naléhavého od odložitelného
+zůstávají budoucí práce. Odložení otázky ponechá otevřenou nejistotu.
 
 Interval jeden den je příklad použití, ne zatím schválené klinické pravidlo.
 `due_at` musí vycházet z typu problému, dosavadního vývoje a domluvené politiky.
@@ -211,9 +217,9 @@ Navržené pořadí a stav:
    neurčený subjekt a pečující; tři živé syntetické scénáře včetně slovenského
    výrazu pro průjem. Zpracování skutečného souběhu `ONC-018-C03` s dotazníkem
    a kontextem zůstává úkolem integrace, nikoli výsledkem těchto testů.
-3. Přidat adaptér ke stávajícímu intake, reuse odpovědí z původní zprávy,
-   celkový rozpočet a nezávislou bezpečnostní větev. Nad zvracením nejprve doplnit
-   příslušná pravidla, nebo výslovně zachovat požadavek lidského posouzení.
+3. Adaptér ke stávajícímu intake, využití původních zpráv, potvrzování a rozpočet
+   kontaktu implementuje `MasterDialogue`. Bezpečnostní větev a rozšíření pravidel
+   nadále patří do integrace; tento dialog nevyhodnocuje naléhavost ani triáž.
 4. Až potom aktualizace karty a úlohy kontrol v simulovaném čase.
 
 Ověřovací scénáře: dva problémy v jedné zprávě; nová nebezpečná informace během

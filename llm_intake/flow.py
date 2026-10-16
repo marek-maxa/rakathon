@@ -84,6 +84,22 @@ class QuestionnaireFlow:
         """Ukončené relace v pořadí skutečného zpracování."""
         return tuple(self._sessions.values())
 
+    def add_targets(self, targets: Iterable[str]) -> None:
+        """Přidá nově zmíněná témata, zachová již ukončené relace."""
+        targets = set(targets)
+        if not targets <= self._questions.keys():
+            raise ValueError("Neznámý nový cíl dotazování.")
+        if self._targets is None:
+            return
+        self._targets |= targets
+        self._selected |= targets
+        for question in self._questions.values():
+            if (
+                question.condition
+                and parse_condition(question.condition)[0] in self._selected
+            ):
+                self._selected.add(question.id)
+
     def _eligible(self, question: Question) -> bool | None:
         if not question.condition:
             return True
