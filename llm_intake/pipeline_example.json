@@ -1,0 +1,80 @@
+{
+  "kind": "llm_intake",
+  "schema_version": 1,
+  "message": {
+    "id": "synthetic-contact",
+    "patient_id": "synthetic-patient",
+    "text": "Jsem unavený.",
+    "available_at": "2026-10-16T10:00:00+02:00",
+    "source": "master_question",
+    "author": "patient",
+    "question": "Jak se dnes cítíte?"
+  },
+  "facts": [
+    {
+      "concept": "fatigue",
+      "presence": "present",
+      "evidence": "Jsem unavený",
+      "subject": "patient",
+      "value": null,
+      "unit": null,
+      "time_text": null,
+      "certainty": "stated",
+      "source_message_id": "synthetic-contact",
+      "confirmation": "unconfirmed"
+    }
+  ],
+  "question_answers": [
+    {
+      "question": {
+        "questionnaire_id": "nezadouci_ucinky",
+        "question_id": "unava",
+        "text": "Pomůže Vám odpočinek ke zmírnění únavy?",
+        "type": "jedna",
+        "instruction": null,
+        "note": null,
+        "questionnaire_note": null,
+        "condition": "ucinky:7",
+        "order": 19,
+        "exclusive_option_indices": [],
+        "options": [
+          {
+            "index": 0,
+            "text": "Ano."
+          },
+          {
+            "index": 1,
+            "text": "Ne, únava mě však omezuje pouze v náročnějších aktivitách."
+          },
+          {
+            "index": 2,
+            "text": "Ne, únava mě omezuje výrazně i v běžných denních činnostech."
+          }
+        ]
+      },
+      "state": "confirmed",
+      "confirmed": true,
+      "revision": 1,
+      "value": 0,
+      "answer": "Ano.",
+      "evidence": {
+        "turn_index": 0,
+        "text": "Odpočinek mi pomůže."
+      },
+      "turns": [
+        {
+          "question": "Pomůže Vám odpočinek ke zmírnění únavy?",
+          "answer": "Odpočinek mi pomůže."
+        }
+      ],
+      "follow_up": null,
+      "unresolved_reason": null,
+      "metrics": {
+        "successful_extractions": 1,
+        "clarifications_issued": 0,
+        "rejections": 0,
+        "max_clarifications": 2
+      }
+    }
+  ]
+}

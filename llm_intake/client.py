@@ -2,15 +2,22 @@
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from time import perf_counter
 from urllib import error, parse, request
 
-from .core import Question
+from .core import Question, load_questions
 
 ASSETS = Path(__file__).resolve().parent
 DEFAULT_BASE_URL = "https://apim-rakathon-q7146n.azure-api.net/openai/v1/"
 DEFAULT_DEPLOYMENT = "gpt-6-1-sol-dz-eu"
+MAX_TARGETED_EXAMPLES = 3
+
+
+def compact_json(value) -> str:
+    return json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
 
 
 class APIError(RuntimeError):
@@ -29,6 +36,9 @@ class Client:
     base_url: str = DEFAULT_BASE_URL
     model: str = DEFAULT_DEPLOYMENT
     key_header: str = "api-key"
+    on_usage: Callable[[dict], None] | None = field(
+        default=None, repr=False, compare=False
+    )
 
     def __post_init__(self):
         url = parse.urlsplit(self.base_url)
@@ -58,7 +68,8 @@ class Client:
         self,
         question: Question,
         sources: list[str],
-        source_questions: list[str] | None = None,
+        source_questions: list[str | None] | None = None,
+        source_events: list[dict | None] | None = None,
     ) -> dict:
         messages = [
             {
@@ -67,33 +78,70 @@ class Client:
             }
         ]
         examples = json.loads((ASSETS / "examples.json").read_text(encoding="utf-8"))
-        for example in examples:
+        # Příklady drží jen ID; texty a možnosti mají jediný zdroj v definicích.
+        questions = {(q.questionnaire_id, q.id): q for q in load_questions()}
+        # Stejná otázka má přednost, pak pouze stejný typ. Výběr je stabilní
+        # a nezávisí na pacientově odpovědi; statický prefix zůstává opakovatelný.
+        ref = {
+            "questionnaire_id": question.questionnaire_id,
+            "question_id": question.id,
+        }
+        relevant = [e for e in examples if e["input"]["question"] == ref]
+        relevant.extend(
+            e
+            for e in examples
+            if e["input"]["question"] != ref
+            and questions[
+                (
+                    e["input"]["question"]["questionnaire_id"],
+                    e["input"]["question"]["question_id"],
+                )
+            ].kind
+            == question.kind
+        )
+        for example in relevant[:MAX_TARGETED_EXAMPLES]:
+            ref = example["input"]["question"]
+            example_input = {
+                **example["input"],
+                "question": questions[
+                    (ref["questionnaire_id"], ref["question_id"])
+                ].specification(),
+            }
             messages.extend(
                 [
                     {
                         "role": "user",
-                        "content": json.dumps(example["input"], ensure_ascii=False),
+                        "content": compact_json(example_input),
                     },
                     {
                         "role": "assistant",
-                        "content": json.dumps(example["output"], ensure_ascii=False),
+                        "content": compact_json(example["output"]),
                     },
                 ]
             )
         messages.append(
             {
                 "role": "user",
-                "content": json.dumps(
+                "content": compact_json(
                     {
                         "question": question.specification(),
                         "source_messages": sources,
                         "source_questions": source_questions
                         or [question.text] * len(sources),
+                        "source_authors": [
+                            event["author"] if event else "unknown"
+                            for event in source_events
+                        ]
+                        if source_events is not None
+                        else ["unknown"] * len(sources),
                     },
-                    ensure_ascii=False,
                 ),
             }
         )
+        return self.structured_payload(messages, question.schema(), "question_answer")
+
+    def structured_payload(self, messages: list[dict], schema: dict, name: str) -> dict:
+        """Sdílený tvar požadavku pro cílenou odpověď i extrakci celé zprávy."""
         return {
             "model": self.model,
             "messages": messages,
@@ -101,9 +149,9 @@ class Client:
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "question_answer",
+                    "name": name,
                     "strict": True,
-                    "schema": question.schema(),
+                    "schema": schema,
                 },
             },
         }
@@ -112,8 +160,12 @@ class Client:
         self,
         question: Question,
         sources: list[str],
-        source_questions: list[str] | None = None,
+        source_questions: list[str | None] | None = None,
     ) -> dict:
+        return self.send(self.payload(question, sources, source_questions))
+
+    def send(self, payload: dict) -> dict:
+        """Stejná autentizace a obsluha chyb pro oba extraktory."""
         auth = (
             f"Bearer {self.api_key}"
             if self.key_header == "Authorization"
@@ -121,16 +173,31 @@ class Client:
         )
         req = request.Request(
             self.base_url.rstrip("/") + "/chat/completions",
-            data=json.dumps(
-                self.payload(question, sources, source_questions), ensure_ascii=False
-            ).encode("utf-8"),
+            data=compact_json(payload).encode("utf-8"),
             headers={self.key_header: auth, "Content-Type": "application/json"},
             method="POST",
         )
+        started = perf_counter()
         try:
             with request.build_opener(NoRedirect()).open(req, timeout=60) as response:
                 body = json.load(response)
         except error.HTTPError as exc:
+            if exc.code == 400:
+                try:
+                    detail = json.load(exc).get("error", {})
+                    filtered = detail.get("code") == "content_filter"
+                except (ValueError, TypeError, AttributeError, OSError):
+                    filtered = False
+                if filtered:
+                    raise APIError(
+                        "LLM API: HTTP 400 (content_filter). Obsahový filtr brány "
+                        "odmítl požadavek; zpráva nebyla vyhodnocena."
+                    ) from None
+            if exc.code == 429:
+                raise APIError(
+                    "LLM API: HTTP 429. Brána omezila počet požadavků nebo tokenů; "
+                    "počkejte a zkuste požadavek znovu s menším souběhem."
+                ) from None
             if exc.code in {401, 403}:
                 raise APIError(
                     f"LLM API: HTTP {exc.code}. Autentizace selhala; pro rakathonovou "
@@ -148,6 +215,33 @@ class Client:
             raise APIError("LLM API není dostupné nebo vypršel časový limit.") from None
         except ValueError:
             raise APIError("LLM API nevrátilo platný JSON.") from None
+        if self.on_usage is not None and isinstance(body, dict):
+            usage = body.get("usage") or {}
+            if not isinstance(usage, dict):
+                usage = {}
+            stats = {
+                key: usage.get(key)
+                for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+            }
+            for field_name, detail, key in (
+                ("cached_tokens", "prompt_tokens_details", "cached_tokens"),
+                ("reasoning_tokens", "completion_tokens_details", "reasoning_tokens"),
+            ):
+                nested = usage.get(detail)
+                stats[field_name] = (
+                    nested.get(key) if isinstance(nested, dict) else None
+                )
+            stats = {
+                key: value if type(value) is int and value >= 0 else None
+                for key, value in stats.items()
+            }
+            self.on_usage(
+                {
+                    **stats,
+                    "latency_ms": round((perf_counter() - started) * 1000),
+                    "schema": payload["response_format"]["json_schema"]["name"],
+                }
+            )
         try:
             choice = body["choices"][0]
             if choice["finish_reason"] != "stop" or choice["message"].get("refusal"):
@@ -157,3 +251,10 @@ class Client:
             return json.loads(choice["message"]["content"])
         except (KeyError, IndexError, TypeError, ValueError):
             raise APIError("LLM API vrátilo neplatnou strukturu odpovědi.") from None
+
+    def extract_events(
+        self, question, sources, source_questions, source_events
+    ) -> dict:
+        return self.send(
+            self.payload(question, sources, source_questions, source_events)
+        )

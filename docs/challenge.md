@@ -5,6 +5,11 @@ který sleduje stav onkologického pacienta doma, zohlední léčbu a vývoj obt
 rozpozná riziko, doporučí další krok a připraví souhrn pro zdravotníka.
 Zdroj: [zadání MEDDI](<../documents/MEDDI – MEDDI Onco.pdf>), s. 4–5.
 
+Revize 17. 10. 2026: úplný [plán pipeline a webu](meddi-onco-plan.md)
+zaznamenává požadavky, závislosti, komentáře týmu a kroky K0–K10 se zdroji
+a přijímacími podmínkami. Tato etapa končí plánem, podle upřesnění týmu;
+následným implementačním cílem je začlenění do existující větve `web`.
+
 ## Požadavky zadavatele
 
 | Úroveň | Krok podle zadání |
@@ -15,7 +20,9 @@ Zdroj: [zadání MEDDI](<../documents/MEDDI – MEDDI Onco.pdf>), s. 4–5.
 | 4 · červená | Neodkladná pomoc: ihned 155 / urgentní příjem |
 
 Zdroj: zadání MEDDI, s. 6. Toto je přepis provozního zadání, nikoli námi
-ověřený klinický protokol. Konkrétní rozhodovací pravidla potřebujeme od mentora.
+ověřený klinický protokol. Konkrétní pravidla již dodává
+[pravidla_triaze.md](../rakathon_meddi_onco_data/docs/pravidla_triaze.md), §1–6;
+mentor má potvrdit jejich nejasné výklady a klinickou implementaci.
 
 Řešení nestanovuje diagnózu ani nemění léčbu. Úrovně 2–4 končí u zdravotníka,
 každé doporučení uvádí důvod a při pochybnosti se má eskalovat výše. Centrum
@@ -50,22 +57,25 @@ Váhy: bezpečnost a klinický přínos 30 %, využitelnost 25 %, technologie a 
 20 %, UI 15 %, integrace 10 % (s. 11). Jde o soutěžní ověření na fiktivních
 případech, nikoli o důkaz klinické účinnosti.
 
-## Náš první krok a hranice
+## Aktuální rozsah a hranice
 
-Nejdříve otevřít dodaný JSON a společně popsat jeden případ v čase:
-co přišlo, co už víme a co mají vidět pacient a zdravotník. Tento první průchod
-nenahrazuje povinnost později pokrýt všech šest situací.
+JSON, samostatný intake a společný backend už existují. Zbývá úplný průchod
+včetně `zprava_pacienta`, časové karty, poslední chemoterapie, sledování nálezů,
+kontaktů a souhrnů. Kritický nález vyvolá okamžitou instrukci; na konci
+dotazníku se triáž znovu vyhodnotí a uloží. Podrobnosti v aktuálním plánu.
 
-Pro první verzi navrhujeme lokální demo a simulované předání upozornění.
-Hlas, ostré notifikace, produkční nasazení a trénování vlastního modelu
-odkládáme. MEDDI API během akce nebude; integraci máme navrhnout, hlas je bonus
-(s. 12). Konkrétní UI a AI službu teprve vybereme.
+Pro soutěž navrhujeme lokální demo a simulované předání upozornění.
+Další implementace má využít existující web ve větvi `web`; jeho propojení
+je samostatný milník před ostrým klinickým provozem. Hlas a trénování modelu
+nejsou podmínkou základního toku. MEDDI API během akce nebude; integraci máme
+navrhnout, hlas je bonus (s. 12). Ostrý provoz vyžaduje AWS v EU, ochranu dat
+a provozní i klinické převzetí (s. 7; pacientská cesta / Provoz).
 
 README balíčku, oddíl 4, definuje výstup na každý check-in a párování referencí.
 S mentorem / organizátorem zbývá dořešit nejasnosti v interpretaci pravidel,
 případné dodatečné hodnoticí rozhraní, termín a způsob odevzdání. Lokální PDF
-termín neuvádí. První verze podle týmu poběží v CLI, se simulovaným časem
-a předem zaznamenanými odpověďmi.
+termín neuvádí. Simulovaný čas a předem zaznamenané odpovědi zůstávají základem
+opakovaného replay; odpovědi na nové otázky se nedoplňují z budoucnosti.
 
 Doplňující [prezentace MEDDI](../documents/MEDDI_Onco_Rakathon_2026.pptx),
 slidy 2–5, potvrzuje zaměření na koordinaci a kontext. Podrobné soutěžní

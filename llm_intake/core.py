@@ -4,13 +4,19 @@ import json
 import math
 from collections.abc import Callable
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
+
+from .master_contract import MessageEvent
 
 DEFINITIONS = (
     Path(__file__).resolve().parents[1]
     / "rakathon_meddi_onco_data/docs/dotazniky_definice.json"
 )
+
+# Zdrojové definice nemají příznak výlučné možnosti. Index odvodíme z textu,
+# aby posunutí možnosti v definicích nezměnilo význam této politiky.
+EXCLUSIVE_OPTIONS = {("nezadouci_ucinky", "ucinky"): ("Nemám žádné nežádoucí účinky",)}
 
 
 @dataclass(frozen=True)
@@ -23,6 +29,10 @@ class Question:
     instruction: str | None = None
     note: str | None = None
     option_colors: tuple[str | None, ...] = ()
+    condition: str | None = None
+    order: int = 0
+    questionnaire_note: str | None = None
+    exclusive_options: tuple[int, ...] = ()
 
     def specification(self) -> dict:
         return {
@@ -32,10 +42,18 @@ class Question:
             "type": self.kind,
             "instruction": self.instruction,
             "note": self.note,
+            "questionnaire_note": self.questionnaire_note,
+            "condition": self.condition,
+            "order": self.order,
+            "exclusive_option_indices": list(self.exclusive_options),
             "options": [
                 {"index": i, "text": text} for i, text in enumerate(self.options)
             ],
         }
+
+    def patient_options(self) -> str:
+        """Texty bez barev a indexů, aby se volba nepletla s číselnou hodnotou."""
+        return "\n".join(f"- {text}" for text in self.options)
 
     def schema(self) -> dict:
         if self.kind == "jedna":
@@ -67,25 +85,94 @@ class Question:
         }
 
 
+def load_questions(path: Path = DEFINITIONS) -> tuple[Question, ...]:
+    """Jediný převod definic na balíčky otázka + možnosti + kontext + větvení."""
+    questions = []
+    for form in json.loads(path.read_text(encoding="utf-8")):
+        form_note = form.get("poznamka")
+        if form_note:
+            # Zachovat směr škály, nepředávat popis barev nebo vyhodnocovací klíč.
+            for marker in ("Tlačítka mají barevný", "Vyhodnocovací klíč"):
+                form_note = form_note.split(marker, 1)[0].strip()
+        for order, q in enumerate(form["otazky"]):
+            options = tuple(o["text"] for o in q.get("moznosti", []))
+            questions.append(
+                Question(
+                    questionnaire_id=form["id"],
+                    id=q["id"],
+                    text=q["text"],
+                    kind=q["typ"],
+                    options=options,
+                    instruction=q.get("navod"),
+                    note=q.get("poznamka"),
+                    option_colors=tuple(o.get("barva") for o in q.get("moznosti", [])),
+                    condition=q.get("podminka"),
+                    order=order,
+                    questionnaire_note=form_note,
+                    exclusive_options=tuple(
+                        options.index(text)
+                        for text in EXCLUSIVE_OPTIONS.get((form["id"], q["id"]), ())
+                    ),
+                )
+            )
+    refs = [(q.questionnaire_id, q.id) for q in questions]
+    if len(refs) != len(set(refs)):
+        raise ValueError("Duplicitní dvojice ID otázky.")
+    return tuple(questions)
+
+
 def load_question(
     questionnaire_id: str, question_id: str, path: Path = DEFINITIONS
 ) -> Question:
-    for form in json.loads(path.read_text(encoding="utf-8")):
-        if form["id"] != questionnaire_id:
-            continue
-        for q in form["otazky"]:
-            if q["id"] == question_id:
-                return Question(
-                    questionnaire_id,
-                    q["id"],
-                    q["text"],
-                    q["typ"],
-                    tuple(o["text"] for o in q.get("moznosti", [])),
-                    q.get("navod"),
-                    q.get("poznamka"),
-                    tuple(o.get("barva") for o in q.get("moznosti", [])),
-                )
+    for question in load_questions(path):
+        if (question.questionnaire_id, question.id) == (questionnaire_id, question_id):
+            return question
     raise ValueError(f"Neznámá otázka: {questionnaire_id}/{question_id}")
+
+
+def find_question(
+    question_id: str,
+    questionnaire_id: str | None = None,
+    path: Path = DEFINITIONS,
+) -> Question:
+    """Najde otázku podle ID napříč definicemi nebo v konkrétním dotazníku.
+
+    Pokud questionnaire_id není zadáno a question_id existuje ve více dotaznících,
+    vyvolá ValueError s popisem kolize.
+    """
+    matches = [
+        q
+        for q in load_questions(path)
+        if q.id == question_id
+        and (questionnaire_id is None or q.questionnaire_id == questionnaire_id)
+    ]
+    if not matches:
+        suffix = f" v dotazníku '{questionnaire_id}'" if questionnaire_id else ""
+        raise ValueError(f"Neznámá otázka: '{question_id}'{suffix}")
+    if len(matches) > 1:
+        forms = ", ".join(repr(q.questionnaire_id) for q in matches)
+        raise ValueError(
+            f"Otázka '{question_id}' je definována ve více dotaznících ({forms}). "
+            "Upřesněte parametr questionnaire_id."
+        )
+    return matches[0]
+
+
+def create_targeted_session(
+    question_id: str,
+    client: Callable | None = None,
+    *,
+    questionnaire_id: str | None = None,
+    max_clarifications: int = 2,
+    path: Path = DEFINITIONS,
+) -> "Intake":
+    """Připraví samostatnou Intake relaci pro jednu konkrétní otázku."""
+    q = find_question(question_id, questionnaire_id=questionnaire_id, path=path)
+    if client is None:
+        from .client import Client
+
+        client = Client.from_env()
+    return Intake(q, client, max_clarifications=max_clarifications)
 
 
 def validate(question: Question, result: dict, sources: list[str]) -> dict:
@@ -121,6 +208,12 @@ def validate(question: Question, result: dict, sources: list[str]) -> dict:
             type(v) is int and 0 <= v < len(question.options) for v in value
         )
         valid = valid and len(value) == len(set(value))
+        if (
+            valid
+            and len(value) > 1
+            and any(v in question.exclusive_options for v in value)
+        ):
+            valid = False
     elif kind == "skala_1_10":
         valid = type(value) is int and 1 <= value <= 10
     elif kind == "cislo":
@@ -151,17 +244,24 @@ class Intake:
     """
 
     def __init__(
-        self, question: Question, extract: Callable, *, max_clarifications: int = 2
+        self,
+        question: Question,
+        extract: Callable,
+        *,
+        max_clarifications: int = 2,
+        extract_with_events: Callable | None = None,
     ):
         if type(max_clarifications) is not int or max_clarifications < 0:
             raise ValueError("Limit doptání musí být nezáporné celé číslo.")
         self.question = question
         self._extract = extract
+        self._extract_with_events = extract_with_events
         self._sources: list[str] = []
         self._draft: dict | None = None
         self._state = "needs_answer"
         self._revision = 0
-        self._source_questions: list[str] = []
+        self._source_questions: list[str | None] = []
+        self._source_events: list[dict | None] = []
         self._clarifications = 0
         self._rejections = 0
         self._max_clarifications = max_clarifications
@@ -182,19 +282,47 @@ class Intake:
         return self.question.text
 
     def submit(self, text: str) -> dict:
+        return self._submit(text, self.next_question)
+
+    def submit_event(self, message: MessageEvent) -> dict:
+        if message.question != self.next_question:
+            raise ValueError("Událost musí zachovat skutečnou další otázku.")
+        return self._submit(message.text, message.question, asdict(message))
+
+    def seed(self, messages: list[MessageEvent]) -> dict:
+        """Použije existující zprávy, aniž by předstíralo cílený dotaz."""
+        if self._revision or self.state != "needs_answer" or not messages:
+            raise ValueError("Zdroje lze připojit jen na začátku prázdné relace.")
+        return self._evaluate(
+            [m.text for m in messages],
+            [m.question for m in messages],
+            [asdict(m) for m in messages],
+        )
+
+    def _submit(
+        self, text: str, question: str | None, event: dict | None = None
+    ) -> dict:
         if self.state not in {"needs_answer", "needs_correction"}:
             raise ValueError("Nejprve návrh potvrďte nebo odmítněte.")
         if not isinstance(text, str) or not text.strip():
             raise ValueError("Odpověď nesmí být prázdná.")
-        sources = [*self._sources, text]
-        source_questions = [*self._source_questions, self.next_question]
-        result = validate(
-            self.question,
-            self._extract(self.question, sources.copy(), source_questions.copy()),
-            sources,
+        return self._evaluate(
+            [*self._sources, text],
+            [*self._source_questions, question],
+            [*self._source_events, event],
         )
+
+    def _evaluate(self, sources, source_questions, events) -> dict:
+        if self._extract_with_events is None:
+            raw = self._extract(self.question, sources.copy(), source_questions.copy())
+        else:
+            raw = self._extract_with_events(
+                self.question, sources.copy(), source_questions.copy(), deepcopy(events)
+            )
+        result = validate(self.question, raw, sources)
         self._draft, self._sources = result, sources
         self._source_questions = source_questions
+        self._source_events = events
         self._revision += 1
         self._state = (
             "needs_confirmation" if result["status"] == "answered" else "needs_answer"
@@ -202,7 +330,7 @@ class Intake:
         if result["status"] == "unclear":
 
             def normalized(text):
-                return text.strip().casefold().rstrip(" .?!")
+                return (text or "").strip().casefold().rstrip(" .?!")
 
             if self._clarifications >= self._max_clarifications:
                 self._state, self._unresolved_reason = (
@@ -239,7 +367,7 @@ class Intake:
             if value is not None and self.question.kind == "vice"
             else []
         )
-        return {
+        snapshot = {
             "schema_version": 2,
             "dotaznik_id": self.question.questionnaire_id,
             "otazka_id": self.question.id,
@@ -272,6 +400,9 @@ class Intake:
                 for i in indices
             ],
         }
+        if any(event is not None for event in self._source_events):
+            snapshot["source_events"] = deepcopy(self._source_events)
+        return snapshot
 
     def confirm(self, value=None) -> dict:
         if self.state != "needs_confirmation":

@@ -17,6 +17,12 @@ def main() -> int:
     parser.add_argument("--questionnaire", default="nezadouci_ucinky")
     parser.add_argument("--question", default="unava")
     parser.add_argument(
+        "--max-clarifications",
+        type=int,
+        default=2,
+        help="Limit doplňujících otázek (výchozí 2)",
+    )
+    parser.add_argument(
         "--debug", action="store_true", help="Vypsat interní JSON po potvrzení"
     )
     parser.add_argument(
@@ -32,11 +38,13 @@ def main() -> int:
     try:
         question = load_question(args.questionnaire, args.question)
         client = Client.from_env()
+        session = Intake(question, client, max_clarifications=args.max_clarifications)
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-    session = Intake(question, client)
     print("Odpovězte prosím vlastními slovy. Pro ukončení napište /konec.")
+    if question.options:
+        print("Pokud Vám to pomůže, napište /moznosti pro nabídku odpovědí.")
     print(question.text)
     if question.instruction:
         print(question.instruction)
@@ -81,6 +89,12 @@ def main() -> int:
                 text = input(label)
                 if text.strip().casefold() == "/konec":
                     return 0
+                if text.strip().casefold() == "/moznosti":
+                    print(
+                        question.patient_options()
+                        or "Tato otázka nemá nabídku odpovědí."
+                    )
+                    continue
                 session.submit(text)
                 if session.state == "needs_answer":
                     print(session.patient_summary())

@@ -1,0 +1,137 @@
+[
+  {
+    "name": "multiple_topics_and_range",
+    "message": {
+      "id": "synthetic-01",
+      "patient_id": "synthetic-patient",
+      "text": "Za posledních 24 hodin jsem zvracel pětkrát nebo šestkrát a jsem unavený.",
+      "available_at": "2026-10-16T10:00:00+02:00",
+      "source": "master_question",
+      "author": "patient",
+      "question": "Jak se dnes cítíte?"
+    },
+    "facts": [
+      {
+        "concept": "vomiting.episodes",
+        "presence": "present",
+        "subject": "patient",
+        "value": {"lower": 5, "upper": 6},
+        "unit": "episodes",
+        "time_text": "Za posledních 24 hodin",
+        "certainty": "uncertain",
+        "evidence": "Za posledních 24 hodin jsem zvracel pětkrát nebo šestkrát"
+      },
+      {
+        "concept": "fatigue",
+        "presence": "present",
+        "subject": "patient",
+        "evidence": "jsem unavený"
+      }
+    ]
+  },
+  {
+    "name": "negation_and_unmapped_symptom",
+    "message": {
+      "id": "synthetic-02",
+      "patient_id": "synthetic-patient",
+      "text": "Dnes nezvracím, ale nejde mi spát.",
+      "available_at": "2026-10-16T10:00:00+02:00",
+      "source": "targeted_answer",
+      "author": "patient",
+      "question": "Zvracel jste dnes?"
+    },
+    "facts": [
+      {
+        "concept": "vomiting",
+        "presence": "absent",
+        "subject": "patient",
+        "time_text": "Dnes",
+        "evidence": "Dnes nezvracím"
+      },
+      {
+        "concept": "sleep_difficulty",
+        "presence": "present",
+        "subject": "patient",
+        "evidence": "nejde mi spát"
+      }
+    ]
+  },
+  {
+    "name": "approximate_count_without_invented_window_or_baseline",
+    "message": {
+      "id": "synthetic-03",
+      "patient_id": "synthetic-patient",
+      "text": "Od včera mám hnačku asi 6 krát.",
+      "available_at": "2026-10-16T10:00:00+02:00",
+      "source": "patient_message",
+      "author": "patient"
+    },
+    "facts": [
+      {
+        "concept": "diarrhea.episodes",
+        "presence": "present",
+        "subject": "patient",
+        "value": 6,
+        "unit": "episodes",
+        "time_text": "Od včera",
+        "certainty": "approximate",
+        "evidence": "Od včera mám hnačku asi 6 krát"
+      }
+    ]
+  },
+  {
+    "name": "caregiver_is_not_the_patient",
+    "message": {
+      "id": "synthetic-04",
+      "patient_id": "synthetic-patient",
+      "text": "Manžel dnes zvracel. Já jsem z péče unavená.",
+      "available_at": "2026-10-16T10:00:00+02:00",
+      "source": "patient_message",
+      "author": "caregiver"
+    },
+    "facts": [
+      {
+        "concept": "vomiting",
+        "presence": "present",
+        "subject": "patient",
+        "time_text": "dnes",
+        "evidence": "Manžel dnes zvracel"
+      },
+      {
+        "concept": "fatigue",
+        "presence": "present",
+        "subject": "caregiver",
+        "evidence": "Já jsem z péče unavená"
+      }
+    ]
+  },
+  {
+    "name": "explicit_zero_and_vague_feeling",
+    "message": {
+      "id": "synthetic-05",
+      "patient_id": "synthetic-patient",
+      "text": "Je mi špatně, bolest na škále 0 až 10 je nula.",
+      "available_at": "2026-10-16T10:00:00+02:00",
+      "source": "master_question",
+      "author": "patient",
+      "question": "Jak se dnes cítíte?"
+    },
+    "facts": [
+      {
+        "concept": "overall_feeling",
+        "presence": "present",
+        "subject": "patient",
+        "value": "Je mi špatně",
+        "evidence": "Je mi špatně"
+      },
+      {
+        "concept": "pain.nrs",
+        "presence": "present",
+        "subject": "patient",
+        "value": 0,
+        "unit": "NRS_0_10",
+        "evidence": "bolest na škále 0 až 10 je nula"
+      }
+    ]
+  }
+]
