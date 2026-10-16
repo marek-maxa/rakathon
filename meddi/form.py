@@ -21,7 +21,7 @@ QUESTIONNAIRE_DEFINITIONS = {
 }
 
 
-def _answer_colors(
+def answer_colors(
     questionnaire_id: str, question: dict, answer: dict
 ) -> list[Severity]:
     question_type = question["typ"]
@@ -88,7 +88,7 @@ def evaluate_checkin(checkin: dict) -> Severity | None:
                 raise ValueError(
                     f"Unknown question {answer['otazka_id']} in {questionnaire_id}"
                 ) from error
-            colors.extend(_answer_colors(questionnaire_id, question, answer))
+            colors.extend(answer_colors(questionnaire_id, question, answer))
     if not colors:
         return None
     return max(colors)

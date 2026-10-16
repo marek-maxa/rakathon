@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172b4d">
+  <title>Přehled stavu pacienta</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='patient_report.css') }}">
+  <script src="{{ url_for('patient_report.plotly_js', version=plotly_js_version) }}"></script>
+</head>
+<body>
+  <header class="report-header">
+    <p class="eyebrow">MEDDI ONCO · ZDRAVOTNICKÝ PŘEHLED</p>
+    <h1>Přehled stavu pacienta</h1>
+  </header>
+  <main class="report-shell">
+    <aside class="note" aria-label="Rozsah a omezení reportu">
+      Varovné odpovědi vycházejí z barev dotazníků. Varovné nálezy měření
+      odpovídají jen explicitním, kontextově samostatným prahům pravidel triáže;
+      podmíněné situace vyžadující další údaje zde nejsou klasifikovány.
+      Barvy jsou vždy doplněny textovým štítkem; šedá značí nezařazenou hodnotu.
+      Grafy zobrazují celou dostupnou historii. Nejde o úplnou klinickou triáž.
+    </aside>
+
+    {% macro badge(severity) -%}
+      {% if severity is none %}
+        <span class="severity-badge severity-unknown">Neurčeno</span>
+      {% else %}
+        <span class="severity-badge {{ severity_classes[severity] }}">{{ severity_labels[severity] }}</span>
+      {% endif %}
+    {%- endmacro %}
+    {% macro cycle(cycle_number) -%}
+      {{ "—" if cycle_number is none else "C" ~ cycle_number }}
+    {%- endmacro %}
+
+    <section class="patient" aria-labelledby="patient-title">
+      <header class="patient-header">
+        <div>
+          <p class="eyebrow">PŘEHLED PACIENTA</p>
+          <h2 id="patient-title">{{ status.patient_id }}</h2>
+        </div>
+        <span class="patient-record">Souhrn dotazníků a měření</span>
+      </header>
+
+      <section class="report-section" aria-labelledby="measurement-alerts-title">
+        <h3 id="measurement-alerts-title">Varovné nálezy měření</h3>
+        {% if status.measurement_incidents %}
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Datum</th><th>Check-in</th><th>Cyklus</th>
+                <th>Měření</th><th>Hodnota</th><th>Pravidlo</th><th>Závažnost</th></tr></thead>
+              <tbody>
+                {% for incident in status.measurement_incidents %}
+                  <tr>
+                    <td>{{ incident.date }}</td>
+                    <td>{{ incident.checkin_id }}</td>
+                    <td>{{ cycle(incident.cycle) }}</td>
+                    <td>{{ measurement_labels.get(incident.measurement_id, incident.measurement_id) }}</td>
+                    <td class="severity-cell {{ severity_classes[incident.severity] }}">{{ incident.value }}</td>
+                    <td>{{ incident.reason }}</td>
+                    <td>{{ badge(incident.severity) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="empty-state">Žádné varovné nálezy měření podle použitých pravidel.</p>
+        {% endif %}
+      </section>
+
+      <section class="report-section" aria-labelledby="questionnaire-alerts-title">
+        <h3 id="questionnaire-alerts-title">Varovné odpovědi v dotaznících</h3>
+        {% if status.incidents %}
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Datum</th><th>Check-in</th><th>Cyklus</th>
+                <th>Otázka</th><th>Odpověď</th><th>Závažnost</th></tr></thead>
+              <tbody>
+                {% for incident in status.incidents %}
+                  <tr>
+                    <td>{{ incident.date }}</td>
+                    <td>{{ incident.checkin_id }}</td>
+                    <td>{{ cycle(incident.cycle) }}</td>
+                    <td>{{ incident.question_text }}</td>
+                    <td class="severity-cell {{ severity_classes[incident.severity] }}">{{ incident.response }}</td>
+                    <td>{{ badge(incident.severity) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="empty-state">Žádné varovné odpovědi v dotaznících.</p>
+        {% endif %}
+      </section>
+
+      <section class="report-section" aria-labelledby="measurements-title">
+        <h3 id="measurements-title">Statistiky měření a průběh</h3>
+        <div class="measurement-grid">
+          {% for measurement in status.measurements %}
+            <article class="question measurement-card">
+              <h4>{{ measurement_labels.get(measurement.measurement_id, measurement.measurement_id) }}</h4>
+              <dl class="statistics">
+                <dt>Počet měření</dt><dd>{{ measurement.count }}</dd>
+                <dt>Minimum</dt><dd>{{ measurement.minimum }}</dd>
+                <dt>Maximum</dt><dd>{{ measurement.maximum }}</dd>
+                <dt>Průměr</dt><dd>{{ "%.2f"|format(measurement.average) }}</dd>
+                <dt>Poslední hodnota</dt>
+                <dd>{{ measurement.last_observation.value }} · {{ measurement.last_observation.date }} ·
+                  {{ measurement.last_observation.checkin_id }}</dd>
+                <dt>Způsob měření</dt>
+                <dd>{{ measurement_source_label(measurement.last_observation.source) }}</dd>
+              </dl>
+              <div class="chart">
+                {{ charts[measurement.measurement_id]|safe }}
+              </div>
+              <details>
+                <summary>Historie měření ({{ measurement.history|length }})</summary>
+                <div class="table-scroll">
+                  <table>
+                    <thead><tr><th>Datum</th><th>Check-in</th><th>Cyklus</th>
+                      <th>Hodnota</th><th>Stav</th><th>Zdroj</th></tr></thead>
+                    <tbody>
+                      {% for observation in measurement.history %}
+                        {% set severity = measurement_severity(measurement.measurement_id, observation.checkin_id, status.measurement_incidents) %}
+                        <tr>
+                          <td>{{ observation.date }}</td>
+                          <td>{{ observation.checkin_id }}</td>
+                          <td>{{ cycle(observation.cycle) }}</td>
+                          <td class="severity-cell {{ severity_classes.get(severity, 'severity-unknown') }}">{{ observation.value }}</td>
+                          <td>{{ badge(severity) }}</td>
+                          <td>{{ measurement_source_label(observation.source) }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </article>
+          {% else %}
+            <p class="empty-state">Bez zaznamenaných měření.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="report-section" aria-labelledby="questionnaire-history-title">
+        <div class="section-heading">
+          <h3 id="questionnaire-history-title">Odpovědi v dotaznících</h3>
+          <aside class="severity-legend" aria-label="Legenda závažnosti">
+            <strong>Legenda:</strong>
+            {{ badge(1) }}{{ badge(2) }}{{ badge(3) }}{{ badge(4) }}{{ badge(none) }}
+          </aside>
+        </div>
+        {% for question in status.questionnaire_questions %}
+          <article class="question">
+            <h4>{{ question.text }}</h4>
+            <dl class="statistics">
+              <dt>Dotazník</dt><dd>{{ question.questionnaire_id }}</dd>
+              <dt>ID otázky</dt><dd>{{ question.question_id }}</dd>
+              <dt>Odpovědi celkem</dt><dd>{{ question.total_count }}</dd>
+              <dt>Varovné odpovědi celkem</dt><dd>{{ question.non_green_count }}</dd>
+              <dt>Počty podle závažnosti</dt><dd>{{ severity_counts(question.counts_by_severity) }}</dd>
+              <dt>Počty podle cyklu</dt><dd>{{ cycle_counts(question.counts_by_cycle) }}</dd>
+              <dt>Varovné odpovědi v posledním cyklu</dt><dd>{{ question.last_cycle_count }}</dd>
+              <dt>Závažnost v posledním cyklu</dt><dd>{{ severity_counts(question.last_cycle_counts_by_severity) }}</dd>
+              <dt>Poslední odpověď</dt>
+              <dd>{{ question.last_observation.date }} · {{ question.last_observation.checkin_id }} ·
+                {{ cycle(question.last_observation.cycle) }} · {{ badge(question.last_observation.severity) }}</dd>
+            </dl>
+            <details>
+              <summary>Úplná historie odpovědí ({{ question.history|length }})</summary>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>Datum</th><th>Check-in</th><th>Cyklus</th>
+                    <th>Odpověď</th><th>Index</th><th>Závažnost</th></tr></thead>
+                  <tbody>
+                    {% for observation in question.history %}
+                      <tr>
+                        <td>{{ observation.date }}</td>
+                        <td>{{ observation.checkin_id }}</td>
+                        <td>{{ cycle(observation.cycle) }}</td>
+                        <td class="severity-cell {{ severity_classes.get(observation.severity, 'severity-unknown') }}">{{ observation.response }}</td>
+                        <td>{{ "—" if observation.response_index is none else observation.response_index }}</td>
+                        <td>{{ badge(observation.severity) }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </article>
+        {% else %}
+          <p class="empty-state">Bez zaznamenaných odpovědí.</p>
+        {% endfor %}
+      </section>
+    </section>
+  </main>
+</body>
+</html>
