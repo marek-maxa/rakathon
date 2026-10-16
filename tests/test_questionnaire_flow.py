@@ -361,6 +361,7 @@ def test_all_public_api_symbols_available_from_package_root():
     expected_symbols = [
         "Fact",
         "Intake",
+        "MasterDialogue",
         "MasterExtractor",
         "MessageEvent",
         "NumericRange",
@@ -374,7 +375,9 @@ def test_all_public_api_symbols_available_from_package_root():
         "load_catalog",
         "load_question",
         "load_questions",
+        "load_topic_catalog",
         "lookup_questions",
+        "resolve_topics",
     ]
     for symbol in expected_symbols:
         assert hasattr(llm_intake, symbol), f"Symbol {symbol} chybí v llm_intake"

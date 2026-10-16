@@ -7,6 +7,7 @@ Only fever, absolute oxygen saturation, overall feeling, and pain are covered.
 
 import argparse
 import json
+import math
 from enum import IntEnum
 from pathlib import Path
 
@@ -106,13 +107,58 @@ def evaluate_triage(data):
     return {"color": color, "scores": scores, "requires_review": requires_review}
 
 
-def evaluate_intake(answer):
-    """Map a confirmed intake answer to the fields supported by this prototype."""
+def evaluate_pipeline_packet(packet, context=None):
+    """Map a pipeline packet (from build_pipeline_packet or MasterDialogue) to triage."""
+    data = dict(context or {})
+    for item in packet.get("question_answers", []):
+        if not item.get("confirmed"):
+            continue
+        q = item.get("question", {})
+        form_id = q.get("questionnaire_id")
+        q_id = q.get("question_id")
+        val = item.get("value")
+        if (form_id, q_id) == ("nezadouci_ucinky", "pocit") and isinstance(val, int):
+            data["overall_feeling"] = val + 1
+        elif (form_id, q_id) == ("bolest_analgeticka_terapie", "nrs") and isinstance(
+            val, (int, float)
+        ):
+            data["pain_nrs"] = val
+    for fact in packet.get("facts", []):
+        if fact.get("subject") != "patient" or fact.get("presence") != "present":
+            continue
+        concept = fact.get("concept", "")
+        val = fact.get("value")
+        measurement = {
+            "temperature": ("temperature_c", {None, "C", "°C", "celsius"}),
+            "oxygen": ("spo2_pct", {None, "%", "percent"}),
+            "spo2": ("spo2_pct", {None, "%", "percent"}),
+        }.get(concept)
+        if measurement is None or val is None or isinstance(val, dict):
+            continue  # A duration or interval does not prove an exact measurement.
+        field, units = measurement
+        if type(val) not in {int, float} or not math.isfinite(val):
+            raise ValueError(f"Fact {concept} must contain a finite number")
+        if fact.get("unit") not in units:
+            raise ValueError(f"Fact {concept} has an unsupported unit")
+        if (field == "temperature_c" and val <= 0) or (
+            field == "spo2_pct" and not 0 <= val <= 100
+        ):
+            raise ValueError(f"Fact {concept} is outside the supported range")
+        data.setdefault(field, val)
+    return evaluate_triage(data)
+
+
+def evaluate_intake(answer, context=None):
+    """Map a confirmed intake answer or full pipeline packet to triage."""
+    if isinstance(answer, dict) and (
+        "question_answers" in answer or answer.get("kind") == "llm_intake"
+    ):
+        return evaluate_pipeline_packet(answer, context=context)
     fields = {
         ("nezadouci_ucinky", "pocit"): "overall_feeling",
         ("bolest_analgeticka_terapie", "nrs"): "pain_nrs",
     }
-    data = {}
+    data = dict(context or {})
     field = fields.get((answer.get("dotaznik_id"), answer.get("otazka_id")))
     if answer.get("confirmed") and field:
         data[field] = (

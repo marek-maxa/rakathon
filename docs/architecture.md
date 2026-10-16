@@ -5,6 +5,30 @@ Implementované jsou samostatné moduly `triage.py` a `llm_intake/` bez runtime
 závislostí. CLI intake po potvrzení odpovědi volá triáž; pacientská karta
 a celá aplikace zatím nejsou implementované. Rozhraní popisují následující oddíly.
 
+## Stav po sloučení s d1b58f4
+
+Existují dvě oddělené cesty triáže:
+
+- `main.py` → `meddi.patient_inputs.build_triage_inputs` →
+  `meddi.triage.evaluate_checkin`: strukturovaný check-in, kontext léčby,
+  historie dostupná v čase a širší pravidla s důvody a `skipped_rules`.
+- CLI jedné otázky → kořenový `triage.evaluate_intake`; nový lokální
+  `triage.evaluate_pipeline_packet` přijímá i LLM paket a explicitní kontext.
+  Nadále používá původní čtyři kritéria, nikoli celé jádro `meddi/`.
+
+`MasterDialogue` sám triáž nevolá. Předání jeho paketu do kořenového adaptéru
+je explicitní krok volajícího. Nové exporty z kořene `llm_intake` se načítají
+odloženě, aby zůstalo funkční spouštění `python -m ...`.
+
+Následující auditní oddíly popisují cestu `meddi/`; původní popis malého
+prototypu a návrhy LLM mají vlastní rozsah. Obě cesty se liší i při neúplném
+vstupu: `meddi/` může vrátit zelenou ze známých skóre a současně požadavek
+review, kořenový prototyp při známých pouze zelených skóre a neznámém
+kritériu vrací `color=null`. Automatické sjednocení není součástí sloučení.
+
+[Porovnání a důvody rozhodnutí](merge-review.md) uvádí zachované změny,
+limity adaptéru a otevřené otázky před klinickým propojením.
+
 ## Aktuální stav pravidel a vstupů po auditu
 
 Poslední pokyn týmu: implementovat podmínky barvy ze zdrojových pravidel,
@@ -425,13 +449,17 @@ uv run python -m llm_intake --questionnaire bolest_analgeticka_terapie --questio
 Po pacientově potvrzení CLI zavolá `triage.evaluate_intake(result)` a vypíše
 barvu a upozornění na neúplné posouzení. `pocit` mapuje potvrzený index 0–4
 na `overall_feeling` 1–5; `nrs` předává číselnou odpověď do `pain_nrs`.
+`triage.evaluate_pipeline_packet(packet, context=None)` i `evaluate_intake`
+přijímají také celý pipeline paket z `build_pipeline_packet` nebo `MasterDialogue.snapshot()`:
+mapují potvrzené odpovědi i naměřená fakta pacienta (např. teplota) a umožňují
+předat kontext léčby (např. probíhající chemoterapii) z pacientské karty.
 Jiné otázky ani nepotvrzené návrhy nepřevádí na klinická fakta. Barvy možností
 dotazníku se k určení výsledné triáže nepoužívají.
 
 Příkaz stále řeší jednu otázku. Pocit 5 tak vrátí `orange`, bolest 4–6 `yellow`;
 ostatní potřebné údaje zůstávají neznámé a `requires_review` je true.
 Bez prokázané eskalace vypíše „neurčeno“, nikoli zelenou. Výchozí otázka
-`unava` zatím nemá mapování. Kontext léčby ani měření se zde nedoplňují.
+`unava` zatím nemá mapování.
 
 ## Návrh: MASTER QUESTION a karta v čase
 
@@ -850,7 +878,7 @@ Testy pytest existují pro `llm_intake/`. Ověření prvního `triage.py`
 proběhlo samostatnými kontrolami funkce a CLI; rozsah a výsledek jsou v tasks.md.
 CLI intake navíc vypisuje omezenou triáž podle propojení popsaného výše.
 
-## Porovnání barev dotazníků s referencemi
+## Historický režim porovnání barev dotazníků s referencemi
 
 Z `origin/main` pochází také `meddi/form.py`, `meddi/loader.py`,
 `meddi/common_types.py`, `meddi/triage.py` a porovnávací CLI `main.py`.
@@ -860,7 +888,8 @@ uv run python main.py
 uv run python -m meddi.triage vstup.json
 ```
 
-`main.py` porovnává maximum barev dotazníků s referencemi párovanými podle
-`checkin_id`; nevytváří kontextovou triáž ani důkaz její klinické správnosti.
-Reference se načítají pouze pro porovnání. Propojení intake nadále používá
-kořenový `triage.py`; implementace v `meddi/triage.py` je zatím samostatná.
+Dřívější `main.py` porovnával maximum barev dotazníků. Od `d1b58f4`
+standardně porovnává výsledek strukturovaných pravidel; původní barva
+dotazníku je pouze vedlejší údaj. Aktuální přepínače popisuje oddíl
+„Porovnání ground truth a pravidel po check-inech“ výše. Reference zůstávají
+mimo rozhodovací vstupy. Výsledky porovnání nejsou klinickým ověřením.

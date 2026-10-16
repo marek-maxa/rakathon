@@ -16,6 +16,7 @@ from .question_catalog import load_catalog, lookup_questions
 __all__ = [
     "Fact",
     "Intake",
+    "MasterDialogue",
     "MasterExtractor",
     "MessageEvent",
     "NumericRange",
@@ -29,14 +30,24 @@ __all__ = [
     "load_catalog",
     "load_question",
     "load_questions",
+    "load_topic_catalog",
     "lookup_questions",
+    "resolve_topics",
 ]
 
 
 def __getattr__(name):
-    # CLI python -m llm_intake.master musí načíst modul až při spuštění.
+    # CLI python -m llm_intake.master / dialogue musí načíst modul až při spuštění.
     if name in {"MasterExtractor", "analyze_message"}:
         from . import master
 
         return getattr(master, name)
+    if name == "MasterDialogue":
+        from . import dialogue
+
+        return getattr(dialogue, name)
+    if name in {"load_topic_catalog", "resolve_topics"}:
+        from . import question_catalog
+
+        return getattr(question_catalog, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
