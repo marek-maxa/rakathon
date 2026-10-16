@@ -1,7 +1,70 @@
 # Technické řešení
 
-Základ: Python 3.12 + uv, Linux / Windows PowerShell. Zatím jen pytest a Ruff.
-Aplikace, datové schéma ani framework nejsou implementované nebo zvolené.
+Základ: Python 3.12 + uv, Linux / Windows PowerShell. Vývojové nástroje: pytest a Ruff.
+První implementace je samostatný `triage.py` bez runtime závislostí.
+Širší CLI a napojení LLM popsané níže jsou stále návrhem.
+
+## Implementováno: malá deterministická triáž
+
+`triage.py` obsahuje čistou funkci `evaluate_triage(data)` a CLI:
+
+```text
+uv run python triage.py vstup.json
+```
+
+Vytvořte UTF-8 soubor `vstup.json`, například:
+
+```json
+{
+  "temperature_c": 38.2,
+  "chemotherapy_within_6_weeks": true,
+  "spo2_pct": 97,
+  "overall_feeling": 3,
+  "pain_nrs": 2,
+  "pain_persists_after_rescue_dose": false
+}
+```
+
+Kontext chemoterapie dodá aplikace z léčebných údajů; zahrnuje probíhající
+chemoterapii nebo období do 6 týdnů po ní. LLM pouze převádí sdělená fakta,
+neurčuje tento kontext klinickým odhadem. Teplota je kladné konečné číslo
+ve °C, SpO2 číslo 0–100 %, pocit celé číslo 1–5 (5 = velmi špatně),
+bolest celé číslo NRS 0–10. Kontext chemoterapie a přetrvávání bolesti po
+SOS dávce jsou boolean. Není-li známo, zda SOS dávka byla užita a zabrala,
+`pain_persists_after_rescue_dose` musí být `null`, nikoli `false`.
+
+Všechna pole lze vynechat nebo nastavit na `null`; neznámá hodnota se nenahradí
+nulou. Prototyp předpokládá správně připravený JSON s typy a rozsahy uvedenými
+výše. Nemá vlastní validátor ani obsluhu výjimek; chyby souboru, JSON nebo typů
+nechává zobrazit přímo Python. Výsledek vypisuje jako JSON na stdout.
+
+Implementované podmínky podle pravidel balíčku, oddíly 3–4:
+
+- Červená: teplota ≥ 38 °C v kontextu chemoterapie nebo SpO2 < 90 %.
+- Oranžová: SpO2 < 92 %, pocit 5 nebo bolest NRS ≥ 7 přetrvávající po SOS dávce.
+- Žlutá: bolest NRS 4–6.
+- Platí nejvyšší aktivovaná úroveň; zelená znamená jen absenci nálezu v této sadě.
+
+Každé kritérium má vlastní funkci: `fever_score`, `oxygen_score`,
+`overall_feeling_score`, `pain_score`. Funkce vrací 1–4 (green až red),
+případně `None`, když nelze kritérium uzavřít. Úrovně jsou `Severity(IntEnum)`:
+`GREEN = 1`, `YELLOW = 2`, `ORANGE = 3`, `RED = 4`. `evaluate_triage` spočítá
+maximum známých skóre. Skóre se nesčítají.
+Každá funkce má anglický docstring s odkazem na soubor a konkrétní oddíl pravidel.
+V JSON se enum automaticky zapíše jako číslo; barva zůstává anglický řetězec.
+
+Výstup obsahuje `color`, `scores` (skóre jednotlivých kritérií) a
+`requires_review`. Nahrazuje předchozí výstup s textovými důvody a seznamem
+chybějících polí. `null` ve skóre označuje kritérium k posouzení. Pokud jsou
+známá skóre jen zelená a jiné kritérium není vyřešené, výsledná barva je
+`null`. Prokázaná vyšší barva zůstává minimem i při neúplných údajích.
+Silná bolest bez potvrzeného přetrvávání po SOS dávce zůstává k posouzení.
+
+Jde o omezenou sadu, nikoli úplnou triáž ani klinicky ověřený systém.
+Zatím nezpracovává zimnici, pokles saturace proti obvyklé hodnotě, další
+příznaky, trendy ani kontakty. Načítání historie, LLM a rozhovor nejsou zapojené.
+Zdroj: [pravidla triáže](../rakathon_meddi_onco_data/docs/pravidla_triaze.md),
+oddíly 3–4. Rozšiřování pravidel bude pokračovat po review tohoto souboru.
 
 ## Směr určený týmem
 
@@ -137,5 +200,5 @@ uv run ruff check .
 uv run pytest
 ```
 
-`pytest` zatím nemá co spustit a skončí kódem 5 (žádné testy).
-Příkaz aplikace a smysluplné testy doplníme s prvním implementačním krokem.
+V repozitáři zatím není testovací sada pro pytest. Ověření prvního `triage.py`
+proběhlo samostatnými kontrolami funkce a CLI; rozsah a výsledek jsou v tasks.md.
