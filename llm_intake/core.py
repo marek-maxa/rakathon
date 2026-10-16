@@ -273,9 +273,13 @@ class Intake:
             ],
         }
 
-    def confirm(self) -> dict:
+    def confirm(self, value=None) -> dict:
         if self.state != "needs_confirmation":
             raise ValueError("Potvrdit lze pouze platný aktuální návrh.")
+        if value is not None:
+            self._draft = validate(
+                self.question, {**self._draft, "value": value}, self._sources
+            )
         self._state = "confirmed"
         return self.confirmed_data()
 

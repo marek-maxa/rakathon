@@ -17,6 +17,7 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 | Malá deterministická triáž; triage.py, docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Jeden soubor přijímá JSON, vrací barvu s důvody a nejistotou; ověřené hranice, priority pravidel a chybné vstupy; připraveno k review |
 | Sloučit dokumentaci triáže a LLM intake před commitem; docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Zachované obě implementace a historie rozhodnutí, sjednocený popis aktuálního stavu; 59 testů a Ruff prošly |
 | Minimálně propojit potvrzený intake s triáží; triage.py, llm_intake/__main__.py, tests/test_triage_intake.py, docs/ | Aktuální relace / main | done | CLI po potvrzení vypíše barvu či neurčeno; mapuje pocit a NRS, neodvozuje chybějící fakta; 65 testů a Ruff prošly |
+| Vícekrokový formulář propojený s backendem; web/, llm_intake/core.py, tests/test_web.py, docs/, README.md, pyproject.toml, uv.lock | Aktuální relace / main | done | Nechat chatové bubliny mimo rozhraní; serverové formuláře, potvrzení/upravení výběru, doptání, pokračování bez přiřazení a chyby zřetelně oddělené od formuláře |
 | S mentorem potvrdit nejasnosti pravidel a časových údajů; docs/challenge.md, docs/architecture.md | Tým + mentor | todo | Známá dostupnost údajů v čase, vyřešené interpretační otázky, případné dodatečné hodnoticí rozhraní, termín a způsob odevzdání |
 | Společně projít jeden případ a domluvit schéma extrakce a karty; docs/architecture.md | Tým | todo | Definovaná pozorování se zdrojem a časem, jejich použití v pravidlech a výstupy pro pacienta i zdravotníka; zvolený nejmenší implementační krok |
 | První průchod načtení → triáž → výstup | Nepřiřazeno | todo | Po domluvě předchozího kroku konkretizovat soubory; jeden případ běží s dohledatelnými důvody a bez budoucích dat či referencí ve vstupu |
@@ -99,9 +100,22 @@ Nejde o obecný benchmark. Export je nyní v2, extraktor přijímá třetí argu
 `source_questions`; limity, opakování otázky a nemožnost nuceně potvrdit nevyřešenou
 odpověď ověřují automatické testy. Závislosti ani zdrojová data se neměnily.
 
+Úprava webu podle zpětné vazby 16. 10. 2026: chatové bubliny nahrazeny
+jednoduchým formulářem s jednou otázkou a číslováním kroků. Chyba API nebo
+validace se zobrazí jako samostatné výrazné upozornění; nepoužívaný chatový
+skript odstraněn. `uv run --locked pytest -q` — 71 testů prošlo;
+`uv run --locked ruff check .` a `git diff --check` prošly.
+
 Sloučení před commitem 16. 10. 2026: začleněn commit `6f0d09e` z `origin/main`
 a zachovány lokální změny LLM intake. Konflikty ve třech týmových dokumentech
 vyřešeny se zachováním obou modulů; jejich propojení zůstává dalším krokem.
 `uv run --locked python -m pytest -q`: 59 testů prošlo;
 `uv run --locked ruff check .` prošel. Kontroly proběhly na Linuxu,
 bez živého volání LLM a bez nového klinického ověření.
+
+Automatické načtení webového `.env` 16. 10. 2026: web při importu načte
+`llm_intake/.env` přes `python-dotenv`; existující proměnné prostředí nepřepisuje.
+Spuštění webu už nevyžaduje `uv --env-file`. Ověřeno po odstranění klíče z
+procesního prostředí, bez jeho výpisu: import webu načetl lokální hodnotu.
+`uv run --locked pytest -q` — 71 testů prošlo; Ruff a `git diff --check`
+prošly. Živé volání LLM nebylo součástí kontroly.

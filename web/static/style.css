@@ -1,122 +1,158 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  color: #182735;
+  background: #f5f7fa;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   min-height: 100vh;
-  min-height: 100svh;
   margin: 0;
-  padding: 24px;
-  display: grid;
-  place-items: center;
-  background: #f5f7fa;
-  color: #182735;
-  font-family: system-ui, sans-serif;
+  padding: 48px 24px;
 }
 
-.chat {
-  width: 100%;
-  max-width: 720px;
-  height: 85vh;
-  height: 85svh;
-  display: flex;
-  flex-direction: column;
+.page {
+  width: min(100%, 680px);
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #176b63;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 h1 {
-  margin: 0 0 32px;
-  font-size: clamp(28px, 5vw, 40px);
-  font-weight: 600;
-  text-align: center;
-}
-
-.chat-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 20px;
-}
-
-.messages {
-  flex: 1;
-  min-height: 100px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 8px;
-}
-
-.message {
-  flex-shrink: 0;
-  max-width: 85%;
   margin: 0;
-  padding: 16px 20px;
-  border-radius: 20px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: 650;
 }
 
-.message-assistant {
-  align-self: flex-start;
+.progress {
+  margin: 12px 0 0;
+  color: #536371;
+}
+
+.form-card {
+  padding: clamp(24px, 5vw, 40px);
+  border: 1px solid #d9e0e6;
+  border-radius: 12px;
   background: #fff;
-  border: 1px solid #bac6d0;
-  border-bottom-left-radius: 4px;
+  box-shadow: 0 8px 28px #1827350a;
 }
 
-.message-user {
-  align-self: flex-end;
-  background: #176b63;
-  color: #fff;
-  border-bottom-right-radius: 4px;
+h2 {
+  margin: 0 0 16px;
+  font-size: 23px;
+  line-height: 1.35;
 }
 
-label {
-  font-size: 16px;
-  font-weight: 500;
+.instruction,
+.answer-summary,
+.form-card > p {
+  color: #465663;
+  line-height: 1.6;
 }
 
-textarea {
+.answer-summary {
+  margin: 0 0 24px;
+  white-space: pre-wrap;
+}
+
+.question-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+label,
+legend {
+  font-weight: 600;
+}
+
+textarea,
+select {
   width: 100%;
-  min-height: 120px;
-  max-height: 30svh;
-  padding: 24px;
-  resize: vertical;
-  border: 1px solid #bac6d0;
-  border-radius: 20px;
+  border: 1px solid #aebbc6;
+  border-radius: 8px;
   background: #fff;
   color: inherit;
   font: inherit;
-  font-size: 18px;
-  line-height: 1.6;
-  box-shadow: 0 8px 32px #18273508;
 }
 
-textarea::placeholder {
-  color: #6b7885;
+textarea {
+  min-height: 144px;
+  padding: 14px 16px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+select {
+  min-height: 48px;
+  padding: 10px 12px;
 }
 
 textarea:focus-visible,
+select:focus-visible,
+input:focus-visible,
 button:focus-visible {
   outline: 3px solid #25837b;
-  outline-offset: 4px;
+  outline-offset: 3px;
+}
+
+fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  margin-bottom: 4px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d9e0e6;
+  border-radius: 8px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.option input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #176b63;
 }
 
 button {
-  align-self: flex-end;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  min-height: 52px;
-  padding: 12px 28px;
+  align-self: flex-start;
+  min-height: 48px;
+  padding: 12px 22px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #176b63;
   color: #fff;
   font: inherit;
-  font-weight: 600;
+  font-weight: 650;
   cursor: pointer;
 }
 
@@ -124,13 +160,33 @@ button:hover {
   background: #10564f;
 }
 
+.error {
+  margin: 0 0 24px;
+  padding: 16px 18px;
+  border: 1px solid #b42318;
+  border-left-width: 5px;
+  border-radius: 6px;
+  background: #fff1f0;
+  color: #7a271a;
+}
+
+.error p {
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.notice {
+  padding: 16px 18px;
+  border-left: 4px solid #b7791f;
+  background: #fff8e8;
+  color: #594214;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 @media (max-width: 480px) {
   body {
-    padding: 20px;
-  }
-
-  textarea {
-    padding: 18px;
+    padding: 28px 16px;
   }
 
   button {

@@ -7,17 +7,67 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body>
-    <main class="chat">
-      <h1>MEDDI ONCO</h1>
-      <div class="messages" role="log" aria-label="Konverzace" aria-live="polite">
-        <p class="message message-assistant">Jak se dnes cítíte?</p>
-      </div>
-      <form class="chat-form">
-        <label for="message">Vaše zpráva</label>
-        <textarea id="message" name="message" placeholder="Napište, co vás trápí…" required></textarea>
-        <button type="submit">Next <span aria-hidden="true">→</span></button>
-      </form>
+    <main class="page">
+      <header class="page-header">
+        <p class="eyebrow">MEDDI ONCO</p>
+        <h1>Pravidelná kontrola</h1>
+        {% if not page.done %}
+          <p class="progress">Otázka {{ page.number }} z {{ page.total }}</p>
+        {% endif %}
+      </header>
+      <section class="form-card" aria-labelledby="question-title">
+        {% if error %}
+          <div class="error" role="alert">
+            <strong>Odeslání se nezdařilo</strong>
+            <p>{{ error }}</p>
+          </div>
+        {% endif %}
+        {% if page.done %}
+          <h2 id="question-title">Děkujeme</h2>
+          <p>Všechny odpovědi jsou potvrzené.</p>
+        {% elif page.unresolved %}
+          <h2 id="question-title">Odpověď se nepodařilo přiřadit</h2>
+          <div class="notice">{{ page.unresolved }}</div>
+          <p>Můžete pokračovat a tuto otázku ponechat bez vybrané odpovědi.</p>
+          <form method="post" class="question-form">
+            <button type="submit" name="continue" value="1">Pokračovat</button>
+          </form>
+        {% elif page.intake and page.intake.state == "needs_confirmation" %}
+          <h2 id="question-title">Zkontrolujte navrženou odpověď</h2>
+          <p class="answer-summary">{{ page.summary }}</p>
+          <form method="post" class="question-form">
+            {% if page.kind == "vice" %}
+              <fieldset>
+                <legend>Vyberte odpověď, která vás vystihuje</legend>
+                {% for option in page.options %}
+                  <label class="option">
+                    <input type="checkbox" name="value" value="{{ loop.index0 }}"
+                      {% if loop.index0 in page.value %}checked{% endif %}>
+                    <span>{{ option }}</span>
+                  </label>
+                {% endfor %}
+              </fieldset>
+            {% else %}
+              <label for="value">Upravte nebo potvrďte odpověď</label>
+              <select id="value" name="value">
+                {% for option in page.options %}
+                  <option value="{{ loop.index0 }}"
+                    {% if loop.index0 == page.value %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            {% endif %}
+            <button type="submit">Potvrdit a pokračovat</button>
+          </form>
+        {% else %}
+          <h2 id="question-title">{{ page.question }}</h2>
+          {% if page.instruction %}<p class="instruction">{{ page.instruction }}</p>{% endif %}
+          <form method="post" class="question-form">
+            <label for="answer">Vaše odpověď</label>
+            <textarea id="answer" name="answer" placeholder="Napište svou odpověď" required></textarea>
+            <button type="submit">Pokračovat</button>
+          </form>
+        {% endif %}
+      </section>
     </main>
-    <script src="{{ url_for('static', filename='chat.js') }}" defer></script>
   </body>
 </html>

@@ -3,8 +3,8 @@
 AI společník onkologického pacienta mezi kontrolami: vývoj obtíží,
 vysvětlitelná triáž a srozumitelný další krok pro pacienta i zdravotnický tým.
 
-Začínáme návrhem. Aplikace zatím není implementovaná. Nejdříve projdeme
-datový balíček MEDDI a domluvíme jeden průchod od hlášení k výstupu.
+Repozitář obsahuje CLI a minimální lokální webový průchod sběrem odpovědí.
+Web zatím nenahrazuje klinické posouzení ani kompletní pacientskou kartu.
 
 ## Soubory
 
@@ -38,8 +38,23 @@ uv sync --locked
 | `uv run pytest` | Testy, až je přidáme |
 | `git status --short` / `git diff` | Přehled změn |
 
-Zatím pouze vývojové nástroje pytest a Ruff. Knihovny pro aplikaci přidáme,
-až je bude potřebovat konkrétní krok. Testy přibudou s implementací.
+Web používá Flask; další runtime závislosti zůstávají omezené. Rozhraní má
+chatový vzhled, ale zprávy odesílá běžnými HTML formuláři bez JavaScriptu.
+
+## Lokální webový průchod
+
+Nastavte `MEDDI_LLM_API_KEY` lokálně v `llm_intake/.env` podle
+`llm_intake/.env.example` a spusťte z kořene repozitáře:
+
+```text
+uv run python -m web.app
+```
+
+Otevřete `http://127.0.0.1:5000`. Uživatel odpovídá vlastními slovy; návrh
+LLM následně zkontroluje nebo upraví ve strukturovaném formuláři. Odpovědi se
+zobrazují v historii běžící relace. Stav je jen v paměti jednoho procesu.
+Aktuální tok obsahuje tři nepodmíněné otázky; triáž, trvalé ukládání a klinické
+doporučení nejsou součástí webu.
 
 ## Startovní prompt pro agenta
 

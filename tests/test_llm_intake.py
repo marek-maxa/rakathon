@@ -59,6 +59,31 @@ def test_reject_correct_and_confirm():
         session.submit("Další změna bez nové relace")
 
 
+def test_manual_answer_edit_is_validated_and_confirmed():
+    session = Intake(
+        load_question("nezadouci_ucinky", "pocit"),
+        lambda *_: extracted(0, "Je mi dobře."),
+    )
+    session.submit("Je mi dobře.")
+    result = session.confirm(4)
+
+    assert result["odpoved_index"] == 4
+    assert result["odpoved"] == "5 = velmi špatně"
+    assert result["extraction"]["value"] == 4
+
+
+def test_manual_answer_edit_rejects_invalid_values():
+    session = Intake(
+        load_question("nezadouci_ucinky", "pocit"),
+        lambda *_: extracted(0, "Je mi dobře."),
+    )
+    session.submit("Je mi dobře.")
+
+    with pytest.raises(ValueError, match="Extrahovaná hodnota"):
+        session.confirm(5)
+    assert session.state == "needs_confirmation"
+
+
 def test_unclear_does_not_become_confirmed_or_negative():
     session = Intake(load_question("nezadouci_ucinky", "unava"), lambda *_: UNCLEAR)
     result = session.submit("Nevím, jsem unavená.")

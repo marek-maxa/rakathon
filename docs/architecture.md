@@ -1,9 +1,18 @@
 # Technické řešení
 
-Základ: Python 3.12 + uv, Linux / Windows PowerShell. Vývojové nástroje: pytest a Ruff.
-Implementované jsou samostatné moduly `triage.py` a `llm_intake/` bez runtime
-závislostí. CLI intake po potvrzení odpovědi volá triáž; pacientská karta
-a celá aplikace zatím nejsou implementované. Rozhraní popisují následující oddíly.
+Základ: Python 3.12 + uv, Linux / Windows PowerShell. Web používá Flask;
+pytest a Ruff jsou vývojové nástroje. Web je jednoduchý vícekrokový formulář
+nad `llm_intake/`, nikoli chat; neprovádí triáž ani neukládá odpovědi trvale.
+
+## Web
+
+Spusťte z kořene `uv run python web/app.py`. Web při startu automaticky načte
+`llm_intake/.env`; existující proměnné prostředí mají přednost.
+Odpověď se odešle formulářem, LLM navrhne strukturovanou možnost a pacient ji upraví nebo potvrdí.
+Po potvrzení se zobrazí další z prvních tří otázek dotazníku. Při nejasné
+odpovědi může následovat doptání; nevyřešenou odpověď lze ponechat bez přiřazení
+a pokračovat. Chyby odeslání se zobrazují jako samostatné chybové upozornění,
+oddělené od otázky a formuláře. Stav relace zůstává v paměti procesu.
 
 ## Minimální propojení intake → triáž
 
