@@ -15,13 +15,14 @@
     <h1>Požadavky pro tým</h1>
   </header>
   <main class="report-shell">
+    {% include '_email_feedback.html' %}
     <p class="note">Demonstrační přehled podle posledního check-inu každého pacienta.
       Požadavky jsou seřazené podle úrovně, v rámci úrovně od nejstaršího záznamu.
       Předání je simulované; přehled nesleduje doručení ani převzetí zdravotníkem.</p>
     <section aria-labelledby="requests-title">
       <h2 id="requests-title">K posouzení týmem ({{ cards | length }})</h2>
       {% for card in cards %}
-        {{ clinical_card(card) }}
+        {{ clinical_card(card, email_token=email_tokens[card.patient_id]) }}
       {% else %}
         <p class="empty-state">Podle posledních hodnocení nyní není požadavek pro tým.</p>
       {% endfor %}
@@ -41,5 +42,6 @@
       <span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a>
     </footer>
   </main>
+  <script src="{{ url_for('static', filename='patient_mail.js') }}" defer></script>
 </body>
 </html>

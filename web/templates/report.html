@@ -1,5 +1,6 @@
 {% from '_triage.html' import triage_result %}
 {% from '_clinical_card.html' import clinical_card as render_clinical_card %}
+{% from '_patient_email.html' import patient_email %}
 <!doctype html>
 <html lang="cs">
 <head>
@@ -20,7 +21,12 @@
     </nav>
   </header>
   <main class="report-shell">
-    {% if clinical_card %}{{ render_clinical_card(clinical_card, detail_link=false) }}{% endif %}
+    {% include '_email_feedback.html' %}
+    {% if clinical_card %}
+      {{ render_clinical_card(clinical_card, detail_link=false, email_token=email_token) }}
+    {% else %}
+      {{ patient_email(status.patient_id, email_token, address=patient_email_address) }}
+    {% endif %}
     <aside class="note" aria-label="Rozsah a omezení reportu">
       Triáž a její důvody počítá společný backend z údajů dostupných v čase check-inu.
       Neúplnost posouzení se uvádí odděleně od doporučeného kroku.
@@ -247,5 +253,6 @@
       <span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a>
     </footer>
   </main>
+  <script src="{{ url_for('static', filename='patient_mail.js') }}" defer></script>
 </body>
 </html>

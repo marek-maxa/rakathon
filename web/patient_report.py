@@ -21,6 +21,7 @@ from meddi.common_types import Severity
 from meddi.loader import list_patient_ids
 from meddi.messages import evaluate_message_checkin
 from meddi.status import MeasurementStatus, build_patient_status
+from web.patient_mail import email_token
 from web.patient_store import load_patient, save_message_analysis
 from web.triage import checkin_assessments
 
@@ -350,6 +351,8 @@ def report_patient(patient_id, message_error=None):
         message_rows=message_rows,
         message_token=token,
         message_error=message_error,
+        email_token=email_token(patient_id),
+        patient_email_address=(patient.get("kontakt") or {}).get("email", ""),
         charts=charts,
         plotly_js_version=PLOTLY_JS_VERSION,
         severity_classes=SEVERITY_CLASSES,
@@ -378,6 +381,7 @@ def _clinical_card(patient, assessments):
         "patient_id": patient["patient_id"],
         "name": (patient.get("demografie") or {}).get("jmeno_fiktivni")
         or patient["patient_id"],
+        "email": (patient.get("kontakt") or {}).get("email", ""),
         "assessment": latest,
         "action": action,
         "summary": f"{action}. "
@@ -405,7 +409,14 @@ def team_overview():
             card["patient_id"],
         )
     )
-    return render_template("team.html", cards=cards, other_patients=other_patients)
+    return render_template(
+        "team.html",
+        cards=cards,
+        other_patients=other_patients,
+        email_tokens={
+            card["patient_id"]: email_token(card["patient_id"]) for card in cards
+        },
+    )
 
 
 @patient_report.route(

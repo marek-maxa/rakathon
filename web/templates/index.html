@@ -33,8 +33,7 @@
       </div>
       {% if page.done and page.assessment %}
         <section class="form-card" aria-label="Triáž podle dostupných údajů" aria-live="polite">
-          <h2>Triáž podle dostupných údajů</h2>
-          {{ triage_result(page.assessment) }}
+          {{ triage_result(page.assessment, prominent=true) }}
         </section>
       {% endif %}
       <section class="form-card" aria-labelledby="question-title">

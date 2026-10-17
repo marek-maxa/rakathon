@@ -82,3 +82,18 @@ def save_message_analysis(patient_id, checkin_id, analysis):
             )
             path.replace(destination)
     return destination
+
+
+def save_patient_email(patient_id: str, email: str) -> None:
+    destination = patient_path(patient_id)
+    with _write_lock:
+        patient = deepcopy(load_patient(patient_id))
+        patient.setdefault("kontakt", {})["email"] = email
+        content = (
+            json.dumps(patient, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+        )
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(dir=destination.parent) as temporary:
+            path = Path(temporary) / "patient.json"
+            path.write_text(content, encoding="utf-8")
+            path.replace(destination)

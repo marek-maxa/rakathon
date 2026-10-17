@@ -172,7 +172,7 @@ samy nepřidávají další prioritu. Starší červená není aktuálním poža
 pokud poslední hodnocení požadavek nemá. Ostatní pacienti a prázdné profily
 zůstávají dostupní v rozbaleném seznamu.
 
-Předání je viditelně simulované. Přehled nemá frontu, odesílání, převzetí,
+Předání je viditelně simulované. Přehled nemá frontu automatického předání ani převzetí,
 vlastní úložiště ani další LLM volání; časové lhůty zatím přebírá z obecného
 kontaktního textu backendu. Plné směrování a výpočet termínů zůstávají M4.
 Čitelnost a dohledatelnost vychází z [vzorových souhrnů](../rakathon_meddi_onco_data/docs/vzorove_souhrny_pro_lekare.md),
@@ -309,7 +309,7 @@ Vyšší výsledek není automaticky zbytečná eskalace a `requires_review` zah
 i chybějící podmínky hypotetických pravidel. Prošlé testy současného skrývání
 červené triáže neprokazují splnění P07.
 `--comparison` filtruje řádky, souhrn stále počítá celou sadu. Testy intake/webu
-používají náhrady LLM; automatické testy SMTP zatím chybí. Živé evaluace jsou
+používají náhrady LLM; SMTP ověřují testy uvedené níže. Živé evaluace jsou
 samostatná explicitní volání se syntetickými daty.
 Prošlé testy a správné schéma neprokazují klinickou správnost nebo úplnost
 extrakce. Testovací výsledky průběžně získávat příkazy, nevést jejich historii
@@ -345,3 +345,20 @@ backend. Restart dialog neobnoví, ale SQLite/working copies na trvalém disku
 zůstanou. Tato změna připravuje balík a lokální startup; nic nenasazuje ani
 neověřuje vzdálený build, tajemství nebo umístění dat v EU. Ověření cílového
 prostředí patří do M5/K10, požadavky provozu do zadání P24.
+
+## Ruční e-mail a pacientský výsledek
+
+Karta týmu a detail mají uložený kontakt `kontakt.email`. POST
+`/patients/<patient_id>/email` s `action=save_contact` ukládá adresu atomicky
+do pracovní kopie; odeslání načítá příjemce z této karty. Podepsaný token
+váže formulář na browser a pacienta, session brání opakování posledních
+20 úspěšných formulářů. `notifications.mailer` posílá pevný text bez
+klinických údajů. SMTP přijetí není potvrzení doručení ani klinické předání.
+Web načítá také `notifications/.env` bez přepsání prostředí.
+
+Pacientský konečný výsledek má výrazný barevný panel, slovní název barvy,
+symbol a velké doporučení. Červená má syté výstražné záhlaví. Klinické
+texty a výpočet zůstávají společné s backendem.
+
+`tests/test_notifications.py` a `tests/test_patient_mail.py` ověřují SMTP
+a formuláře s náhradou transportu; mailové testy používají Basic Auth dema.

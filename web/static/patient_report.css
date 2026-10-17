@@ -478,3 +478,82 @@ summary:focus-visible {
     break-inside: avoid;
   }
 }
+
+.patient-email {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.patient-email label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.patient-email-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.patient-email input[type="email"] {
+  flex: 1 1 220px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.patient-email button {
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.patient-email button:hover {
+  filter: brightness(0.9);
+}
+
+.patient-email button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.patient-email input:focus-visible,
+.patient-email button:focus-visible {
+  outline: 3px solid #80b6bd;
+  outline-offset: 3px;
+}
+
+.patient-email-hint {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.email-feedback {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #edf2f7;
+}
+
+.patient-email-error {
+  background: #fff0ee;
+  color: #992b24;
+}
+
+.patient-email-success {
+  background: #eaf6ef;
+  color: #1b6941;
+}

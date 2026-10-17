@@ -1,0 +1,19 @@
+{% macro patient_email(patient_id, token, return_to='report', address='') -%}
+  <form class="patient-email" method="post" action="{{ url_for('patient_mail.send_patient_email', patient_id=patient_id) }}">
+    <input type="hidden" name="email_token" value="{{ token }}">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <p>E-mail pacienta: <strong>{{ address or 'Není uveden' }}</strong></p>
+    {% if address %}
+      <button type="submit" name="action" value="send">Odeslat zprávu</button>
+    {% endif %}
+    <details{% if not address %} open{% endif %}>
+      <summary>{{ 'Upravit kontakt' if address else 'Doplnit kontakt' }}</summary>
+      <label for="email-{{ patient_id }}">E-mail pacienta</label>
+      <div class="patient-email-controls">
+        <input id="email-{{ patient_id }}" type="email" name="email" value="{{ address }}" autocomplete="email" maxlength="254">
+        <button type="submit" name="action" value="save_contact">Uložit kontakt</button>
+      </div>
+    </details>
+    <p class="patient-email-hint">Zpráva se odešle na uložený kontakt. Obsah je předdefinovaný, bez klinických údajů.</p>
+  </form>
+{%- endmacro %}

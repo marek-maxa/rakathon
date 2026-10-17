@@ -12,6 +12,7 @@ def authenticated_web_clients(request, monkeypatch):
         "test_web_triage.py",
         "test_survey_recovery.py",
         "test_patient_report.py",
+        "test_patient_mail.py",
         "test_web_events.py",
         "test_web_measurements.py",
     }:

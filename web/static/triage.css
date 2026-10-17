@@ -27,3 +27,93 @@
 .triage-findings li + li { margin-top: 12px; }
 .triage-source { display: block; color: #536371; overflow-wrap: anywhere; }
 .triage-review { margin-top: 12px; }
+
+.triage-result-prominent {
+  --result-color: #334155;
+  --result-background: #f1f5f9;
+  margin: 0;
+  padding: clamp(20px, 4vw, 36px);
+  border: 3px solid var(--result-color);
+  border-top-width: 12px;
+  border-radius: 16px;
+  background: var(--result-background);
+  color: #17212b;
+  overflow-wrap: anywhere;
+}
+
+.triage-result-green { --result-color: #166534; --result-background: #ecfdf3; }
+.triage-result-yellow { --result-color: #854d0e; --result-background: #fef9c3; }
+.triage-result-orange { --result-color: #9a3412; --result-background: #ffedd5; }
+.triage-result-red {
+  --result-color: #b91c1c;
+  --result-background: #fff1f2;
+  box-shadow: 0 8px 28px rgb(185 28 28 / 18%);
+}
+
+.triage-result-heading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--result-color);
+  color: var(--result-color);
+}
+
+.triage-result-symbol {
+  display: grid;
+  place-items: center;
+  flex: 0 0 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--result-color);
+  color: #fff;
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.triage-result-label {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.triage-result-heading h2 {
+  margin: 0;
+  color: inherit;
+  font-size: clamp(2rem, 7vw, 3.5rem);
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.triage-result-red .triage-result-heading {
+  margin: -1px -1px 24px;
+  padding: 20px;
+  border-radius: 8px;
+  background: #b91c1c;
+  color: #fff;
+}
+
+.triage-result-red .triage-result-symbol {
+  background: #fff;
+  color: #b91c1c;
+}
+
+.triage-result-prominent .triage-action {
+  margin-top: 24px;
+  font-size: clamp(1.15rem, 3vw, 1.4rem);
+  font-weight: 650;
+}
+
+.triage-result-prominent .triage-incomplete {
+  padding: 12px 16px;
+  border: 1px solid #854d0e;
+  border-radius: 8px;
+  background: #fef9c3;
+}
+
+@media (max-width: 420px) {
+  .triage-result-heading { gap: 12px; }
+  .triage-result-symbol { flex-basis: 44px; height: 44px; font-size: 2rem; }
+  .triage-result-red .triage-result-heading { padding: 14px; }
+}

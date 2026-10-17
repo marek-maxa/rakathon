@@ -51,7 +51,7 @@ Lint a SMTP testy nejsou prioritou před fungujícím M1–M5.
 | K8 · pacientský a zdravotnický web | Tým | todo | Stručná kartička/detail/LLM stejné revize, kontroly, prioritní požadavky a zásahy týmu; role, volba zastupování a správné oslovení bez změny významu otázek |
 | K9 · průběžný replay, úplný tok a demo | Tým | todo | Od K2 kontrolovat restart, opakované odeslání, opravy, výpadky a časovou izolaci; nakonec všech 171 check-inů a šest povinných situací včetně negativních/mezních případů, záchyt i zbytečné eskalace, srozumitelnost a záložní demo bez LLM |
 | K10 · MEDDI a provoz v EU | Tým + pracoviště | todo | Integrační/provozní kontrakt, data a model v EU, přístupy, obnova, doručení, odpovědnosti a klinické převzetí; skutečné nasazení zvlášť |
-| Testy · SMTP transport a formulář | Tým | todo | Doplnit chybějící automatické testy bez skutečného odesílání pro konfiguraci, CSRF, validaci adresy a selhání transportu; teprve potom uvést funkční příkaz v notifikačním README |
+| UI · e-mail a výsledek dotazníku | Aktuální relace | done | Uložený kontakt.email, ruční pevná zpráva a výrazný barevný výsledek zachované spolu s analýzou zpráv; SMTP testy bez skutečného odesílání |
 
 ## Hotové převzaté části — znovu nezadávat
 

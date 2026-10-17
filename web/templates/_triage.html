@@ -3,9 +3,21 @@
   <span class="triage-badge triage-{{ color if color in labels else 'unknown' }}">{{ labels.get(color, 'Neurčeno') }}</span>
 {%- endmacro %}
 
-{% macro triage_result(assessment, detailed=false) -%}
-  <div class="triage-result">
-    <p>Výsledek triáže: {{ triage_badge(assessment.color) }}</p>
+{% macro triage_result(assessment, detailed=false, prominent=false) -%}
+  {% set colors = {'green': 'Zelená', 'yellow': 'Žlutá', 'orange': 'Oranžová', 'red': 'Červená'} %}
+  {% set color = assessment.color if assessment.color in colors else 'unknown' %}
+  <div class="triage-result{% if prominent %} triage-result-prominent triage-result-{{ color }}{% endif %}">
+    {% if prominent %}
+      <div class="triage-result-heading">
+        <span class="triage-result-symbol" aria-hidden="true">{{ '!' if color in ['red', 'orange', 'yellow'] else '✓' if color == 'green' else '?' }}</span>
+        <div>
+          <p class="triage-result-label">Výsledek triáže:</p>
+          <h2>{{ colors.get(color, 'Neurčeno') }}</h2>
+        </div>
+      </div>
+    {% else %}
+      <p>Výsledek triáže: {{ triage_badge(assessment.color) }}</p>
+    {% endif %}
     {% if assessment.doporuceni_pro_pacienta %}
       <p class="triage-action"><strong>Co udělat:</strong> {{ assessment.doporuceni_pro_pacienta }}</p>
       <p><strong>Kontakt:</strong> {{ assessment.doporuceny_kontakt }}</p>

@@ -13,6 +13,7 @@ from itsdangerous import BadSignature, URLSafeSerializer
 
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / "llm_intake" / ".env")
+load_dotenv(ROOT / "notifications" / ".env")
 sys.path.insert(0, str(ROOT))
 
 from llm_intake.client import APIError, Client
@@ -23,6 +24,7 @@ from llm_intake.master_contract import MessageEvent
 from meddi.loader import list_patient_ids, load_patient
 from web.event_store import EventStore
 from web.export import meddi_record
+from web.patient_mail import patient_mail
 from web.patient_report import patient_report
 from web.patient_store import append_checkins
 from web.patient_store import load_patient as load_working_patient
@@ -31,6 +33,7 @@ from web.triage import assess_contact
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(16)
 app.register_blueprint(patient_report)
+app.register_blueprint(patient_mail)
 app.config["MAX_QUESTIONS"] = 6
 app.config["BASIC_AUTH_USERNAME"] = os.environ.get("MEDDI_BASIC_AUTH_USERNAME", "")
 app.config["BASIC_AUTH_PASSWORD"] = os.environ.get("MEDDI_BASIC_AUTH_PASSWORD", "")

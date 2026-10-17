@@ -1,5 +1,6 @@
 {% from '_triage.html' import triage_badge %}
-{% macro clinical_card(card, detail_link=true) -%}
+{% from '_patient_email.html' import patient_email %}
+{% macro clinical_card(card, detail_link=true, email_token=none) -%}
   {% set assessment = card.assessment %}
   <article class="clinical-card" aria-label="Stručná kartička pacienta {{ card.name }}">
     <header class="section-heading">
@@ -29,6 +30,9 @@
       <a href="{{ url_for('patient_report.report_patient', patient_id=card.patient_id, _anchor='triage-title') }}">Detail pacienta a podklady</a>
     {% else %}
       <a href="#triage-title">Podklady hodnocení</a>
+    {% endif %}
+    {% if email_token %}
+      {{ patient_email(card.patient_id, email_token, 'team' if detail_link else 'report', card.email) }}
     {% endif %}
   </article>
 {%- endmacro %}
