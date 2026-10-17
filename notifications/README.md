@@ -1,7 +1,7 @@
 # SMTP demo
 
 Samostatná Flask aplikace odešle na ručně zadanou adresu pevný předmět a text
-z `app.py`. Nečte pacientská data a není napojená na triáž. Transport lze
+z `mailer.py`. Nečte pacientská data a není napojená na triáž. Transport lze
 později využít za předávacím adaptérem; klinická fronta, priority, opakování
 a převzetí jsou úkoly [K6](../docs/meddi-onco-plan.md#implementační-kroky-a-závislosti).
 
@@ -23,9 +23,20 @@ port 5000 a prostředí je třeba načíst přes `uv run --env-file` jako výše
 
 Formulář používá CSRF token a validaci adresy. Úspěch znamená přijetí SMTP
 serverem, nikoli doručení do schránky nebo převzetí zdravotníkem. Lokální
-`.env` ignoruje Git. Automatické testy SMTP transportu a tohoto formuláře
-zatím chybí; `tests/test_notifications.py` v repozitáři neexistuje. Jejich
-doplnění s náhradou SMTP bez skutečného odesílání evidují [úkoly](../docs/tasks.md).
+`.env` ignoruje Git.
+
+Pacientský web má navíc ruční odeslání pevné zprávy na uložený
+`kontakt.email` ze zdravotnického přehledu/detailu. Používá stejný transport
+`notifications.mailer`; nejde o automatické předání triáže.
+
+Testy SMTP transportu a samostatného formuláře jsou v
+`tests/test_notifications.py`; pacientský formulář, uložení kontaktu,
+opakování a selhání ověřuje `tests/test_patient_mail.py`. Používají náhradu
+SMTP bez skutečného odesílání:
+
+```text
+uv run --locked pytest -q tests/test_notifications.py tests/test_patient_mail.py
+```
 
 ## Pravidelné pozvánky
 

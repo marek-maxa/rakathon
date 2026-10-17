@@ -21,7 +21,9 @@ from llm_intake.core import DEFINITIONS
 from llm_intake.dialogue import MasterDialogue
 from llm_intake.master import MasterExtractor
 from llm_intake.master_contract import MessageEvent
+from meddi.clinical_rules import OBSERVATION_FLAGS, OBSERVATION_NUMBERS
 from meddi.loader import list_patient_ids, load_patient
+from meddi.validation import VITAL_FIELDS
 from web.event_store import EventStore
 from web.export import meddi_record
 from web.patient_mail import patient_mail
@@ -39,6 +41,7 @@ app.config["BASIC_AUTH_USERNAME"] = os.environ.get("MEDDI_BASIC_AUTH_USERNAME", 
 app.config["BASIC_AUTH_PASSWORD"] = os.environ.get("MEDDI_BASIC_AUTH_PASSWORD", "")
 app.config["DATA_DIR"] = Path(os.environ.get("MEDDI_DATA_DIR") or ROOT / "data")
 MASTER_QUESTION = "Jak se dnes cítíte?"
+CAREGIVER_QUESTION = "Jak se dnes cítí pacient, za kterého odpovídáte?"
 sessions = {}
 
 
@@ -94,6 +97,10 @@ def patient_choices():
     ]
 
 
+def master_question(data):
+    return CAREGIVER_QUESTION if data.get("author") == "caregiver" else MASTER_QUESTION
+
+
 def page_for(data):
     if data["patient_id"] is None:
         return {"select_patient": True, "patients": patient_choices()}
@@ -106,13 +113,14 @@ def page_for(data):
         "patient_name": data["patient_name"],
         "assessment": data.get("assessment"),
         "safety_notice": data.get("safety_notice"),
+        "author": data.get("author", "patient"),
     }
 
 
 def survey_page(data):
     contact = data["contact"]
     if contact is None:
-        return {"master": True, "question": MASTER_QUESTION}
+        return {"master": True, "question": master_question(data)}
     if contact.state == "paused":
         return {"paused": True}
     packet = contact.snapshot()
@@ -184,7 +192,8 @@ def submission_token(data):
             "patient_id": data["patient_id"],
             "id": secrets.token_urlsafe(16),
             "source": "targeted_answer" if active else "master_question",
-            "question": active.next_question if active else MASTER_QUESTION,
+            "question": active.next_question if active else master_question(data),
+            "author": data.get("author", "patient"),
             "question_id": (
                 f"{active.question.questionnaire_id}/{active.question.id}"
                 if active
@@ -215,7 +224,7 @@ def accept_message(key, ticket, text):
             text=text,
             available_at=datetime.now(UTC).isoformat(),
             source=ticket["source"],
-            author="patient",
+            author=ticket.get("author", "patient"),
             question=ticket["question"],
         ),
         question_id=ticket["question_id"],
@@ -326,7 +335,19 @@ def index():
                 sessions[key] = data
                 return redirect("/patient")
             contact = data["contact"]
-            if "continue" in request.form:
+            if "set_author" in request.form:
+                if data.get("received_message") or (
+                    contact is not None
+                    and contact.state not in {"needs_answer", "needs_correction"}
+                ):
+                    raise ValueError(
+                        "Autora lze změnit jen před odesláním nové odpovědi."
+                    )
+                data["author"] = (
+                    "caregiver" if request.form.get("caregiver") == "1" else "patient"
+                )
+                data.pop("submission", None)
+            elif "continue" in request.form:
                 if contact is None:
                     raise ValueError("Nejprve zahajte rozhovor.")
                 contact.resume()
@@ -388,7 +409,14 @@ def index():
                 if contact is None:
                     client = Client.from_env()
                     contact = MasterDialogue(
-                        MasterExtractor(client),
+                        MasterExtractor(
+                            client,
+                            clinical_fields=sorted(
+                                OBSERVATION_FLAGS
+                                | OBSERVATION_NUMBERS
+                                | set(VITAL_FIELDS.values())
+                            ),
+                        ),
                         client,
                         extract_with_events=client.extract_events,
                         max_questions=app.config["MAX_QUESTIONS"],

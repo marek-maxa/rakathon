@@ -86,6 +86,7 @@ def resolve_disposition(
     color = COLORS[level - 1]
     step, contact, recommendation = ACTIONS[color]
     previous_route = result.get("routing") or {}
+    care_context = (result.get("care_context") or {}).get("palliative_care") or {}
     route = timed_route(
         color,
         at
@@ -93,6 +94,8 @@ def resolve_disposition(
         else result.get("evaluated_at") or previous_route.get("as_of"),
         palliative_care=palliative_care
         if palliative_care is not None
+        else care_context.get("value")
+        if care_context.get("value") is not None
         else previous_route.get("palliative_care", False),
         same_day=any(
             r["rule_id"] == "symptomatic_hyperglycemia" for r in result["reasons"]
@@ -121,7 +124,8 @@ def resolve_disposition(
         doporuceny_kontakt=contact,
         doporuceni_pro_pacienta=recommendation,
         upozornit_tym=level >= 2,
-        action_source=f"{RULES_SOURCE}, §1–2",
+        action_source=f"{RULES_SOURCE}, §1–2"
+        + (", §5 / Paliativní péče" if route["routing"]["palliative_care"] else ""),
         routing=route["routing"],
     )
     return result

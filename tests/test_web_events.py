@@ -65,7 +65,7 @@ def test_failed_first_extraction_retains_original_and_explicit_receipt(
     def fail(_):
         raise APIError("synthetic timeout")
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: fail)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: fail)
     response = client.post("/patient", data=body)
     html = response.get_data(as_text=True)
     assert "Zpráva je uložená, zpracování se nezdařilo" in html
@@ -237,7 +237,7 @@ def test_failed_source_can_be_corrected_with_a_new_id(survey, monkeypatch):
         raise APIError("synthetic timeout")
 
     with monkeypatch.context() as patch:
-        patch.setattr("web.app.MasterExtractor", lambda _: fail)
+        patch.setattr("web.app.MasterExtractor", lambda _, **kwargs: fail)
         client.post("/patient", data=body)
     response = client.post(
         "/patient",

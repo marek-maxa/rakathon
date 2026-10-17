@@ -354,6 +354,25 @@ button:disabled {
   white-space: pre-wrap;
 }
 
+.author-form {
+  margin: 12px 0 20px;
+}
+
+.author-form button {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #536371;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.author-form button span { text-decoration: underline; text-underline-offset: 3px; }
+.author-form button:hover { background: transparent; color: #0b6761; }
+
 @media (max-width: 480px) {
   body {
     padding: 28px 16px;

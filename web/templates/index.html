@@ -126,7 +126,22 @@
             <button type="submit" name="continue" value="1">Pokračovat</button>
           </form>
         {% else %}
+          {% if page.author == 'caregiver' and not page.master %}
+            <p>Odpovídáte za {{ page.patient_name }}. Uveďte, jak by pacient odpověděl na následující otázku. Vlastní obtíže popište výslovně jako své.</p>
+          {% endif %}
           <h2 id="question-title">{{ page.question }}</h2>
+          {% if not received %}
+            <form method="post" class="author-form">
+              {% if page.author != 'caregiver' %}<input type="hidden" name="caregiver" value="1">{% endif %}
+              <button type="submit" name="set_author" value="1">
+                {% if page.author == 'caregiver' %}
+                  Odpovídáte za pacienta. Chcete odpovídat za sebe? <span>Klikněte zde.</span>
+                {% else %}
+                  Nejste {{ page.patient_name }} a odpovídáte za pacienta? <span>Klikněte zde.</span>
+                {% endif %}
+              </button>
+            </form>
+          {% endif %}
           {% if page.master %}<p>Popište své potíže nebo změny stavu. Podle zprávy se doptáme jen na související podrobnosti a zahrneme ji do vyhodnocení.</p>{% endif %}
           {% if page.instruction %}<p class="instruction">{{ page.instruction }}</p>{% endif %}
           {% if page.options %}
@@ -137,7 +152,7 @@
           {% endif %}
           <form method="post" class="question-form">
             <input type="hidden" name="submission_token" value="{{ page.submission_token }}">
-            <label for="answer">Vaše odpověď</label>
+            <label for="answer">{% if page.author == 'caregiver' %}Vaše odpověď za pacienta{% else %}Vaše odpověď{% endif %}</label>
             <textarea id="answer" name="answer" placeholder="Napište svou odpověď" required{% if received %} readonly{% endif %}>{{ answer_text | default('') }}</textarea>
             <button type="submit">{% if received %}Zkusit zpracovat znovu{% else %}Pokračovat{% endif %}</button>
           </form>

@@ -141,6 +141,15 @@ podmíněné větve, nikoli celé formuláře. Existující zprávy využívá `
 `dialogue.mode=targeted_from_message` označuje cílený tok. Nenamapované
 nálezy zůstávají v paketu i bez odpovídající otázky.
 
+Pro celkový pocit bez přesné hodnoty se neprovádí `seed`, který by mohl
+odhadnout ordinalitu z „dobrý“. Nabídne se původní škála 1–5. Přesná krátká
+kladná odpověď na skutečnou MASTER otázku má při prázdné extrakci omezenou
+zálohu v `analyze_message`: vznikne doložený slovní `overall_feeling`,
+nikoli číslo nebo negace všech příznaků. Chyba extraktoru touto cestou nejde.
+Potvrzenou navazující odpověď dokládá až backend v `clarified_facts`;
+zdrojový fakt z intake nemizí. Obecné prázdné/nejasné odpovědi zůstávají
+nevyřešené.
+
 Každá slovní odpověď projde obecnou extrakcí; nové kandidáty přidá flow po
 uzavření aktivní relace. Dialog spravuje rozpočet, nikoli naléhavost.
 Výchozí režim započítává také vydané žádosti o potvrzení a opravy;

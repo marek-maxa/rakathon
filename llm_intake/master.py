@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -174,6 +175,35 @@ def analyze_message(
     používat explicitní anglické aliasy. Nepokrytý pojem zůstává viditelný.
     """
     facts = extract(message)
+    # A narrow conversational fallback requests the existing scale; it never
+    # turns reassuring wording into a number or a denial of every symptom.
+    normalized = "".join(
+        c
+        for c in unicodedata.normalize("NFKD", message.text.casefold())
+        if not unicodedata.combining(c)
+    ).strip(" \t\n.!?")
+    if (
+        not facts
+        and message.source == "master_question"
+        and message.author in {"patient", "caregiver"}
+        and message.question
+        in {
+            "Jak se dnes cítíte?",
+            "Jak se dnes cítí pacient, za kterého odpovídáte?",
+        }
+        and normalized
+        in {"dobry", "dobre", "citim se dobre", "je mi dobre", "v pohode", "fajn"}
+    ):
+        facts = [
+            Fact(
+                "overall_feeling",
+                "present",
+                message.text,
+                "patient",
+                value=message.text,
+                topic_ids=("nezadouci_ucinky/pocit",),
+            )
+        ]
     catalog = load_catalog()
     reasons: dict[tuple[str, str], list[int]] = {}
     unmapped, unknown_subject = [], []

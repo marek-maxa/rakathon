@@ -112,7 +112,7 @@ def browser(monkeypatch, tmp_path):
         return facts
 
     monkeypatch.setattr("web.app.Client.from_env", lambda: SyntheticClient())
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: extract_message)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: extract_message)
     client = app.test_client()
     original_post = client.post
 

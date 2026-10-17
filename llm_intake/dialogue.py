@@ -127,6 +127,18 @@ class MasterDialogue:
                         == (question.questionnaire_id, question.id)
                         for c in analysis["question_candidates"]
                     )
+                    and (
+                        (question.questionnaire_id, question.id)
+                        != ("nezadouci_ucinky", "pocit")
+                        or any(
+                            fact["concept"] == "overall_feeling"
+                            and type(fact.get("value")) is int
+                            and 1 <= fact["value"] <= 5
+                            and fact["subject"] == "patient"
+                            and fact["presence"] == "present"
+                            for fact in analysis["facts"]
+                        )
+                    )
                 ]
                 if related:
                     session.seed(related)

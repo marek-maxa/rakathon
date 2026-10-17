@@ -19,6 +19,7 @@ from .disposition import resolve_disposition
 from .patient_inputs import build_triage_inputs
 from .pipeline import evaluate_contact
 from .triage import evaluate_checkin
+from .validation import VITAL_FIELDS
 
 
 def message_event(checkin):
@@ -29,6 +30,8 @@ def message_event(checkin):
         else "caregiver"
         if author
         in {"dcera", "syn", "manželka", "manzelka", "manžel", "manzel", "caregiver"}
+        else "caregiver"
+        if author == "pecujici"
         else "unknown"
     )
     at = datetime.fromisoformat(
@@ -52,7 +55,9 @@ def extract_message(checkin, extract=None):
         if extract is not None
         else MasterExtractor(
             Client.from_env(),
-            clinical_fields=sorted(OBSERVATION_FLAGS | OBSERVATION_NUMBERS),
+            clinical_fields=sorted(
+                OBSERVATION_FLAGS | OBSERVATION_NUMBERS | set(VITAL_FIELDS.values())
+            ),
         )
     )
     facts = validate_facts(

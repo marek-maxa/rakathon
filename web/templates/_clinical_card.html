@@ -31,6 +31,13 @@
     {% if card.needs_team %}
       <p class="handoff-demo">Předání týmu: simulované. Zobrazení neprokazuje odeslání ani převzetí.</p>
     {% endif %}
+    {% if card.advance_wishes %}
+      <details>
+        <summary>Dříve vyslovená přání – ověřit platnost</summary>
+        <p>{{ card.advance_wishes }}</p>
+        <small>Zdroj karty: predem_vyslovena_prani. Přání nesnižuje naléhavost doporučené pomoci.</small>
+      </details>
+    {% endif %}
     {% if detail_link %}
       <a href="{{ url_for('patient_report.report_patient', patient_id=card.patient_id, _anchor='triage-title') }}">Detail pacienta a podklady</a>
     {% else %}

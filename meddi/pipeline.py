@@ -44,6 +44,8 @@ ANSWER_FIELDS = {
 }
 CURRENT_TEXT = {"dnes", "nyní", "nyni", "teď", "ted", "today", "now"}
 ONGOING_ONSET = {
+    "nově",
+    "nove",
     "od včera",
     "od vcera",
     "od včerejška",
@@ -290,7 +292,7 @@ def evaluate_contact(
             (_instant(m["available_at"]) for m in messages if m.get("available_at")),
             default=None,
         )
-    issues, unused, deferred = [], [], []
+    issues, unused, deferred, clarified = [], [], [], []
     candidates = defaultdict(list)
 
     def issue(code, source):
@@ -527,6 +529,36 @@ def evaluate_contact(
             )
             continue
         field = NUMERIC_FACTS.get(concept)
+        if (
+            concept == "overall_feeling"
+            and presence == "present"
+            and (fact.get("value") is None or isinstance(fact.get("value"), str))
+            and text in CURRENT_TEXT | {""}
+            and not fact.get("observed_at")
+            and (packet.get("dialogue") or {}).get("mode") == "targeted_from_message"
+        ):
+            answers = [
+                row
+                for row in candidates.get("overall_feeling", [])
+                if row["answer"] is not None
+                and row["source"]["kind"] == "answer"
+                and row["at"] is not None
+                and available is not None
+                and row["at"] >= _instant(available)
+                and by_id.get(row["source"].get("source_message_id"), {}).get("source")
+                == "targeted_answer"
+            ]
+            if answers:
+                clarified.append(
+                    {
+                        "reason": "clarified_by_confirmed_answer",
+                        "source": deepcopy(source),
+                        "answer_source": deepcopy(
+                            max(answers, key=lambda row: row["at"])["source"]
+                        ),
+                    }
+                )
+                continue
         if concept in {
             "diarrhea.episodes",
             "diarrhea.increase_over_baseline",
@@ -600,6 +632,18 @@ def evaluate_contact(
         else None,
     )
     prepared, observations = _prepare_inputs(root, treatment_sources, selected)
+    # No questionnaire topic is needed for an input the shared core can already
+    # consume. Truly unsupported/uncertain facts remain in unused/review issues.
+    consumed = {
+        packet["facts"][row["source"]["fact_index"]]["concept"]
+        for row in selected
+        if row["source"].get("kind") == "fact"
+    }
+    unresolved_concepts = [
+        concept
+        for concept in packet.get("unmapped_concepts", [])
+        if concept not in consumed
+    ]
     if prepared_checkin is not None:
         prepared["answers"].extend(
             deepcopy(a)
@@ -617,8 +661,21 @@ def evaluate_contact(
         for raw, measurement in (prepared_checkin.get("vital_signs") or {}).items():
             prepared["vital_signs"].setdefault(raw, deepcopy(measurement))
     result = evaluate_checkin(prepared, treatment, dict(observations))
-    dialog_state = (packet.get("dialogue") or {}).get("state")
-    if dialog_state and dialog_state != "complete":
+    dialogue = packet.get("dialogue") or {}
+    dialog_state = dialogue.get("state")
+    # The generic dialogue cannot know that an out-of-catalog finding is a
+    # supported clinical input. Its open_findings alone is not a clinical gap.
+    accounted_for = (
+        dialog_state == "unresolved"
+        and dialogue.get("reason") == "open_findings"
+        and packet.get("analysis_status") == "extracted"
+        and not unresolved_concepts
+        and not unused
+        and not issues
+        and not packet.get("unknown_subject_fact_indices")
+        and all(flow["state"] == "complete" for flow in dialogue.get("flows", []))
+    )
+    if dialog_state and dialog_state != "complete" and not accounted_for:
         issue("intake_not_complete", {"state": dialog_state})
     if not root.get("id") or not root.get("patient_id") or not moment:
         issue("missing_contact_metadata", {})
@@ -627,7 +684,7 @@ def evaluate_contact(
         or issues
         or unused
         or deferred
-        or packet.get("unmapped_concepts")
+        or unresolved_concepts
         or packet.get("unknown_subject_fact_indices")
     )
     return resolve_disposition(
@@ -641,6 +698,8 @@ def evaluate_contact(
             "adapter_issues": issues,
             "unprocessed_facts": unused,
             "deferred_inputs": deferred,
+            "clarified_facts": clarified,
+            "unresolved_concepts": unresolved_concepts,
             "triage_inputs": {
                 "prepared": prepared,
                 "context": treatment,
@@ -654,7 +713,7 @@ def evaluate_contact(
             result["needs_clinical_review"]
             or issues
             or unused
-            or packet.get("unmapped_concepts")
+            or unresolved_concepts
             or packet.get("unknown_subject_fact_indices")
         ),
     )

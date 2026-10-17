@@ -24,7 +24,7 @@ RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
 PULSE_SOURCE = (
     "https://medlineplus.gov/ency/article/003399.htm (Normal Results, adults)"
 )
-TRIAGE_RULES_VERSION = 5
+TRIAGE_RULES_VERSION = 6
 
 
 def fever_score(temperature, recent_chemotherapy):
@@ -549,6 +549,14 @@ def evaluate_checkin(
             "covered_answers": covered_answers,
             "covered_measurements": covered_measurements,
             "reminder_required": prepared.get("status") == "nevyplneno",
+            "care_context": {
+                "palliative_care": {
+                    "value": context.get("palliative_care"),
+                    "source": deepcopy(
+                        prepared.get("context_sources", {}).get("palliative_care")
+                    ),
+                }
+            },
         },
         at=checkin_time(prepared),
         palliative_care=(context or {}).get("palliative_care") is True,

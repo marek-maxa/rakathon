@@ -382,6 +382,7 @@ def _clinical_card(patient, assessments):
         "name": (patient.get("demografie") or {}).get("jmeno_fiktivni")
         or patient["patient_id"],
         "email": (patient.get("kontakt") or {}).get("email", ""),
+        "advance_wishes": patient.get("predem_vyslovena_prani"),
         "assessment": latest,
         "action": action,
         "summary": f"{action}. "

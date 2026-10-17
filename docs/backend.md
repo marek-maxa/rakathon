@@ -130,6 +130,7 @@ Verzi pravidel určuje `TRIAGE_RULES_VERSION` v `meddi/triage.py`.
 | `evaluated_at`, `rules_version` | Čas hodnocení a verze politiky |
 | `doporuceny_krok`, `doporuceny_kontakt`, `doporuceni_pro_pacienta` | Pevná výstupní politika, zatím obecná kontaktní instrukce bez vypočteného termínu |
 | `upozornit_tym`, `action_source` | Požadavek akce a zdroj; funkce nic neodesílá |
+| `care_context` | Zdrojovaný kontext explicitní symptomatické paliativní péče pro společnou výstupní politiku; 2/3 mají 24h paliativní tým/hospic a záložní 155, červená se nesnižuje (S4 §5) |
 
 `resolve_disposition` ponechá vyšší minimum; relevantní nevyhodnocené vstupy
 předá nejméně jako žluté. Samotné chybění všech hypotetických příznaků není
@@ -137,6 +138,13 @@ poplach. Barva možnosti sama nezvyšuje klinické minimum. Nepokrytá odpověď
 ve `review_issues` a `non_green_answers`; výstupní politika ji předá k review
 (typicky yellow), nikoli automaticky red podle zobrazovací škály ESAS.
 Nejde o schválené mapování škál na klinické stupně.
+Kladná MASTER odpověď se upřesňuje přes existující škálu; po potvrzení
+pipeline vrací `clarified_facts` s vazbou na skutečnou cílenou odpověď.
+Textový obecný pocit není odhadnuté číslo ani popření příznaků. Jeho
+upřesnění neodstraňuje jiné nevyhodnocené/nejisté údaje ani známé minimum.
+Plošný převod prázdných/nejistých vstupů na zelenou zůstává zakázaný.
+`unresolved_concepts` rozlišuje skutečně nepokryté pojmy od validovaných
+vstupů jádra bez navazující otázky; původní paket se nepřepisuje.
 Doložené příznaky s neznámým rizikovým kontextem mohou mít vyšší možné minimum.
 To není potvrzení domyšleného údaje ani klinicky ověřený převod škál.
 

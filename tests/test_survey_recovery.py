@@ -105,7 +105,7 @@ def survey(monkeypatch, tmp_path):
             return answered(1 if sources[-1] == "Oprava." else 0, sources)
 
     monkeypatch.setattr(Client, "from_env", lambda: SyntheticClient())
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: fatigue)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: fatigue)
     client = app.test_client()
     assert client.post("/patient", data={"patient_id": "ONC-002"}).status_code == 302
     with client.session_transaction() as flask_session:
@@ -235,7 +235,9 @@ def test_red_finding_shows_instruction_before_targeted_follow_up(survey, monkeyp
             *fatigue(message),
         ]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: confusion_and_fatigue)
+    monkeypatch.setattr(
+        "web.app.MasterExtractor", lambda _, **kwargs: confusion_and_fatigue
+    )
     response = post_answer(client, "Nevím.", follow_redirects=True)
     html = response.get_data(as_text=True)
     assert "Naléhavé doporučení" in html
@@ -267,7 +269,7 @@ def test_orange_minimum_also_pauses_before_targeted_llm(survey, monkeypatch):
             *fatigue(message),
         ]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: findings)
     html = post_answer(
         client, "Nově spím vsedě, jsem unavený.", follow_redirects=True
     ).get_data(as_text=True)
@@ -297,7 +299,7 @@ def test_new_urgent_fact_in_reply_or_correction_is_checked_before_targeted_llm(
             ),
         ]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: findings)
     post_answer(client, "Odpočinek pomůže." if correction else "Nevím.")
     if correction:
         client.post("/patient", data={"edit": "0"})
@@ -331,7 +333,7 @@ def test_urgent_instruction_survives_failed_targeted_continue_and_retry(
             *fatigue(message),
         ]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: findings)
     post_answer(client, "Nevím.")
     before = sessions[key]["contact"].snapshot()
 
@@ -360,7 +362,7 @@ def test_increased_urgency_pauses_again_before_processing_the_reply(
         concept = "orthopnea" if message.source == "master_question" else "confusion"
         return [Fact(concept, "present", message.text, "patient"), *fatigue(message)]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: findings)
     post_answer(client, "Nevím.")
     assert sessions[key]["safety_notice"]["assessment"]["minimum_color"] == "orange"
     client.post("/patient", data={"continue": "1"})
@@ -385,7 +387,7 @@ def test_known_instruction_survives_edit_and_failed_general_extraction(
             *fatigue(message),
         ]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: findings)
     post_answer(client, "Odpočinek pomůže.")
     client.post("/patient", data={"continue": "1"})
     html = client.post("/patient", data={"edit": "0"}, follow_redirects=True).get_data(
@@ -412,7 +414,7 @@ def test_confirmed_urgent_answer_survives_save_failure_without_final_result(
     def feeling(message):
         return [Fact("overall_feeling", "present", message.text, "patient")]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: feeling)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: feeling)
 
     class FeelingClient:
         def extract_events(self, question, sources, *_):
@@ -424,6 +426,7 @@ def test_confirmed_urgent_answer_survives_save_failure_without_final_result(
         client, "Cítím se velmi špatně.", follow_redirects=True
     ).get_data(as_text=True)
     assert "Naléhavé doporučení" not in html  # The scale value is still a draft.
+    post_answer(client, "5")  # Qualitative wording no longer invents a scale value.
 
     def fail(*_):
         raise OSError("synthetic disk failure")
@@ -455,7 +458,7 @@ def test_unproven_patient_risk_does_not_pause_or_invent_an_urgent_instruction(
     def findings(message):
         return [Fact("confusion", presence, message.text, subject), *fatigue(message)]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: findings)
     html = post_answer(client, "Nevím.", follow_redirects=True).get_data(as_text=True)
     assert "Naléhavé doporučení" not in html
     assert "Výsledek triáže:" not in html
@@ -702,7 +705,7 @@ def test_triage_from_message_is_visible_after_confirmation_and_saved_for_report(
     def confusion(message):
         return [Fact("confusion", "present", message.text, "patient")]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: confusion)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: confusion)
     response = post_answer(client, "Jsem zmatený.", follow_redirects=True)
     html = response.get_data(as_text=True)
     assert 'triage-red">Červená' not in html
@@ -744,7 +747,7 @@ def test_measured_weight_survives_save_retry_and_appears_in_report(survey, monke
             Fact("weight_kg", "present", message.text, "patient", value=72.5, unit="kg")
         ]
 
-    monkeypatch.setattr("web.app.MasterExtractor", lambda _: weight)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _, **kwargs: weight)
     post_answer(client, "Vážím 72,5 kg.")
     client.post("/patient", data={"confirm": "1"})
     path = directory / "pacienti" / "ONC-002.json"

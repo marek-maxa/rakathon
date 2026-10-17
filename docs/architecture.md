@@ -12,7 +12,7 @@ závislosti. Požadované budoucí chování popisuje [plán](meddi-onco-plan.md
 | `llm_intake/` | Obecná extrakce, katalog 49 otázek, cílený MASTER, společné potvrzení/opravy a volitelný checkpoint před cílenou extrakcí | Výběr priorit podle rizika, trvalé obnovení |
 | `meddi/` | Sdílená deterministická pravidla, normalizace, validace, zdrojované důvody a výstupní politika | Úplné vstupy a klinické mapování, obecná nejistota/trendy, karta a orchestrace |
 | `web/export.py`, `web/triage.py` | Export vybraných ověřených měření s původem, živé trendy stávajícího adaptéru a zdrojovaný kontext léčby | Úplný registr měření/epizod a skutečného podání léčby |
-| `web/app.py` | Společné heslo dema, vstup Pacient/Lékař, výběr profilu, cílený MASTER, kontrola/opravy a naléhavá instrukce během sběru | Individuální oprávnění, volba zastupování, personalizace |
+| `web/app.py` | Společné heslo dema, vstup Pacient/Lékař, profil, autor pacient/pečující, cílený MASTER, kontrola/opravy a naléhavá instrukce | Individuální oprávnění, další personalizace |
 | `web/patient_store.py` | Pracovní kopie pacienta, atomické přidání potvrzeného check-inu a zdrojově vázaná uložená extrakce historické zprávy | Sjednocení projekce s událostmi, průběžné revize a podpora více procesů |
 | `web/event_store.py` | SQLite deník původních zpráv před LLM, stabilní ID, dohledatelné opravy a deduplikace | Trvalé výsledky zpracování a obnova dialogu K2b; úplná historie měření/revizí K2c |
 | `web/patient_report.py`, `meddi/status.py` | Poslední/historická triáž, stručná kartička, přehled `/team`, historie odpovědí a měření, nezelené incidenty a grafy | Aktivní epizody, souhrn vývoje, plán kontrol a skutečné předání/převzetí |
@@ -102,7 +102,7 @@ bodů grafu. Staré uložené check-iny se zpětně nedoplňují.
 `zprava_pacienta` obsahuje pouze úvodní sdělení. `zdrojove_zpravy` zachovává
 samostatné MASTER/cílené odpovědi, autory, otázky a časy; `vyplnil` vychází
 z autora úvodní zprávy (`pacient`/`pecujici`/`tym`/`neznamy`). Export podporuje
-pečujícího v kontraktu; jeho volba ve formuláři ještě není implementovaná.
+pečujícího v kontraktu i ve formuláři.
 Ukládá se projekce téhož konečného hodnocení v čase `evaluated_at`.
 Datum/čas check-inu jsou v Europe/Prague a čas dostupnosti má pásmo.
 Adaptér trendů respektuje i explicitní čas měření a jeho dostupnost;
@@ -184,9 +184,10 @@ všechny cesty nyní chrání společné heslo dema (Basic Auth). Individuální
 role a vazba účtu na pacienta implementované nejsou.
 
 Výběr „Ukázkový pacient“ je výslovně označený výběr syntetického profilu
-pro demonstraci, nikoli autentizace. V cílovém pacientském vstupu má profil
-vycházet z přihlášeného účtu nebo pozvánky; seznam pacientů patří lékaři.
-Tento mechanismus je odložený, nevytvářet jej před M2.
+pro demonstraci, nikoli autentizace. Nově naplánovaný MUST HAVE portál jej
+nahradí simulovaným přihlášením fiktivního účtu/demo kódu s vazbou na profil;
+zatím to není implementované. Skutečné účty/oprávnění a pozvánky zůstávají
+mimo MVP; seznam pacientů patří lékaři nebo oddělenému demo ovládání.
 Výchozí MASTER zní „Jak se dnes cítíte?“.
 Web používá `bulk_confirmation=True`: návrhy se kontrolují společně,
 `revise(index)` otevře opravu a zneplatní závislé odpovědi, `confirm_all()`
@@ -196,6 +197,15 @@ MASTER vybírá konkrétní relevantní otázky, nikoli celé dotazníky. Již s
 údaje se využijí přes `Intake.seed`; úplná odpověď jde do společné kontroly,
 chybějící rozlišení vyvolá doptání. Zachovají se původní otázky a zdroje,
 nejde o domyšlené pacientské odpovědi.
+
+Naplánovaný [pacientský portál](meddi-onco-plan.md#must-have-pacientský-portál)
+má spojit MASTER, stručný stav, vlastní údaje a konkrétní kontroly/měření
+nad stejnými uloženými hodnoceními jako report. Uložené kontroly a jejich
+přímé aktualizace jsou nová práce, nikoli současné API či obecný plánovač.
+Samostatně je povinné [zrychlení LLM](meddi-onco-plan.md#must-have-rychlost-llm-pro-prezentaci).
+Současný klient vybírá deployment přes `MEDDI_LLM_MODEL` a poskytuje
+`Client.on_usage` s dobou volání a tokeny; to je základ pro porovnání.
+Menší model ani nové nastavení uvažování nejsou tímto plánem zavedené.
 
 `QuestionnaireFlow(targets=...)` zahrne jen vybrané otázky a jejich podmíněné
 potomky. Rodiče mimo rozsah nevyplňuje. Nové téma může přidat další relevantní
@@ -232,6 +242,52 @@ instrukci nezablokuje ani selhání exportu. Pokračování je volitelné a UI
 výslovně říká, že doplnění nesmí odložit pomoc. Konečný výsledek zůstává až
 po potvrzení a úspěšném uložení; nový výslovný restart založí nový kontakt.
 Rozhodnutí uživatele a hranice jsou v [rozhodnutích](decisions.md#bezpečnostní-výstup-k4m4).
+
+### Technický průchod M3
+
+Kladná MASTER odpověď („dobrý/dobře/dobre“) se zachová jako slovní
+`overall_feeling`. Pro přesnou krátkou odpověď na skutečnou MASTER otázku
+má `analyze_message` úzkou zálohu při prázdném výsledku extraktoru; chyba API
+ji nespustí. Obecná fráze nevyplňuje ostatní příznaky ani číslo škály.
+`MasterDialogue` nevolá seed pro celkový pocit bez přesného čísla, ale nabídne
+jedinou původní otázku `pocit` (1–5). Po skutečné potvrzené cílené odpovědi
+ve stejném kontaktu pipeline eviduje původní slovní fakt v `clarified_facts`
+s vazbou na zdroj odpovědi. Originál zůstává v intake. Nejistota, neznámý
+subjekt, jiné potíže a přesné rozporné hodnoty se takto neodstraňují.
+
+Nález bez otázky není automaticky nevyhodnocený: pipeline porovná původní
+`unmapped_concepts` s validovanými vybranými vstupy jádra a vykáže zbývající
+`unresolved_concepts`. Pokud je celé `open_findings` způsobeno jen těmito
+zpracovanými vstupy, nepřidá falešné `intake_not_complete`. Neznámé nebo
+nejisté nálezy zůstávají k review. „Nově/nove“ označuje aktuálně hlášený
+nález, nikoli odhadnutý interval; zdrojový výraz zůstává zachovaný.
+
+Nenápadné textové tlačítko pod otázkou „Nejste [jméno] a odpovídáte za
+pacienta? Klikněte zde.“ jedním kliknutím přepne na pečujícího; ve stejném
+místě nabídne návrat k odpovídání za sebe. Checkbox ani samostatné potvrzení
+volby nejsou potřeba. POST `set_author` volí `patient`/`caregiver` před novou odpovědí. U již
+přijatého nezpracovaného vstupu změnu odmítne. MASTER pro pečujícího má
+vlastní skutečné znění; cílené otázky zachovávají původní význam a UI je
+výslovně rámuje jako odpovědi za pacienta. Subjekt potíží je nadále samostatný
+údaj. Web i historická cesta předávají extraktoru slovník podporovaných
+klinických polí včetně měření, nikoli pacientskou kartu nebo reference.
+
+`patient_inputs` odvozuje `palliative_care` jen z explicitního strukturovaného
+`lecba.zamer` s původem tohoto pole; neinterpretuje volné poznámky. Jde o
+výchozí kontext karty, nikoli nový registr změn léčby. Sdílená výstupní politika
+pro paliativní 2/3 odkazuje na 24h paliativní tým/hospic, při nedostupnosti
+155; úroveň 4 ponechá okamžitou neodkladnou pomoc. Nevymýšlí telefon týmu.
+Zdroj: pravidla triáže §5 / Paliativní péče. `care_context` zachovává podklad
+směrování i pro přepočet; verze politiky je 6. Dříve vyslovená přání jsou
+zvlášť dostupná zdravotníkovi s upozorněním ověřit platnost; nejsou vstupem
+LLM ani automatickým důvodem snížit úroveň.
+
+`tests/test_mvp_scenarios.py` ověřuje celý webový tok, uložení a stejné
+hodnocení v reportu/přehledu, šest situací, mezní a negativní protějšky,
+zlepšení v čase, autory a selhání. Model je v těchto testech nahrazený.
+Omezená živá kontrola syntetických zpráv doplňuje ověření extrakce; lokální
+výstup je v ignorovaném `.scratch/m3-live-extraction.json`. Nenahrazuje
+nezávislé klinické převzetí ani plošnou evaluaci skrytých pacientů.
 
 M1 používá `_clinical_card(patient, assessments)` jako společný pohled nad
 posledním výsledkem `checkin_assessments`. Kartička nahoře v reportu a na
@@ -276,8 +332,8 @@ identifikátor. Zpráva se potvrdí v SQLite ještě před vytvořením LLM klie
 ukládá se doslovný text včetně okolních mezer, `MessageEvent` s autorem,
 zdrojem, otázkou a časem dostupnosti i případné `corrects_event_id`.
 Čas dostupnosti je první přijetí serverem v UTC. Čas pozorování se z volného
-textu při příjmu neodhaduje. Web zatím zaznamenává autora `patient`;
-úložiště přijímá i ostatní role kontraktu, jejich volba v UI je stále K8.
+textu při příjmu neodhaduje. Podepsaný formulář váže i zvoleného autora
+`patient`/`caregiver`; změna před novou odpovědí nepřepíše staré události.
 
 `accept` vrací `StoredMessage` se zdrojovým `MessageEvent`, kontaktem,
 kanonickým ID otázky a vazbou opravy. Stejné ID a obsah vrátí původní zprávu
@@ -332,6 +388,9 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
   nové zprávy od zachování předchozího dialogu.
 - M2 předává pouze trendy existujícího adaptéru. Obecné epizody, expirace
   a interpretace vývoje příznaků v textu zatím nejsou implementované.
+- M3 má technické průchody šesti situacemi i běžným stavem. Klinické převzetí
+  mentorem a obecné vyřešení O1–O10 tím nejsou hotové. Plný provozní kalendář
+  a konkrétní kontakty pracoviště zůstávají P2.
 - Historie incidentů není registr aktivních klíčových/varovných nálezů.
   Označení „varovné“ v reportu zahrnuje i žluté historické údaje, a proto
   neodpovídá užšímu týmovému významu aktuálních varovných příznaků.
