@@ -1,0 +1,15 @@
+{% if not page.done and not page.safety_notice %}
+  {% set latest = portal.assessment %}
+  <section class="portal-status portal-status-{{ latest.color if latest else 'unknown' }}" aria-label="Poslední uložený stav">
+    <div>
+      <span class="portal-kicker">POSLEDNÍ ULOŽENÝ STAV</span>
+      <h2>{% if latest %}{{ {'dalsi_sledovani': 'Další sledování', 'kontaktovat_tym': 'Kontaktovat tým', 'telekonzultace': 'Telekonzultace', 'neodkladna_pomoc': 'Neodkladná pomoc'}.get(latest.doporuceny_krok, 'K doplnění') }}{% else %}Pojďme zjistit, jak se máte{% endif %}</h2>
+      <p>{% if latest %}{{ latest.doporuceni_pro_pacienta }}{% else %}Zatím nemáme uložené hodnocení. Začněte odpovědí na otázku níže.{% endif %}</p>
+      {% if latest %}
+        {% if latest.requires_review %}<p class="portal-review">Některé údaje je potřeba doplnit nebo ověřit.</p>{% endif %}
+        <p class="portal-muted">{{ latest.doporuceny_kontakt }}</p>
+      {% endif %}
+    </div>
+    {% if portal.time %}<time class="portal-stamp">{{ portal.time }}<small>Novou změnu popište v kontrole.</small></time>{% endif %}
+  </section>
+{% endif %}

@@ -12,14 +12,14 @@ závislosti. Požadované budoucí chování popisuje [plán](meddi-onco-plan.md
 | `llm_intake/` | Obecná extrakce, katalog 49 otázek, cílený MASTER, společné potvrzení/opravy a volitelný checkpoint před cílenou extrakcí | Výběr priorit podle rizika, trvalé obnovení |
 | `meddi/` | Sdílená deterministická pravidla, normalizace, validace, zdrojované důvody a výstupní politika | Úplné vstupy a klinické mapování, obecná nejistota/trendy, karta a orchestrace |
 | `web/export.py`, `web/triage.py` | Export vybraných ověřených měření s původem, živé trendy stávajícího adaptéru a zdrojovaný kontext léčby | Úplný registr měření/epizod a skutečného podání léčby |
-| `web/app.py` | Společné heslo dema, vstup Pacient/Lékař, profil, autor pacient/pečující, cílený MASTER, kontrola/opravy a naléhavá instrukce | Individuální oprávnění, další personalizace |
+| `web/app.py`, `web/portal.py` | Společné heslo dema, simulované přihlášení kódem, pacientský portál, autor pacient/pečující, MASTER i přímé cílené kontroly/měření, potvrzení a naléhavá instrukce | Vizuální převzetí portálu, individuální oprávnění, obecný plán kontrol |
 | `web/patient_store.py` | Pracovní kopie pacienta, atomické přidání potvrzeného check-inu a zdrojově vázaná uložená extrakce historické zprávy | Sjednocení projekce s událostmi, průběžné revize a podpora více procesů |
 | `web/event_store.py` | SQLite deník původních zpráv před LLM, stabilní ID, dohledatelné opravy a deduplikace | Trvalé výsledky zpracování a obnova dialogu K2b; úplná historie měření/revizí K2c |
 | `web/patient_report.py`, `meddi/status.py` | Poslední/historická triáž, stručná kartička, přehled `/team`, historie odpovědí a měření, nezelené incidenty a grafy | Aktivní epizody, souhrn vývoje, plán kontrol a skutečné předání/převzetí |
 | `notifications/` | Samostatný formulář pro pevný testovací e-mail a SMTP transport | Napojení na triáž, adresáti/priorita, spolehlivé předání a převzetí |
 | `main.py`, `meddi/messages.py` | Strukturovaný replay, volitelná extrakce historických zpráv, konflikty a návrhy doptání, reference oddělené | Úplné klinické pokrytí šesti situací, reakce na odpovědi, intervence a souhrny |
 
-Plánovač, samostatný formulář měření/přeměření, úplný odborný souhrn vývoje
+Obecný klinický plánovač, samostatný strukturovaný formulář měření/přeměření, úplný odborný souhrn vývoje
 a skutečné předání monitorovacímu centru nejsou implementované.
 
 ## Moduly a datové cesty
@@ -168,7 +168,9 @@ skutečného předání nebo převzetí; fronta a doručování zůstávají mim
 | Cesta | Význam |
 | --- | --- |
 | `/` | Úvodní volba rozhraní Pacient / Lékař |
-| `/patient` | Pacientský výběr profilu a MASTER kontakt, GET i POST |
+| `/patient` | Bez profilu demo přihlášení kódem; s profilem portál, MASTER a cílené kontroly, GET i POST |
+| `/patient/demo` | Oddělené demo účty; POST zvolí syntetický profil a vyčistí předchozí rozhovor |
+| `/patient/logout` | POST odhlásí demo profil a zneplatní jeho paměťový rozhovor a odesílací tokeny |
 | `/patients/<patient_id>/report` | Report profilu z pracovní kopie nebo původních dat |
 | `/team` | Demonstrační přehled požadavků z posledního hodnocení každého pacienta |
 | `/patients/<patient_id>/checkins/<checkin_id>/analyze-message` | Explicitní POST pro extrakci historické zprávy, kontrola session tokenu a zdroje |
@@ -181,13 +183,14 @@ do detailů. Nenápadný odkaz „Změnit rozhraní“ v patičce označené Dem
 vrací na úvod bez zrušení rozpracovaného
 rozhovoru. Jde o oddělení navigace dema, nikoli kontrolu přístupu;
 všechny cesty nyní chrání společné heslo dema (Basic Auth). Individuální
-role a vazba účtu na pacienta implementované nejsou.
+produkční role a ověřené účty implementované nejsou.
 
-Výběr „Ukázkový pacient“ je výslovně označený výběr syntetického profilu
-pro demonstraci, nikoli autentizace. Nově naplánovaný MUST HAVE portál jej
-nahradí simulovaným přihlášením fiktivního účtu/demo kódu s vazbou na profil;
-zatím to není implementované. Skutečné účty/oprávnění a pozvánky zůstávají
-mimo MVP; seznam pacientů patří lékaři nebo oddělenému demo ovládání.
+Původní dropdown nahrazuje obrazovka demo přihlášení: pole `patient_id`
+je přístupový kód syntetického profilu (např. `ONC-001`), nikoli heslo či
+produkční autentizace. Seznam fiktivních účtů je jen v odděleném demo ovládání.
+Odhlášení a změna účtu zahodí paměťový stav i vlastnický klíč rozhovoru;
+staré odesílací tokeny nepatří nové session. Uložené check-iny zůstávají.
+Skutečné účty/oprávnění a pozvánky zůstávají mimo MVP.
 Výchozí MASTER zní „Jak se dnes cítíte?“.
 Web používá `bulk_confirmation=True`: návrhy se kontrolují společně,
 `revise(index)` otevře opravu a zneplatní závislé odpovědi, `confirm_all()`
@@ -198,11 +201,41 @@ MASTER vybírá konkrétní relevantní otázky, nikoli celé dotazníky. Již s
 chybějící rozlišení vyvolá doptání. Zachovají se původní otázky a zdroje,
 nejde o domyšlené pacientské odpovědi.
 
-Naplánovaný [pacientský portál](meddi-onco-plan.md#must-have-pacientský-portál)
-má spojit MASTER, stručný stav, vlastní údaje a konkrétní kontroly/měření
-nad stejnými uloženými hodnoceními jako report. Uložené kontroly a jejich
-přímé aktualizace jsou nová práce, nikoli současné API či obecný plánovač.
-Samostatně je povinné [zrychlení LLM](meddi-onco-plan.md#must-have-rychlost-llm-pro-prezentaci).
+Implementovaný [pacientský portál](meddi-onco-plan.md#must-have-pacientský-portál)
+spojuje MASTER, poslední uložený stav s časem a doporučením, vlastní údaje,
+poslední tři kontroly a malý seznam sledovaných položek. `build_portal`
+používá `checkin_assessments` stejně jako report; budoucí check-iny a budoucí
+splnění nezobrazuje. Neprovádí LLM ani zápis při GET. Prázdný profil nemá
+zelený výsledek. Historický stav je výslovně označený, rozpracovaný běžný
+výsledek se nezveřejňuje před potvrzením a P0 má přednost před starým stavem.
+
+`portal_controls` v pracovní kopii pacienta obsahuje nejvýše šest položek
+pro nové sledování: `id`, `kind` (`question`/`measurement`), `label`,
+`source_checkin_id`, `created_at`, `completed_checkin_id` a případně doložené
+`due_at`. Výchozí návrh vychází z nejnovějšího dostupného check-inu:
+nejvýše tři nezelené odpovědi a tři podporovaná měření. Zdrojová barva zde
+vybírá položku ke sledování, neurčuje klinickou úroveň. První tři položky
+jsou viditelné, ostatní rozbalitelné. Bez plánu se interval nevymýšlí.
+Při potvrzeném appendu se evidence atomicky uloží spolu s check-inem;
+aktualizovaná je jen položka s novou uloženou odpovědí či měřením z doby
+od vzniku kontroly. „Aktualizováno“ neznamená odeznění klinického problému.
+Neznámá/rozporná hodnota kontrolu nesplní. Obecný plánovač se tím nezavádí.
+
+POST `follow_up=<id>` validuje vlastní sledovanou položku a otevře přímo
+její otázku nebo dotaz na nové měření s jednotkou. Nedovolí nahradit
+rozpracovaný kontakt ani nezpracovanou přijatou zprávu. Odpověď zachová
+`source=targeted_answer`, skutečnou otázku a autora; další extrakce, P0,
+potvrzení, triáž, export a report používají stávající cestu.
+`MasterDialogue(follow_up_topic="dotaznik/otazka")` přidá pouze tento
+existující cíl i tehdy, když obecná extrakce nevybere téma. Přesná validní
+odpověď na něj může dokončit sběr i bez obecných faktů; nejde o výjimku pro
+prázdnou MASTER zprávu. Nevyřešené další vstupy a známá minima zůstávají.
+U měření se údaj a jednotka extrahují ze skutečné odpovědi, ne z historie.
+
+Funkční průchody ověřuje `tests/test_patient_portal.py`; vizuální převzetí
+responzivního zobrazení v prohlížeči zatím zbývá.
+Samostatně je povinné [zrychlení LLM](meddi-onco-plan.md#must-have-rychlost-llm-pro-prezentaci),
+podle změněné priority až poslední implementační krok po funkcích a přípravě M5.
 Současný klient vybírá deployment přes `MEDDI_LLM_MODEL` a poskytuje
 `Client.on_usage` s dobou volání a tokeny; to je základ pro porovnání.
 Menší model ani nové nastavení uvažování nejsou tímto plánem zavedené.
@@ -304,8 +337,8 @@ pokud poslední hodnocení požadavek nemá. Ostatní pacienti a prázdné profi
 zůstávají dostupní v rozbaleném seznamu.
 
 Předání je viditelně simulované. Přehled nemá frontu automatického předání ani převzetí,
-vlastní úložiště ani další LLM volání; časové lhůty zatím přebírá z obecného
-kontaktního textu backendu. Kontakty a termíny podle času dodává M4 výše.
+vlastní úložiště ani další LLM volání. Kontakty a vypočtené termíny podle
+času konkrétního hodnocení dodává implementované M4 výše.
 Čitelnost a dohledatelnost vychází z [vzorových souhrnů](../rakathon_meddi_onco_data/docs/vzorove_souhrny_pro_lekare.md),
 oddíl Zásady; úplný souhrn vývoje podle vzorů ani jeho klinické ověření
 tím nejsou hotové.
@@ -399,8 +432,7 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
   samostatné SMTP demo ji nenahrazuje.
 - `web.app` předává explicitní čas hodnocení s pásmem; export a adaptér
   timestampovaných měření jej převádějí do `Europe/Prague`. `disposition`
-  zatím vrací obecný kontaktní text, nikoli termín vypočtený pro konkrétní
-  okamžik. M4 počítá směrování podle běžného týdenního kalendáře; kalendář
+  a M4 počítají kontakt a termín podle běžného týdenního kalendáře; kalendář
   svátků a výjimek pracoviště zůstává k doplnění a potvrzení.
 
 ## Spuštění a kontroly

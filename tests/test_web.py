@@ -14,11 +14,20 @@ def test_entry_page_offers_patient_and_doctor_interfaces():
 
 def _mock_patients(monkeypatch):
     patients = {
-        "ONC-001": {"demografie": {"jmeno_fiktivni": "Jana K."}},
-        "ONC-002": {"demografie": {"jmeno_fiktivni": "Petr M."}},
+        "ONC-001": {
+            "patient_id": "ONC-001",
+            "checkiny": [],
+            "demografie": {"jmeno_fiktivni": "Jana K."},
+        },
+        "ONC-002": {
+            "patient_id": "ONC-002",
+            "checkiny": [],
+            "demografie": {"jmeno_fiktivni": "Petr M."},
+        },
     }
     monkeypatch.setattr("web.app.list_patient_ids", lambda: list(patients))
     monkeypatch.setattr("web.app.load_patient", patients.__getitem__)
+    monkeypatch.setattr("web.app.load_working_patient", patients.__getitem__)
 
 
 def test_patient_profile_is_selected_before_intake(monkeypatch):
@@ -28,9 +37,10 @@ def test_patient_profile_is_selected_before_intake(monkeypatch):
     response = client.get("/patient")
     html = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert "Ukázkový pacient" in html
-    assert "Jana K. (ONC-001)" in html
-    assert "Petr M. (ONC-002)" in html
+    assert "Váš přístupový kód" in html
+    assert "Jana K." not in html
+    assert "Petr M." not in html
+    assert "<select" not in html
     assert "<textarea" not in html
 
     response = client.post("/patient", data={"patient_id": "ONC-002"})
@@ -63,6 +73,6 @@ def test_invalid_patient_profile_does_not_start_intake(monkeypatch):
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "Vyberte platný profil pacienta." in html
-    assert "Ukázkový pacient" in html
+    assert "Demo kód není platný." in html
+    assert "Váš přístupový kód" in html
     assert "<textarea" not in html

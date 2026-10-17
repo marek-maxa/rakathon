@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Přihlášení · MEDDI ONCO</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}">
+</head>
+<body class="portal-body">
+  <main class="login-page">
+    <a class="portal-brand" href="{{ url_for('home') }}">MEDDI <span>ONCO</span></a>
+    <section class="form-card login-card">
+      <span class="portal-kicker">VÁŠ PACIENTSKÝ PORTÁL</span>
+      <h1>Péče začíná u vás.</h1>
+      <p>Váš stav, pravidelné kontroly a další kroky na jednom místě.</p>
+      {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+      {% if demo_choices %}
+        <h2>Ukázkové účty</h2>
+        <p class="portal-muted">Zvolte fiktivní účet pro prezentaci.</p>
+        <div class="demo-accounts">
+          {% for patient in demo_choices %}
+            <form method="post">
+              <input type="hidden" name="patient_id" value="{{ patient.id }}">
+              <button type="submit"><span>{{ patient.name }}</span><small>Demo kód {{ patient.id }}</small></button>
+            </form>
+          {% endfor %}
+        </div>
+        <a class="portal-link" href="{{ url_for('index') }}">Zpět na přihlášení</a>
+      {% else %}
+        <form method="post" class="question-form">
+          <label for="patient_id">Váš přístupový kód</label>
+          <input id="patient_id" name="patient_id" type="text" placeholder="Zadejte demo kód" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+          <button type="submit">Přihlásit se <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="login-demo-note">Demo přihlášení · používáme pouze fiktivní účty.</p>
+      {% endif %}
+    </section>
+    <footer class="demo-tools"><span>Demo</span><a href="{{ url_for('demo_profiles') }}">Ukázkové účty</a><a href="{{ url_for('home') }}">Změnit rozhraní</a></footer>
+  </main>
+</body>
+</html>

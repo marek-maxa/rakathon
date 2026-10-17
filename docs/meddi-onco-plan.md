@@ -15,9 +15,10 @@ a dvě níže vymezené MUST HAVE položky,
 nikoli postupné dokončování K1–K10. Technický rozsah M3 je implementovaný:
 běžný tok, pečující a šest situací mají integrační/negativní průchody.
 Zbývá nezávislé klinické převzetí mentorem a původní audit K7/K9.
-P0 bezpečnostní výstup je implementovaný. Další implementační krok je
-P2 směrování M4, poté MUST HAVE pacientský portál a závěrečné zrychlení LLM
-před demem M5; přijímací podmínky jsou v
+P0 i směrování M4 jsou implementované. Funkční rozsah MUST HAVE portálu
+je implementovaný, zbývá vizuální převzetí. Následuje příprava a funkční
+ověření M5. MUST HAVE optimalizace LLM je až poslední implementační krok;
+zahrnuje následné ověření a finální nácvik. Přijímací podmínky jsou v
 [otevřených úkolech](tasks.md#priority-do-dokončení-mvp).
 
 Vstupní stránka nabízí Pacient/Lékař: pacient pokračuje do rozhovoru,
@@ -29,10 +30,10 @@ a při přepnutí zachovává rozpracovaný kontakt.
 | M1 · kartička a požadavky, část K6/K8 | Rozšířit existující report; požadavky odvodit z uložených hodnocení bez nové fronty; souhrn nejprve šablonou | Zdravotník vidí aktuální úroveň, důvod, krok, kontakt, čas a zdroje stejného hodnocení; simulované předání je označené |
 | M2 · vstupy, část K2c/K3 | Opravit export měření a předat potřebné trendy ze stávajícího adaptéru; zachovat autora a původ | Měření je v triáži, historii i grafu; kontext léčby má zdroj, neznámé podání se přizná; bez nového obecného registru léčby |
 | M3 · povinné situace, část K7 | Implementace a technické průchody hotové; zbývá nezávislé klinické převzetí | Stejné jádro, správný subjekt, běžný pozitivní tok a šest situací s negativními protějšky; neznámé se nevydává za zelené |
-| M4 · další krok, část K4/K6 | P0 chrání okamžitou instrukci; doplnit konkrétní doporučení a směrování podle běžné pracovní doby Europe/Prague | Známé riziko se neztratí při doptání, chyba není zelený úspěch; konkrétní kontakt/termín bez obecného přepisu orchestrace |
+| M4 · další krok, část K4/K6 | Implementované P0, konkrétní doporučení a směrování podle běžné pracovní doby Europe/Prague | Známé riziko se neztratí při doptání, chyba není zelený úspěch; konkrétní kontakt/termín bez obecného přepisu orchestrace |
 | MUST HAVE · pacientský portál, část K5/K8 | Realistický demo vstup, MASTER, vlastní stav, konkrétní kontroly a stručný profil | Kompaktní pacientský pohled propojený s uloženým hodnocením a reportem; odpověď/přeměření aktualizuje sledování |
-| MUST HAVE · rychlost LLM, část M5 | Změřit odezvu, porovnat dostupný menší model a omezit zbytečná volání | Doložené porovnání rychlosti i správnosti; zvolená konfigurace ověřená v celém prezentačním toku |
-| M5 · demo, část K9/K10 | Ověřit šest situací a relevantní negativní/mezní případy; využít existující replay | Průchod demo vstup → portál → výsledek → zdravotník včetně aktualizace kontroly, čitelnost, odezva a záložní demo; stručný návrh MEDDI/EU integrace, bez nového replay frameworku |
+| M5 · demo, část K9/K10 | Ověřit šest situací a relevantní negativní/mezní případy; využít existující replay, připravit demo a podklady | Průchod demo vstup → portál → výsledek → zdravotník včetně aktualizace kontroly, čitelnost a offline záloha; doložené výsledky/omezení a stručný návrh MEDDI/EU integrace, bez nového replay frameworku |
+| MUST HAVE · rychlost LLM, poslední krok | Až po funkcích a přípravě M5 změřit odezvu, porovnat dostupný menší model a omezit zbytečná volání | Doložené porovnání rychlosti i správnosti; ověření po změně a finální nácvik s vybranou konfigurací |
 
 Odložit K2b (resume a všechny průběžné revize), obecný registr epizod a
 automatický plánovač K5, spolehlivou frontu/pokusy/převzetí, produkční role,
@@ -53,7 +54,8 @@ patří ke správné funkci a hodnocení, nikoli k odložené provozní odolnost
 
 ### MUST HAVE: pacientský portál
 
-Výslovné doplnění rozsahu uživatelem; zatím neimplementováno. Navazuje na
+Výslovné doplnění rozsahu uživatelem; funkční rozsah implementovaný,
+vizuální převzetí na mobilu/desktopu zbývá. Navazuje na
 sledování a srozumitelnost ze zadání (S1 s. 5 a 12), nikoli na požadavek
 produkčního přihlašování. Použít stávající Flask/Jinja, uložená hodnocení,
 měření a cílené otázky; nevytvářet druhý reporting ani nové klinické prahy.
@@ -94,8 +96,10 @@ Jde o malý viditelný výsek K5, nikoli obecný registr epizod a plánovač.
 ### MUST HAVE: rychlost LLM pro prezentaci
 
 Výslovná prezentační priorita uživatele; výběr modelu zatím není provedený.
-Základní měření získat před laděním, finální optimalizaci a nácvik provést
-nad ustáleným tokem včetně portálu. Menší model je kandidát, jeho rychlost
+Výslovná změna pořadí od uživatele: celou optimalizační práci zahájit až
+na konci, po funkcích, ověření a přípravě podkladů M5. Základní měření před
+laděním je první částí tohoto posledního kroku, nikoli dřívější paralelní
+úkol. Pracovat nad ustáleným tokem včetně portálu. Menší model je kandidát, jeho rychlost
 a použitelnost je nutné ověřit na skutečně dostupném deploymentu.
 
 1. Změřit celý krok od odeslání po použitelnou další obrazovku i jednotlivá
@@ -117,8 +121,8 @@ a použitelnost je nutné ověřit na skutečně dostupném deploymentu.
    dosažitelný rozpočet potvrdit po základním měření v prostředí dema.
 5. Celé demo nacvičit s vybranou konfigurací. UI ihned ukazuje zpracování,
    konečný výsledek až ze skutečných dat; P0 a potvrzení se zachovají.
-   Připravit výslovně označenou offline zálohu, nikoli skrytou náhradu
-   živých výsledků předpočítanými odpověďmi.
+   Znovu ověřit offline zálohu připravenou v M5; předpočítané výsledky jsou
+   výslovně označené a nenahrazují skrytě živé vyhodnocení.
 
 Hotovo: zapsané srovnání před/po, zdůvodněná konfigurace a opakovaný celý
 prezentační průchod bez známého zhoršení pokrytí vybraných případů.
@@ -307,12 +311,13 @@ K2b ani celý K3/K4/K5 nejsou podmínkou kartičky a jednoduchého předání.
 | K5 · nálezy a kontroly | K2–K4 a schválené časování | Aktivní epizody, klíčové/varovné vazby, zlepšení, otázky i přeměření, splnění/nezodpovězení a opakovatelný běh v čase bez duplicit |
 | K6 · doporučení, předání a souhrn | První průchod po K3/K4, dokončení po K5; využít `disposition`, předávací adaptér a pevnou předlohu | Zdůvodněný krok a skutečná lhůta; 2–4 mají dohledatelné předání/převzetí a opakování při chybě; LLM pouze formuluje, existuje šablonová záloha |
 | K7 · text a klinické pokrytí | Průběžně K2–K6; mentor a otevřené otázky backendu | MASTER i importované zprávy stejnou klinickou cestou; intervaly/rozpory/nepokryté pojmy nemizí; nezvyšovat počet zelených ukrýváním nevyhodnocených vstupů |
-| K8 · pacient a zdravotník | První kartička společně se základem K6 po K3/K4, dokončení K1–K7; rozšířit Flask/Jinja a report | Aktuální kartička, detail a zpráva stejné revize, kontroly a nutné kroky; role, převzetí a zásah týmu; checkbox zastupování a správné oslovení bez změny významu otázky |
+| K8 · pacient a zdravotník | První kartička společně se základem K6 po K3/K4, dokončení K1–K7; rozšířit Flask/Jinja a report | Aktuální kartička, detail a zpráva stejné revize, kontroly a nutné kroky; role, převzetí a zásah týmu; textové přepnutí zastupování a správné oslovení bez změny významu otázky |
 | K9 · průběžný replay a demo | Kontroly od K2, celý tok po K4–K8 | Všech 171 check-inů a šest povinných situací, negativní/mezní případy, metriky záchytu i falešných eskalací, srozumitelnost a záložní demo bez API |
 | K10 · MEDDI/AWS | K9; pracoviště a provozní převzetí | Návrh adaptérů, EU cesta dat/LLM, identita, tajemství, audit, obnova, selhání a odpovědný tým; skutečné nasazení je samostatný milník |
 
-M1, omezené M2, technický rozsah M3 a bezpečnostní bod P0 jsou implementované.
-Dokončit klinické převzetí M3 a zbývající M4–M5 podle `docs/tasks.md`; cache zpráv ani
+M1, omezené M2, technický rozsah M3, M4, funkční portál a P0 jsou implementované.
+Dokončit klinické převzetí M3, vizuální převzetí portálu a přípravu M5;
+optimalizaci odezvy provést nakonec podle `docs/tasks.md`. Cache zpráv ani
 formulářový tok znovu nestavět.
 K2c lze upravit bez K2b, potřebné trendy předat bez nového registru a
 požadavky zobrazit bez doručovacího subsystému. Audit K7 zůstává původnímu

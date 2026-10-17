@@ -7,6 +7,14 @@ triážní adaptér v [backendu](../docs/backend.md).
 
 ## Zpráva a fakt
 
+Webový portál může zahájit kontakt přímo odpovědí na sledovanou otázku:
+`MasterDialogue(..., follow_up_topic="dotaznik/otazka")` validuje a přidá
+jednu existující otázku, její běžné podmíněné větve a nové relevantní potíže.
+První událost má skutečnou otázku a `source=targeted_answer`; počítá se do
+rozpočtu. Validní cílená odpověď projde běžným potvrzením i při prázdné obecné
+extrakci. Neodhadnutá odpověď, neznámé další pojmy a chyba dál zůstávají
+nevyřešené; checkpoint se volá před cílenou extrakcí stejně jako u MASTER.
+
 [master_contract.py](master_contract.py) poskytuje `MessageEvent`, `Fact`,
 `NumericRange` a `build_packet(message, facts)`.
 

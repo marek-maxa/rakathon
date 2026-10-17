@@ -28,6 +28,8 @@ def client(monkeypatch):
     [
         "/",
         "/patient",
+        "/patient/demo",
+        "/patient/logout",
         "/team",
         "/patients/ONC-004/report",
         "/static/style.css",

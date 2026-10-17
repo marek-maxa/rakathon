@@ -7,17 +7,22 @@
     <title>Pacient · MEDDI ONCO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='triage.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}">
   </head>
-  <body>
-    <main class="page">
+  <body class="portal-body">
+    <main class="page portal-page">
+      <nav class="portal-topbar" aria-label="Pacientský účet">
+        <a class="portal-brand" href="{{ url_for('index') }}">MEDDI <span>ONCO</span></a>
+        <div class="portal-account"><span>{{ page.patient_name }}</span><form method="post" action="{{ url_for('patient_logout') }}"><button type="submit">Odhlásit se</button></form></div>
+      </nav>
       <header class="page-header">
         <p class="eyebrow">MEDDI ONCO · PRO PACIENTY</p>
-        <h1>Pravidelná kontrola</h1>
+        <h1>Váš pacientský přehled</h1>
         {% if page.patient_id %}
           <p class="progress">Profil: {{ page.patient_name }}</p>
         {% endif %}
         {% if not page.select_patient and not page.done and not page.review %}
-          <p class="progress">{% if page.master %}Úvodní otázka{% else %}Otázky dotazníků podle vaší zprávy{% endif %}</p>
+          <p class="progress">{% if page.follow_up %}Doplnění sledovaného údaje{% elif page.master %}Úvodní otázka{% else %}Otázky dotazníků podle vaší zprávy{% endif %}</p>
         {% endif %}
         {% if page.questionnaire_name %}<p class="progress">{{ page.questionnaire_name }}</p>{% endif %}
         {% if page.selected_questionnaires %}
@@ -27,6 +32,9 @@
           </details>
         {% endif %}
       </header>
+      {% include '_patient_overview.html' %}
+      <div class="portal-grid">
+      <div class="portal-conversation">
       <div id="loading" class="loading" role="status" hidden>
         <span class="spinner" aria-hidden="true"></span>
         <span>Zpracováváme odpověď, chvíli prosím počkejte…</span>
@@ -59,22 +67,10 @@
         {% elif received %}
           <p class="notice">Zpráva je uložená, její zpracování zatím není dokončeno. Zkuste pokračovat znovu, nebo zprávu upravte.</p>
         {% endif %}
-        {% if page.select_patient %}
-          <h2 id="question-title">Ukázkový pacient</h2>
-          <p>Pro ukázku zvolte některý z fiktivních pacientských profilů.</p>
-          <form method="post" class="question-form">
-            <label for="patient_id">Profil pro ukázku</label>
-            <select id="patient_id" name="patient_id" required>
-              <option value="" disabled selected>Vyberte svůj profil</option>
-              {% for patient in page.patients %}
-                <option value="{{ patient.id }}">{{ patient.name }} ({{ patient.id }})</option>
-              {% endfor %}
-            </select>
-            <button type="submit">Pokračovat</button>
-          </form>
-        {% elif page.done %}
+        {% if page.done %}
           <h2 id="question-title">Děkujeme</h2>
           <p>Odpovědi jsou uložené. Odpovědi bez přiřazení zůstávají označené jako nevyřešené.</p>
+          <form method="post"><button type="submit" name="restart" value="1">Nová pravidelná kontrola</button></form>
         {% elif page.paused %}
           <h2 id="question-title">Nejprve řešte doporučenou pomoc</h2>
           <p>Další doplnění údajů je volitelné. Doporučení výše platí i bez potvrzení nebo uložení dotazníku.</p>
@@ -84,7 +80,7 @@
         {% elif page.review %}
           <h2 id="question-title">Zkontrolujte všechny odpovědi</h2>
           <p>Rozuměli jsme vám správně? Případné chyby opravte a pak potvrďte celý souhrn.</p>
-          <p class="answer-summary">Vaše úvodní zpráva: {{ page.patient_message_text }}</p>
+          <p class="answer-summary">{{ 'Vaše odpověď' if page.follow_up else 'Vaše úvodní zpráva' }}: {{ page.patient_message_text }}</p>
           {% if not page.selected_questionnaires %}
             <p class="notice">Podle zprávy jsme nevybrali žádnou navazující otázku. Zpráva se přesto zahrne do vyhodnocení.</p>
           {% endif %}
@@ -142,7 +138,7 @@
               </button>
             </form>
           {% endif %}
-          {% if page.master %}<p>Popište své potíže nebo změny stavu. Podle zprávy se doptáme jen na související podrobnosti a zahrneme ji do vyhodnocení.</p>{% endif %}
+          {% if page.master %}<p>Popište své potíže nebo změny stavu. Doptáme se jen na potřebné podrobnosti.</p>{% endif %}
           {% if page.instruction %}<p class="instruction">{{ page.instruction }}</p>{% endif %}
           {% if page.options %}
             <details>
@@ -164,8 +160,12 @@
           {% endif %}
         {% endif %}
       </section>
+      {% if not page.master and not page.done %}<form method="post" class="portal-cancel"><button type="submit" name="restart" value="1">Začít novou pravidelnou kontrolu</button></form>{% endif %}
+      </div>
+      {% include '_patient_tracking.html' %}
+      </div>
       <footer class="demo-tools" aria-label="Ovládání ukázky">
-        <span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a>
+        <span>Demo</span><a href="{{ url_for('demo_profiles') }}">Změnit ukázkový účet</a><a href="{{ url_for('home') }}">Změnit rozhraní</a>
       </footer>
     </main>
     <script src="{{ url_for('static', filename='form.js') }}" defer></script>

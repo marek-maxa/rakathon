@@ -11,6 +11,8 @@ from flask import current_app
 
 from meddi.loader import load_patient as load_source_patient
 from meddi.messages import message_event
+from web.portal import at as checkin_at
+from web.portal import controls_for, update_controls
 
 _write_lock = Lock()
 
@@ -41,12 +43,16 @@ def append_checkins(patient_id: str, checkins: list[dict]) -> Path:
     # so two browser sessions cannot overwrite each other's new check-ins.
     with _write_lock:
         patient = deepcopy(load_patient(patient_id))
+        times = [checkin_at(c) for c in checkins if c.get("datum")]
+        controls = controls_for(patient, min(times)) if times else None
         known = {checkin["checkin_id"] for checkin in patient["checkiny"]}
         for checkin in checkins:
             if checkin.get("patient_id") != patient_id:
                 raise ValueError("Odpovědi nepatří vybranému pacientovi.")
             if checkin["checkin_id"] not in known:
                 patient["checkiny"].append(deepcopy(checkin))
+                if controls is not None and checkin.get("datum"):
+                    update_controls(patient, controls, checkin)
                 known.add(checkin["checkin_id"])
         content = (
             json.dumps(patient, ensure_ascii=False, indent=2, allow_nan=False) + "\n"

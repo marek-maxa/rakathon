@@ -30,6 +30,7 @@ from web.patient_mail import patient_mail
 from web.patient_report import patient_report
 from web.patient_store import append_checkins
 from web.patient_store import load_patient as load_working_patient
+from web.portal import build_portal, follow_up
 from web.triage import assess_contact
 
 app = Flask(__name__)
@@ -114,12 +115,17 @@ def page_for(data):
         "assessment": data.get("assessment"),
         "safety_notice": data.get("safety_notice"),
         "author": data.get("author", "patient"),
+        "follow_up": bool(data.get("follow_up")),
+        "can_start_follow_up": (data["contact"] is None or data["done"])
+        and not data.get("received_message"),
     }
 
 
 def survey_page(data):
     contact = data["contact"]
     if contact is None:
+        if data.get("follow_up"):
+            return {"follow_up": True, **data["follow_up"]}
         return {"master": True, "question": master_question(data)}
     if contact.state == "paused":
         return {"paused": True}
@@ -143,10 +149,17 @@ def survey_page(data):
             event["text"]
             for event in packet["messages"]
             if event["source"] in {"master_question", "patient_message"}
-        ),
+        )
+        or packet["message"]["text"],
         "selected_questionnaires": selected,
         "drafts": contact.review_sessions,
-        "gaps": packet["analysis_status"] == "no_facts"
+        "gaps": (
+            packet["analysis_status"] == "no_facts"
+            and not (
+                (data.get("follow_up") or {}).get("topic")
+                and contact.state == "complete"
+            )
+        )
         or bool(packet["unmapped_concepts"])
         or bool(packet["unknown_subject_fact_indices"]),
         "blocked": any(
@@ -191,13 +204,21 @@ def submission_token(data):
             "contact_id": data.setdefault("contact_id", secrets.token_urlsafe(16)),
             "patient_id": data["patient_id"],
             "id": secrets.token_urlsafe(16),
-            "source": "targeted_answer" if active else "master_question",
-            "question": active.next_question if active else master_question(data),
+            "source": "targeted_answer"
+            if active or data.get("follow_up")
+            else "master_question",
+            "question": active.next_question
+            if active
+            else (
+                data["follow_up"]["question"]
+                if data.get("follow_up")
+                else master_question(data)
+            ),
             "author": data.get("author", "patient"),
             "question_id": (
                 f"{active.question.questionnaire_id}/{active.question.id}"
                 if active
-                else None
+                else (data.get("follow_up") or {}).get("id")
             ),
             "corrects_event_id": corrects,
         }
@@ -285,6 +306,34 @@ def home():
     return render_template("welcome.html")
 
 
+def clear_patient_session():
+    sessions.pop(session.pop("id", None), None)
+
+
+@app.post("/patient/logout")
+def patient_logout():
+    clear_patient_session()
+    return redirect("/patient")
+
+
+@app.route("/patient/demo", methods=["GET", "POST"])
+def demo_profiles():
+    choices = patient_choices()
+    if request.method == "POST":
+        selected = next(
+            (p for p in choices if p["id"] == request.form.get("patient_id")), None
+        )
+        if selected is None:
+            return render_template(
+                "login.html", demo_choices=choices, error="Neplatný demo kód."
+            ), 400
+        clear_patient_session()
+        _, data = state()
+        data.update(patient_id=selected["id"], patient_name=selected["name"])
+        return redirect("/patient")
+    return render_template("login.html", demo_choices=choices)
+
+
 @app.route("/patient", methods=["GET", "POST"])
 def index():
     key, saved = state()
@@ -303,8 +352,42 @@ def index():
                 data.pop("submission", None)
                 data.pop("received_message", None)
                 data.pop("safety_notice", None)
+                data.pop("follow_up", None)
                 sessions[key] = data
                 return redirect("/patient")
+            if "follow_up" in request.form:
+                if data["patient_id"] is None:
+                    raise ValueError("Nejprve se přihlaste demo kódem.")
+                if data.get("received_message") or (
+                    data["contact"] is not None and not data["done"]
+                ):
+                    raise ValueError(
+                        "Nejprve dokončete nebo ukončete rozpracovanou kontrolu."
+                    )
+                portal = build_portal(
+                    load_working_patient(data["patient_id"]),
+                    datetime.now().astimezone(),
+                )
+                control = next(
+                    (
+                        c
+                        for c in portal["controls"]
+                        if c["id"] == request.form["follow_up"]
+                    ),
+                    None,
+                )
+                if control is None:
+                    raise ValueError("Tato kontrola není součástí vašeho sledování.")
+                data = {
+                    "patient_id": data["patient_id"],
+                    "patient_name": data["patient_name"],
+                    "author": data.get("author", "patient"),
+                    "contact": None,
+                    "done": False,
+                    "follow_up": follow_up(control),
+                }
+                sessions[key] = data
+                return redirect("/patient#question-title")
             ticket = None
             if "answer" in request.form and "submission_token" in request.form:
                 ticket = read_submission(key)
@@ -324,12 +407,14 @@ def index():
             if data["done"]:
                 raise ValueError("Odpovědi už jsou potvrzené.")
             if data["patient_id"] is None:
-                selected_id = request.form.get("patient_id", "")
+                selected_id = request.form.get("patient_id", "").strip()
                 selected = next(
                     (p for p in patient_choices() if p["id"] == selected_id), None
                 )
                 if selected is None:
-                    raise ValueError("Vyberte platný profil pacienta.")
+                    raise ValueError(
+                        "Demo kód není platný. Zkontrolujte jej a zkuste to znovu."
+                    )
                 data["patient_id"] = selected_id
                 data["patient_name"] = selected["name"]
                 sessions[key] = data
@@ -421,6 +506,7 @@ def index():
                         extract_with_events=client.extract_events,
                         max_questions=app.config["MAX_QUESTIONS"],
                         bulk_confirmation=True,
+                        follow_up_topic=(data.get("follow_up") or {}).get("topic"),
                     )
                     contact.start(original, checkpoint=safety_checkpoint(data, saved))
                     data["contact"] = contact
@@ -448,12 +534,17 @@ def index():
     answer_text = (
         pending.text if pending else request.form.get("answer", "") if error else ""
     )
+    if data["patient_id"] is None:
+        return render_template("login.html", error=error)
     return render_template(
         "index.html",
         page=page_for(data),
         error=error,
         received=received or pending is not None,
         answer_text=answer_text,
+        portal=build_portal(
+            load_working_patient(data["patient_id"]), datetime.now().astimezone()
+        ),
     )
 
 

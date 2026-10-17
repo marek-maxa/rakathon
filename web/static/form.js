@@ -1,5 +1,6 @@
 const loading = document.querySelector('#loading');
 const card = document.querySelector('.form-card');
+const initiallyDisabled = new Set(document.querySelectorAll('button:disabled'));
 let submitting = false;
 
 document.addEventListener('submit', (event) => {
@@ -33,6 +34,6 @@ window.addEventListener('pageshow', () => {
   card.removeAttribute('aria-busy');
   document.querySelectorAll('[data-submit-action]').forEach((action) => action.remove());
   document.querySelectorAll('button').forEach((button) => {
-    button.disabled = false;
+    button.disabled = initiallyDisabled.has(button);
   });
 });

@@ -1,0 +1,37 @@
+<aside class="portal-sidebar" aria-label="Vaše sledování a údaje">
+  <section class="portal-panel" aria-labelledby="tracking-title">
+    <div class="portal-section-heading"><h2 id="tracking-title">Co sleduji</h2><span class="portal-count">{{ portal.controls | length }}</span></div>
+    <p class="portal-muted">Doplňte aktuální odpověď nebo nové měření.</p>
+    {% for control in portal.controls %}
+      {% if loop.index == 4 %}<details class="tracking-more"><summary>Další sledované údaje ({{ portal.controls | length - 3 }})</summary>{% endif %}
+      <article class="tracking-item">
+        <div class="tracking-heading"><h3>{{ control.label }}</h3><span class="tracking-status{% if control.status == 'Aktualizováno' %} is-complete{% endif %}">{{ control.status }}</span></div>
+        <p class="tracking-value">{{ control.value if control.value is not none else 'Údaj je potřeba upřesnit' if control.status == 'K upřesnění' else 'Údaj zatím chybí' }}</p>
+        <p class="portal-muted tracking-time">{{ control.time }}</p>
+        {% if control.due %}<p class="portal-muted">Doplnit do {{ control.due }}</p>{% endif %}
+        <form method="post">
+          <button class="tracking-action" type="submit" name="follow_up" value="{{ control.id }}"{% if not page.can_start_follow_up %} disabled{% endif %}>{{ 'Aktualizovat měření' if control.kind == 'measurement' else 'Odpovědět' }} <span aria-hidden="true">↗</span></button>
+        </form>
+      </article>
+      {% if loop.last and loop.index > 3 %}</details>{% endif %}
+    {% else %}
+      <p>Zatím nemáte nastavené konkrétní sledování. Popište, jak se cítíte, v pravidelné kontrole.</p>
+    {% endfor %}
+    {% if portal.controls %}<p class="portal-footnote">Navazuje na uložené odpovědi a měření. {% if not page.can_start_follow_up %}Nejprve dokončete aktuální kontrolu.{% else %}Pokud není uveden termín, interval kontroly zatím nebyl určen.{% endif %}</p>{% endif %}
+  </section>
+  <details class="portal-panel portal-details">
+    <summary>Moje údaje</summary>
+    <dl class="portal-profile">
+      <dt>Jméno</dt><dd>{{ page.patient_name }}</dd>
+      {% if portal.profile.vek %}<dt>Věk</dt><dd>{{ portal.profile.vek }} let</dd>{% endif %}
+      {% if portal.diagnosis %}<dt>Diagnóza v kartě</dt><dd>{{ portal.diagnosis }}</dd>{% endif %}
+    </dl>
+    <p class="portal-footnote">Údaje vedené v ukázkové pacientské kartě.</p>
+  </details>
+  <details class="portal-panel portal-details">
+    <summary>Poslední kontroly</summary>
+    {% for item in portal.history %}
+      <article class="portal-history"><time>{{ item.date }}</time><p>{{ item.text }}</p></article>
+    {% else %}<p class="portal-muted">Zatím žádná uložená kontrola.</p>{% endfor %}
+  </details>
+</aside>

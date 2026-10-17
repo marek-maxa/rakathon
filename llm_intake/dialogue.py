@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .client import APIError, Client
-from .core import Intake
+from .core import Intake, load_question
 from .flow import QuestionnaireFlow
 from .master import MasterExtractor, analyze_message
 from .master_contract import MessageEvent
@@ -27,6 +27,7 @@ class MasterDialogue:
         max_questions: int = 6,
         max_clarifications: int = 2,
         bulk_confirmation: bool = False,
+        follow_up_topic: str | None = None,
     ):
         if type(max_questions) is not int or max_questions < 1:
             raise ValueError("Rozpočet kontaktu musí být kladné celé číslo.")
@@ -36,6 +37,9 @@ class MasterDialogue:
         self._extract_with_events = extract_with_events
         self._bulk_confirmation = bulk_confirmation
         self._confirmed = False
+        self._follow_up = (
+            load_question(*follow_up_topic.split("/", 1)) if follow_up_topic else None
+        )
         self._max_questions, self._max_clarifications = (
             max_questions,
             max_clarifications,
@@ -64,7 +68,9 @@ class MasterDialogue:
         if self._messages or self._flows:
             raise ValueError("Kontakt už byl zahájen.")
         self._messages.append(message)
-        self._questions_asked = int(message.source == "master_question")
+        self._questions_asked = int(
+            message.source in {"master_question", "targeted_answer"}
+        )
         try:
             self._analyses.append(analyze_message(message, self._extract_message))
             if not self._checkpoint(checkpoint, "advance"):
@@ -77,6 +83,8 @@ class MasterDialogue:
 
     def _refresh_targets(self):
         grouped: dict[str, set[str]] = {}
+        if self._follow_up:
+            grouped[self._follow_up.questionnaire_id] = {self._follow_up.id}
         for analysis in self._analyses:
             for candidate in analysis["question_candidates"]:
                 q = candidate["question"]
@@ -119,7 +127,11 @@ class MasterDialogue:
                     for message, analysis in zip(
                         self._messages, self._analyses, strict=True
                     )
-                    if any(
+                    if (
+                        self._follow_up == question
+                        and message.question == question.text
+                    )
+                    or any(
                         (
                             c["question"]["questionnaire_id"],
                             c["question"]["question_id"],
@@ -161,7 +173,14 @@ class MasterDialogue:
             a["unmapped_concepts"] or a["unknown_subject_fact_indices"]
             for a in self._analyses
         )
-        no_facts = not any(a["facts"] for a in self._analyses)
+        answered_follow_up = self._follow_up is not None and any(
+            s.question == self._follow_up
+            and s.state in {"confirmed", "needs_confirmation"}
+            for s in self._sessions
+        )
+        no_facts = (
+            not any(a["facts"] for a in self._analyses) and not answered_follow_up
+        )
         self.state = "unresolved" if incomplete or uncovered or no_facts else "complete"
         self._reason = "open_findings" if self.state == "unresolved" else None
 
