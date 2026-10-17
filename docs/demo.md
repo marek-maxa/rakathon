@@ -126,6 +126,13 @@ Použití D1 jako podkladu léčby není úplný registr skutečných podání (
 
 ## Rozsah technického ověření
 
+Aktuální [finální kontrola šesti situací](final-check.md) z 17. 10. 2026
+dokládá opakování automatických průchodů a omezenou živou kontrolu.
+Po opravě pomocného testu horečky jsou doložené tři průchody extrakce →
+triáž (horečka, průjem, dcera), čtyři API volání celkem včetně původního
+nedokončeného pokusu. Horečka prošla přes skutečný dialog a naléhavý
+checkpoint před cíleným dotazováním. Nenahrazuje klinické převzetí.
+
 Technický nácvik M5 přes Flask formuláře a skutečný LLM ověřil:
 `dobrý → skutečná odpověď na škálu → potvrzení → zelená`; po opravách také
 `Právě jsem naměřil 36,8 °C. → uložení → aktualizovaná kontrola → zelená`

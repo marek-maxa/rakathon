@@ -45,6 +45,16 @@ bez doloženého selhání příjmu se podle mentora nepovyšují na 4.
 
 ## Zdrojové přijímací scénáře
 
+Finální technická kontrola podle pokynu uživatele z 17. 10. 2026 je
+[doložená zde](final-check.md): všech šest situací znovu prošlo automatickými
+kontrolami, 64 cílených / 985 celkem. Po opravě pomocného testu na následný
+pokyn uživatele jsou doložené tři živé průchody extrakce → triáž (horečka,
+průjem a dcera), celkem čtyři sekvenční API volání včetně prvního
+neúspěšného testu horečky. Opravená horečka šla přes skutečný dialog do
+červeného checkpointu před cíleným dotazováním; 5 cílených regresí prošlo.
+Žádná změna aplikační logiky.
+Klinické převzetí a původní vlastnictví K6/K7/K9 zůstávají otevřené.
+
 | Úkol | Vlastník | Stav | Podmínka dokončení |
 | --- | --- | --- | --- |
 | Připravit nezávislé testy pravidel a prezentací | Aktuální relace Codex | done | [Sada](../tests/acceptance_meddi/README.md): 502 syntetických scénářů / 140 požadavků, oddělené vstupy a očekávání, zdroj u každého případu, pokrytí šesti situací z PDF s. 9, hranic, negací a časové dostupnosti. Kontrola sady a hodnoticí nástroj existují; splnění aplikací se netvrdí |
