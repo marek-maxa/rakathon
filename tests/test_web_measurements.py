@@ -92,6 +92,46 @@ def test_live_weight_trend_uses_past_measurements_and_treatment_sources_only():
     assert raw == before
 
 
+@pytest.mark.parametrize("time_text", ["Právě", "prave", "právě teď", "prave ted"])
+@pytest.mark.parametrize("temperature", [36.8, 38.2])
+def test_just_measured_temperature_reaches_export_and_keeps_urgent_minimum(
+    time_text, temperature
+):
+    contact = measured_contact("temperature_c", temperature, "degC")
+    text = f"{time_text} jsem naměřil {temperature} °C."
+    contact["message"]["text"] = text
+    contact["facts"][0].update(evidence=text, time_text=time_text)
+    raw = patient(
+        treatment={"leky": ["doxorubicin"], "cykly": [{"datum_d1": "2026-09-25"}]}
+    )
+    assessment = assess_contact(contact, raw, AT)
+    saved = meddi_record(contact, AT, assessment=assessment)["checkiny"][0]
+    assert saved["vitalni_funkce"]["teplota_c"]["hodnota"] == temperature
+    assert (
+        saved["vitalni_funkce"]["teplota_c"]["observed_at"]
+        == contact["message"]["available_at"]
+    )
+    assert not assessment["unprocessed_facts"]
+    assert assessment["color"] == ("red" if temperature >= 38 else "green")
+    if temperature >= 38:
+        assert assessment["minimum_color"] == "red"
+
+
+@pytest.mark.parametrize("time_text", ["právě včera", "prave pred tydnem"])
+def test_just_prefix_does_not_turn_an_unresolved_historical_time_into_now(time_text):
+    contact = measured_contact("temperature_c", 36.8, "degC")
+    text = f"{time_text} jsem naměřil 36,8 °C."
+    contact["message"]["text"] = text
+    contact["facts"][0].update(evidence=text, time_text=time_text)
+    assessment = assess_contact(contact, patient(), AT)
+    saved = meddi_record(contact, AT, assessment=assessment)["checkiny"][0]
+    assert "teplota_c" not in saved["vitalni_funkce"]
+    assert any(
+        item["reason"] == "unresolved_observation_time"
+        for item in assessment["unprocessed_facts"]
+    )
+
+
 def test_live_pressure_trend_counts_current_and_two_past_readings():
     history = [checkin("B1", "2026-09-29"), checkin("B2", "2026-09-30")]
     for item in history:

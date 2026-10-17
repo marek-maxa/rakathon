@@ -69,7 +69,9 @@ uv run --locked python -X utf8 tests/acceptance_meddi/run.py list --grading clin
 ```
 
 `validate` kontroluje identifikátory, vazby, zdroje a jejich hash, časové
-údaje, podporované kontroly a pokrytí tabulek tvrdých pravidel.
+údaje, podporované kontroly a pokrytí tabulek tvrdých pravidel. U Markdown
+a JSON zdrojů toleruje pouze rozdíl konců řádků LF/CRLF mezi checkouty;
+ostatní obsah a binární podklady musí odpovídat zaznamenanému hashi.
 `self-check` zkouší samotný hodnoticí nástroj na záměrně podhodnoceném
 i nadhodnoceném výsledku, lidském review a úniku budoucí události.
 Tyto příkazy **nespouštějí aplikaci ani LLM**.

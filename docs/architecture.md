@@ -292,8 +292,21 @@ Nález bez otázky není automaticky nevyhodnocený: pipeline porovná původní
 `unmapped_concepts` s validovanými vybranými vstupy jádra a vykáže zbývající
 `unresolved_concepts`. Pokud je celé `open_findings` způsobeno jen těmito
 zpracovanými vstupy, nepřidá falešné `intake_not_complete`. Neznámé nebo
-nejisté nálezy zůstávají k review. „Nově/nove“ označuje aktuálně hlášený
-nález, nikoli odhadnutý interval; zdrojový výraz zůstává zachovaný.
+nejisté nálezy zůstávají k review. „Nově/nove“ a „náhle/nahle“ označují
+aktuálně hlášený nález, nikoli odhadnutou délku jeho trvání. „Právě/prave“
+a „právě teď/prave ted“ se stejně jako „nyní“ zpracují jako aktuální údaj;
+při chybějícím čase pozorování zůstává časem přijetí zprávy. Složený
+historický výraz se nerozpoznává jen podle prefixu; originál se zachovává.
+
+`master.analyze_message` neotevírá horečkovou otázku pro přesnou jistou
+teplotu v °C pod prvním intervalem jejích zdrojových možností. Dolní mez
+se čte z definice otázky, nejde o nový klinický práh. Fakt zůstává v triáži,
+exportu a historii; nevymýšlí se index „37,0–37,9 °C“ pro hodnotu 36,8 °C.
+Nejistá hodnota, jiná jednotka, rozsah nebo další vyšší hlášená teplota
+se tím nevyřeší a nadále mohou vyvolat upřesnění. Zdroj:
+`dotazniky_definice.json`, `nezadouci_ucinky/teplota`; klinické úrovně dál
+určuje jen sdílené jádro podle pravidel. Tato oprava platí pro nové
+zpracování, staré uložené intaky se automaticky znovu neextrahují.
 
 Nenápadné textové tlačítko pod otázkou „Nejste [jméno] a odpovídáte za
 pacienta? Klikněte zde.“ jedním kliknutím přepne na pečujícího; ve stejném
@@ -436,6 +449,37 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
   svátků a výjimek pracoviště zůstává k doplnění a potvrzení.
 
 ## Spuštění a kontroly
+
+### Demo a samostatná offline záloha M5
+
+[Prezentační podklad](demo.md) uvádí živý průchod, omezení ověření a návrh
+MEDDI/EU integrace. `uv run --locked python -m scripts.build_demo` vytvoří
+`dist/demo/index.html` a `results.json`; `--output <adresář>` určí jiný cíl.
+HTML má vložené styly, kotvy a nativní rozbalovací detaily; po exportu
+nepotřebuje server, JavaScript, síť ani LLM/SMTP konfiguraci.
+
+Vstupy `demo/cases.json` jsou ručně připravené syntetické zprávy/fakty a
+případné cílené odpovědi pro šest situací (zadání PDF, s. 9). Export používá
+`MessageEvent`, `Fact`, potvrzený `Intake`, `build_pipeline_packet`,
+`assess_contact` a `meddi_record`. Po kroku přidá pouze dosavadní záznam
+do kopie historie; názvy situací a očekávání nejsou vstupem pravidel.
+Výsledek včetně neúplnosti zobrazuje společná šablona `_triage.html`.
+Artefakt je výslovně označený jako předpřipravená ukázka s historickými časy,
+nikoli živý rozhovor nebo dokončené předání. Nemění aplikaci ani její
+chování při výpadku modelu; nezapisuje do pracovních kopií ani originálů.
+
+Export navíc zavolá existující `main.compare_patients(..., with_messages=False)`
+a přiloží agregaci strukturovaného replay. Reference jsou jen ve
+vyhodnocovací větvi, nikoli v připravených klinických vstupech. Tato agregace
+neprokazuje kvalitu extrakce zpráv ani celého produktu a neuzavírá K7/K9.
+`tests/test_demo_export.py` ověřuje šest případů, časovou izolaci,
+nezávislost na názvech a výstup bez externích volání. Vizuální převzetí
+exportu a celý prohlížečový nácvik zůstávají otevřené. Samostatný technický
+nácvik formulářových handlerů se skutečným LLM je doložen v demo podkladu;
+ověřil běžný stav, konkrétní měření a termín kontroly, P0 a uložení/kartičku
+v oddělených průchodech bez zásahu do původních dat nebo nastavení modelu.
+
+### Web a stávající kontroly
 
 Všechny příkazy z kořene repozitáře; syntaxe je společná pro Linux a PowerShell.
 

@@ -202,6 +202,26 @@ def is_negative_feeling(text: str) -> bool:
     return _feeling_text(text) in GENERAL_FEELINGS - REASSURING_FEELINGS
 
 
+def _below_temperature_options(fact: Fact, package: dict) -> bool:
+    """Keep the exact Celsius fact when the source fever question has no option.
+
+    The lower bound comes from the source question, not from a clinical rule.
+    No answer is invented and triage still evaluates the original numeric fact.
+    """
+    if (
+        (package["questionnaire_id"], package["question_id"])
+        != ("nezadouci_ucinky", "teplota")
+        or fact.concept not in {"temperature", "temperature_c"}
+        or fact.presence != "present"
+        or fact.certainty != "stated"
+        or type(fact.value) not in {int, float}
+        or fact.unit not in {None, "degC", "C", "°C", "celsius"}
+    ):
+        return False
+    lower = re.match(r"^(\d+(?:[.,]\d+)?)\s*[-–]", package["options"][0]["text"])
+    return bool(lower and fact.value < float(lower[1].replace(",", ".")))
+
+
 def analyze_message(
     message: MessageEvent, extract: Callable[[MessageEvent], list[Fact]]
 ) -> dict:
@@ -263,6 +283,8 @@ def analyze_message(
         if fact.subject != "patient" or fact.presence == "absent":
             continue
         for package in packages:
+            if _below_temperature_options(fact, package):
+                continue
             ref = (package["questionnaire_id"], package["question_id"])
             reasons.setdefault(ref, []).append(index)
     return {

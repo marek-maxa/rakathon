@@ -76,6 +76,67 @@ def test_unknown_subject_is_retained_without_asking_patient_about_it():
     assert packet["question_candidates"] == []
 
 
+def test_temperature_below_source_question_range_keeps_fact_without_invented_choice():
+    message = event()
+    fact = Fact(
+        "temperature_c",
+        "present",
+        message.text,
+        "patient",
+        value=36.8,
+        unit="degC",
+        topic_ids=("nezadouci_ucinky/teplota",),
+    )
+    result = analyze_message(message, lambda _: [fact])
+    assert result["facts"][0]["value"] == 36.8
+    assert result["question_candidates"] == []
+    assert result["unmapped_concepts"] == []
+    assert result["question_answers"] == []
+
+
+@pytest.mark.parametrize(
+    "value,unit,certainty",
+    [
+        (37.0, "degC", "stated"),
+        (38.2, "degC", "stated"),
+        (36.8, "degC", "approximate"),
+        (36.8, "F", "stated"),
+        (NumericRange(36.5, 37.5), "degC", "stated"),
+    ],
+)
+def test_covered_uncertain_or_non_celsius_temperature_still_needs_its_question(
+    value, unit, certainty
+):
+    message = event()
+    fact = Fact(
+        "temperature",
+        "present",
+        message.text,
+        "patient",
+        value=value,
+        unit=unit,
+        certainty=certainty,
+        topic_ids=("nezadouci_ucinky/teplota",),
+    )
+    result = analyze_message(message, lambda _: [fact])
+    assert [c["question"]["question_id"] for c in result["question_candidates"]] == [
+        "teplota"
+    ]
+
+
+def test_a_lower_temperature_does_not_hide_a_reported_higher_temperature():
+    message = event()
+    facts = [
+        Fact(
+            "temperature", "present", message.text, "patient", value=value, unit="degC"
+        )
+        for value in (36.8, 38.2)
+    ]
+    result = analyze_message(message, lambda _: facts)
+    assert [f["value"] for f in result["facts"]] == [36.8, 38.2]
+    assert result["question_candidates"][0]["fact_indices"] == [1]
+
+
 def test_uncertain_presence_remains_uncertain_and_can_prompt_clarification():
     message = MessageEvent(
         "synthetic-uncertain",

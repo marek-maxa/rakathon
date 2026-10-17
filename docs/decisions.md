@@ -41,6 +41,8 @@ relací, mergů a testovacích běhů nahrazuje Git.
 | Katalog | Explicitní katalog všech 49 otázek a zdrojové definice; zatím bez RAG | Podobnost není klinická jistota, tvrdá pravidla nesmějí záviset na top-k vyhledávání |
 | Integrace | Datový a předávací adaptér oddělené od pravidel; MEDDI API během soutěže pouze navrhnout | SMTP demo není doručený klinický požadavek; ostrá data vyžadují ověřený EU provoz |
 | Evaluace | Chronologický replay, reference a názvy scénářů mimo rozhodování/LLM | Nezávisle měřit záchyt i zbytečné eskalace; neladit pravidla podle ID nebo reference |
+| Offline záloha M5 | Samostatný export šesti syntetických situací do HTML se vloženými styly; ručně připravená extrakce, aktuální výpočet stejného jádra | Výslovně označený předpřipravený průchod, bez síťových volání a bez změny živého toku. Neúplnost/rozpory se zobrazují; strukturovaný replay je oddělený základní výsledek, nikoli kvalita celého produktu nebo klinické převzetí |
+| Přesná teplota mimo možnosti horečkové otázky | Uchovat jisté číselné měření a nevyžadovat nemožnou volbu pod prvním intervalem zdrojové otázky | Bez domyšleného indexu a změny klinických prahů. Vyšší/nejisté další údaje zůstávají; samotné vynechání otázky není prohlášení zeleného stavu |
 
 ## Bezpečnostní výstup K4/M4
 

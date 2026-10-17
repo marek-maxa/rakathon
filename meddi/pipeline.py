@@ -42,8 +42,22 @@ ANSWER_FIELDS = {
     ("nezadouci_ucinky", "zvraceni"): "vomiting",
     ("nezadouci_ucinky", "prujem"): "diarrhea",
 }
-CURRENT_TEXT = {"dnes", "nyní", "nyni", "teď", "ted", "today", "now"}
+CURRENT_TEXT = {
+    "dnes",
+    "nyní",
+    "nyni",
+    "teď",
+    "ted",
+    "právě",
+    "prave",
+    "právě teď",
+    "prave ted",
+    "today",
+    "now",
+}
 ONGOING_ONSET = {
+    "náhle",
+    "nahle",
     "nově",
     "nove",
     "od včera",

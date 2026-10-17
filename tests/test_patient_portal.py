@@ -4,7 +4,10 @@ import json
 from copy import deepcopy
 from datetime import timedelta
 
+import pytest
+
 from llm_intake.client import APIError
+from llm_intake.master_contract import Fact
 from tests.test_mvp_scenarios import demo, finding, finish, post
 from tests.test_web_triage import checkin
 from web.app import app, sessions
@@ -147,8 +150,20 @@ def test_measurement_control_uses_existing_triage_and_report(demo):
     )
     assert "tělesná teplota" in response.get_data(as_text=True)
     text = "Právě jsem naměřil 36,8 °C."
-    demo.findings[text] = [finding(text, "temperature", value=36.8, unit="degC")]
+    demo.findings[text] = [
+        Fact(
+            "temperature_c",
+            "present",
+            text,
+            "patient",
+            value=36.8,
+            unit="degC",
+            time_text="Právě",
+            topic_ids=("nezadouci_ucinky/teplota",),
+        )
+    ]
     post(demo, text)
+    assert not demo.targeted_calls
     saved = finish(demo)
     assert saved["vitalni_funkce"]["teplota_c"]["hodnota"] == 36.8
     view = build_portal(json.loads(demo.path.read_text()), demo.at)
@@ -156,16 +171,18 @@ def test_measurement_control_uses_existing_triage_and_report(demo):
     assert control["value"] == "36.8 °C"
     assert control["status"] == "Aktualizováno"
     assert view["assessment"]["color"] == saved["triage_assessment"]["color"]
+    assert view["assessment"]["color"] == "green"
     assert "36.8" in demo.client.get("/patients/synthetic/report").get_data(
         as_text=True
     )
 
 
-def test_new_danger_during_a_control_keeps_immediate_notice(demo):
+@pytest.mark.parametrize("time_text", ["náhle", "nahle"])
+def test_new_danger_during_a_control_keeps_immediate_notice(demo, time_text):
     baseline(demo)
     demo.client.post("/patient", data={"follow_up": "teplota_c"})
-    text = "Jsem náhle zmatený."
-    demo.findings[text] = [finding(text, "confusion")]
+    text = f"Jsem {time_text} zmatený."
+    demo.findings[text] = [finding(text, "confusion", time_text=time_text)]
     response = post(demo, text)
     assert response.status_code == 200
     page = html(demo)

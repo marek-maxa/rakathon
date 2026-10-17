@@ -6,8 +6,9 @@ vysvětlitelná triáž a další krok pro pacienta i zdravotnický tým.
 Funguje MASTER vstup, výběr relevantních otázek a cílené doptávání, společné
 potvrzení, uložení kontaktu a historický report s volitelným zpracováním
 původních zpráv. Původní zprávy se trvale ukládají před LLM.
-Aktivní karta, plánované kontroly a přeměření,
-předání týmu a odborné souhrny zbývají propojit. Stav jednotlivých částí je
+Pacientský portál má demo vstup, konkrétní kontroly/měření a uložený stav;
+obecný klinický plánovač, skutečné předání týmu a úplné odborné souhrny
+zbývají propojit. Stav jednotlivých částí je
 v [architektuře](docs/architecture.md#implementovaný-stav).
 
 Úvodní stránka nabízí volbu Pacient / Lékař. Pacient pokračuje na `/patient`.
@@ -31,8 +32,9 @@ Zkopírujte [llm_intake/.env.example](llm_intake/.env.example) do
 uv run --locked python -m web.app
 ```
 
-Otevřete http://127.0.0.1:5000 a zvolte Pacient nebo Lékař; pacient pak vybere
-syntetický profil. Společné heslo dema nenahrazuje individuální oprávnění
+Otevřete http://127.0.0.1:5000 a zvolte Pacient nebo Lékař; pacient pak zadá
+demo kód syntetického profilu (ukázkové účty jsou v demo ovládání).
+Společné heslo dema nenahrazuje individuální oprávnění
 a volba rozhraní není kontrola role. Web načítá `.env`
 automaticky; původní zprávy ukládá do `data/events.sqlite3`, potvrzené kontakty
 do `data/pacienti/`. Stav rozpracovaného rozhovoru je zatím pouze v paměti;
@@ -41,6 +43,16 @@ Podrobnosti konfigurace a další příkazy jsou
 v [architektuře](docs/architecture.md#spuštění-a-kontroly).
 
 ## Dokumentace
+
+Pro prezentaci použijte [demo průchod a integrační návrh](docs/demo.md).
+Samostatnou zálohu bez LLM a serveru vytvoří:
+
+```text
+uv run --locked python -m scripts.build_demo
+```
+
+Otevřete `dist/demo/index.html`. Jde o výslovně označenou předpřipravenou
+ukázku s aktuálním výpočtem pravidel, nikoli živou extrakci či skrytý fallback.
 
 | Dokument | Odpovědnost |
 | --- | --- |

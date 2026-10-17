@@ -5,6 +5,15 @@ Hotovou implementaci popisuje [architektura](architecture.md), podmínky kroků
 [plán](meddi-onco-plan.md#implementační-kroky-a-závislosti).
 Dokončené provozní zápisy a historii testovacích běhů zde neudržujeme.
 
+Pracovní uzávěrka: **17. 10. 2026 13:00 Europe/Prague (11:00 UTC)**,
+odvozená z uživatelova „za 3 hodiny přesně“ převzatého kolem 10:00.
+Prezentace zatím bez pevného časového limitu; předvést existující MVP.
+Formát/místo odevzdání a požadavek na veřejnou URL ještě nejsou upřesněné.
+
+Přijímací sada v `tests/acceptance_meddi/` má kontrolu zdrojů přenositelnou
+mezi LF/CRLF checkouty. Její validace není ověřením splnění aplikací;
+napojení skutečného adaptéru a vyhodnocení zůstává součástí auditu K7/K9.
+
 ## Rozpracovaná práce
 
 Tyto dvě práce zachovávají původní vlastnictví relace web; nepřebírat je
@@ -23,8 +32,12 @@ M1 a M2 jsou hotové. M3 má implementovaný běžný tok, pečujícího i techn
 průchody šesti situacemi s negativními případy; zbývá klinické převzetí
 mentorem. P0 a M4 jsou hotové. Původní audit K7/K9 zůstává otevřený.
 P3 má implementovaný funkční pacientský portál; zbývá vizuální převzetí
-na mobilu a desktopu. Dále připravit M5: opakovatelný průchod, záložní demo,
-souhrn ověření a integrační návrh. MUST HAVE optimalizace LLM je až poslední
+na mobilu a desktopu. M5 má připravený demo podklad, samostatnou offline
+zálohu, základní souhrn ověření a integrační návrh; zbývá převzetí/nácvik
+a potvrzení zbývajících organizačních údajů. Živě byly ověřené formulářové
+handlery, opraveno ztrácení „právě“ naměřené teploty, neodpověditelná
+horečková otázka pod rozsahem možností a časové zpracování „náhle“.
+MUST HAVE optimalizace LLM je až poslední
 implementační krok, po ustálení funkcí a prezentačních podkladů.
 
 | Pořadí MVP | Vlastník | Stav | Podmínka dokončení |
@@ -35,7 +48,7 @@ implementační krok, po ustálení funkcí a prezentačních podkladů.
 | M3 · šest situací a zprávy | Tým + mentor | doing | Technická implementace a průchody šesti situací/mezí hotové, včetně „dobrý“, pečujícího a paliativního kontextu; živá syntetická kontrola extrakce provedena. Pro úplné uzavření zbývá nezávislé kvalifikované klinické převzetí, nikoli další zavedení integrační cesty |
 | M4 · doporučení a směrování | Aktuální relace Codex | done | Kontakty a lhůty podle Europe/Prague, hranic 7:00/15:30, víkendů a doložené paliativní péče; červená vždy 155, zvláštní lhůty zachované. P0, výsledek a kartička používají stejné hodnocení. 880 testů včetně 34 směrovacích scénářů prošlo; Ruff a Azure ZIP ověřeny. Svátky/výjimky pracoviště a skutečné doručování zůstávají mimo MVP |
 | MUST HAVE · pacientský portál | Aktuální relace Codex | doing | Funkční demo kód, oddělené ukázkové účty/odhlášení, MASTER, uložený stav/krok/čas, vlastní údaje a historie. Konkrétní otázky/měření se vracejí do stejné triáže; kontroly se ukládají s potvrzeným check-inem, bez odhadu intervalu. Automatické průchody a HTML všech 14 profilů ověřeny. Zbývá vizuální převzetí na mobilu/desktopu: v této relaci není dostupný prohlížeč. [Rozsah a průchod](meddi-onco-plan.md#must-have-pacientský-portál) |
-| M5 · ověření, demo a návrh integrace | Tým | todo | Průchod demo vstup → portál → výsledek → zdravotník → aktualizace kontroly; šest situací a relevantní negativní případy, souhrn existujícího replay/auditu s omezeními, záložní demo a stručný návrh MEDDI/EU provozu. Připravit podklady k odevzdání; rychlost se uzavírá až následujícím krokem |
+| M5 · ověření, demo a návrh integrace | Aktuální relace Codex | doing | [Demo podklad a návrh integrace](demo.md) a offline export jsou připravené. Živé formulářové handlery ověřily běžný stav, aktuální teplotu, označený demo termín, naléhavou instrukci před potvrzením a kartičku týmu; rozsah oddělených průchodů je v podkladu. Opraveny konkrétní chyby toku, model beze změny. Zbývá vizuální/prohlížečový nácvik, klinické převzetí a původní audit, formát/místo odevzdání a případná veřejná URL |
 | MUST HAVE · rychlost LLM · poslední krok | Tým | todo | Až po funkcích a přípravě M5 změřit celý krok i počet/dobu volání; porovnat dostupný menší/rychlejší model, podporované nižší uvažování a odstranit zbytečná volání. Zapsat srovnání rychlosti i správnosti, po změně zopakovat relevantní ověření a finální nácvik. [Podmínky](meddi-onco-plan.md#must-have-rychlost-llm-pro-prezentaci) |
 
 Následuje úplný backlog K1–K10, nikoli pořadí MVP. K2b, obecný K5,
@@ -86,24 +99,25 @@ Lint a SMTP testy nejsou prioritou před fungujícím M1–M5.
 | P1 · M3 + audit K7/K9 | Technický rozsah M3 hotový; převzít klinické scénáře mentorem a pokračovat v původním auditu nižších/vyšších výsledků. Neopakovat implementaci „dobrý“ ani zastupování | Běžná upřesněná odpověď bez dalšího rizika nevyvolá kontakt lékaře jen kvůli sběru; šest situací má automatické průchody. Klinické převzetí a vysvětlení celé časové sady ještě nejsou hotové |
 | P2 · M4 · done | Konkrétní krok/kontakt a termín podle Europe/Prague, včetně mimo pracovní dobu a doložené paliativní péče | Běžný týdenní kalendář, historický čas zachovaný, minimum/úplnost beze změny; kalendář svátků a výjimek pracoviště před provozem potvrdit |
 | P3 · MUST HAVE portál · doing | Funkční rozsah implementovaný, dokončit vizuální převzetí mobilu/desktopu | Demo vstup → MASTER → potvrzení → stav → cílená kontrola/měření → report ověřen automaticky; vizuální kontrola v prohlížeči dosud neprovedena |
-| P4 · M5 | Připravit průchod pacient → zdravotník → kontrola, offline zálohu, souhrn ověření, návrh MEDDI/EU a podmínky odevzdání | Opakovatelné demo se šesti situacemi, doložené výsledky a otevřená omezení, připravené podklady; bez přelaďování modelů a nové infrastruktury |
+| P4 · M5 · doing | Podklad, offline HTML, návrh MEDDI/EU a živé technické průchody hotové; dokončit prohlížečové/klinické převzetí a zbývající podmínky odevzdání | [Přesný průchod a omezení](demo.md), šest situací se zdroji a skutečný replay; formulářový nácvik není vizuální ani klinické převzetí |
 | P5 · MUST HAVE rychlost LLM · poslední | Teprve po ustálení funkcí a podkladů M5 změřit a optimalizovat odezvu; uzavřít finálním nácvikem | Srovnání před/po na stejné syntetické sadě, zachované potřebné extrakce/triáž, relevantní kontrola po změně a opakovaný celý prezentační průchod |
 
 ### Nejbližší postup po auditu plánu
 
-1. Dokončit vizuální převzetí P3, jakmile je dostupný prohlížeč. V demo
-   průchodu ověřit jeden doložený/označený plán s termínem; portál umí
-   připomenutí z uloženého `due_at`, interval sám nenavrhuje a nemá editor
+1. Dokončit vizuální převzetí P3, jakmile je dostupný prohlížeč. Označený
+   demo termín a jeho aktualizace byly ověřené v izolovaném technickém
+   průchodu. Portál čte `due_at`, interval sám nenavrhuje a nemá editor
    plánů. Automatický klinický plánovač není podmínkou MVP.
-2. Další samostatně proveditelný úkol je P4/M5: připravit jeden stručný
-   demo podklad s přesnými kroky, syntetickými vstupy a výslovně označenou
-   offline zálohou. Nedostupné vizuální převzetí zůstává otevřené, ale
-   neblokuje přípravu podkladů.
+2. P4/M5 má připravený [demo podklad](demo.md) a export `dist/demo/index.html`
+   přes `uv run --locked python -m scripts.build_demo`. Nejbližší krok je
+   vizuální otevření a celý živý nácvik podle podkladu v dostupném prohlížeči.
+   Připravená extrakce v offline ukázce je vždy výslovně označená.
 3. V M5 shrnout technické ověření šesti situací a výstupy existujícího
    replay/auditu, odlišit offline, simulované a živě ověřené části. P1
    a obě rozpracované práce výše zachovávají vlastníky; klinické převzetí
    ani audit celé sady nenahrazuje počet prošlých testů.
-4. Doplnit stručný návrh MEDDI/EU a ověřit formát/termín odevzdání. Bez
+4. Návrh MEDDI/EU je v demo podkladu; termín a délku prezentace upřesnil
+   uživatel výše. Zbývá formát/místo odevzdání a případná veřejná URL. Bez
    dostupného MEDDI API jde o návrh (S1, `documents/MEDDI – MEDDI Onco.pdf`,
    s. 12), nikoli nové napojení nebo povinné vzdálené nasazení.
 5. Nakonec P5: měření a optimalizace LLM, ověření po změně a finální nácvik.

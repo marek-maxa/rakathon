@@ -17,7 +17,9 @@ běžný tok, pečující a šest situací mají integrační/negativní průcho
 Zbývá nezávislé klinické převzetí mentorem a původní audit K7/K9.
 P0 i směrování M4 jsou implementované. Funkční rozsah MUST HAVE portálu
 je implementovaný, zbývá vizuální převzetí. Následuje příprava a funkční
-ověření M5. MUST HAVE optimalizace LLM je až poslední implementační krok;
+ověření M5; jeho [demo podklad, offline export a integrační návrh](demo.md)
+jsou připravené, převzetí/nácvik a organizační podmínky zůstávají otevřené.
+MUST HAVE optimalizace LLM je až poslední implementační krok;
 zahrnuje následné ověření a finální nácvik. Přijímací podmínky jsou v
 [otevřených úkolech](tasks.md#priority-do-dokončení-mvp).
 

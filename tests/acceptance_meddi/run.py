@@ -92,9 +92,15 @@ def validate():
     sources = read_json("sources.json")["sources"]
     for identifier, source in sources.items():
         path = ROOT / source["path"]
-        if (
-            not path.is_file()
-            or hashlib.sha256(path.read_bytes()).hexdigest() != source["sha256"]
+        content = path.read_bytes() if path.is_file() else None
+        variants = {content} if content is not None else set()
+        if content is not None and source["kind"] in {"markdown", "json"}:
+            # Git checkouts may use LF or CRLF; preserve every other source byte.
+            lf = content.replace(b"\r\n", b"\n")
+            variants.update({lf, lf.replace(b"\n", b"\r\n")})
+        if not any(
+            hashlib.sha256(value).hexdigest() == source["sha256"]
+            for value in variants
         ):
             raise ValueError(
                 f"Source missing or changed: {identifier}; review the source instead of blindly updating its hash"
