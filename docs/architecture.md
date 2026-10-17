@@ -425,8 +425,10 @@ Karta týmu a detail mají uložený kontakt `kontakt.email`. POST
 `/patients/<patient_id>/email` s `action=save_contact` ukládá adresu atomicky
 do pracovní kopie; odeslání načítá příjemce z této karty. Podepsaný token
 váže formulář na browser a pacienta, session brání opakování posledních
-20 úspěšných formulářů. `notifications.mailer` posílá pevný text bez
-klinických údajů. SMTP přijetí není potvrzení doručení ani klinické předání.
+20 úspěšných formulářů. `notifications.mailer` posílá českou pozvánku k vyplnění dotazníku
+od ošetřujícího lékaře, bez klinických údajů. Předmět je „MEDDI ONCO –
+dotazník od vašeho lékaře“. Text odkazuje slovně do aplikace; veřejná URL
+dotazníku zatím není nakonfigurovaná. Stejný text má samostatné SMTP demo. SMTP přijetí není potvrzení doručení ani klinické předání.
 Web načítá také `notifications/.env` bez přepsání prostředí.
 
 Pacientský konečný výsledek má výrazný barevný panel, slovní název barvy,

@@ -5,8 +5,8 @@ from email.errors import HeaderParseError
 from email.headerregistry import Address
 from email.message import EmailMessage
 
-SUBJECT = "MEDDI ONCO notification"
-BODY = "Hello,\n\nThis is a test notification from MEDDI ONCO.\n\nThe MEDDI ONCO team\n"
+SUBJECT = "MEDDI ONCO – dotazník od vašeho lékaře"
+BODY = "Dobrý den,\n\nváš ošetřující lékař vám posílá dotazník o vašem aktuálním zdravotním stavu.\nProsíme, otevřete aplikaci MEDDI ONCO a dotazník vyplňte. Vaše odpovědi pomohou ošetřujícímu týmu získat přehled o tom, jak se právě cítíte.\n\nDěkujeme za spolupráci.\nVáš ošetřující tým\n"
 
 
 def valid_email(value):
