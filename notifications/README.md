@@ -26,3 +26,10 @@ serverem, nikoli doručení do schránky nebo převzetí zdravotníkem. Lokáln�
 `.env` ignoruje Git. Automatické testy SMTP transportu a tohoto formuláře
 zatím chybí; `tests/test_notifications.py` v repozitáři neexistuje. Jejich
 doplnění s náhradou SMTP bez skutečného odesílání evidují [úkoly](../docs/tasks.md).
+
+## Pravidelné pozvánky
+
+Minimální plánovač používá stejný SMTP transport a uložený kontakt pacienta.
+Nastavení intervalu, jednu připomínku, prohlížení/zrušení plánu a periodické
+spouštění popisuje [architektura](../docs/architecture.md#minimální-plánovač-notifikací).
+Nezapíná se automaticky spuštěním webu. Medicínské intervaly nejsou přednastavené.

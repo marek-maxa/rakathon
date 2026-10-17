@@ -386,3 +386,44 @@ texty a výpočet zůstávají společné s backendem.
 
 `tests/test_notifications.py` a `tests/test_patient_mail.py` ověřují SMTP
 a formuláře s náhradou transportu; mailové testy používají Basic Auth dema.
+
+## Minimální plánovač notifikací
+
+`notifications.scheduler.NotificationStore` rozšiřuje `DATA_DIR/events.sqlite3`
+o tabulky `notification_schema` (verze 1) a `notification_plans`. Migrace je
+aditivní a transakční; `PRAGMA user_version=1` zůstává pro původní EventStore.
+Jeden plán na pacienta má interval, odstup připomínky, termín a příznaky odeslání.
+Příkazy načítají stejné `.env` jako web a podporují `MEDDI_DATA_DIR` / `--data-dir`.
+
+Syntetický příklad časování, nikoli klinické doporučení:
+
+```text
+uv run --locked python -m notifications.scheduler schedule ONC-001 --interval-hours 24 --reminder-hours 6
+uv run --locked python -m notifications.scheduler list
+uv run --locked python -m notifications.scheduler run
+uv run --locked python -m notifications.scheduler cancel ONC-001
+```
+
+Nejprve uložit kontakt na kartě pacienta. První pozvánka je splatná za zadaný
+interval od nastavení. `run` provede jeden průchod a skončí; provozovatel
+ho spouští například každou minutu přes cron nebo Windows Task Scheduler,
+ze správného pracovního adresáře a stejným datovým adresářem jako Flask.
+Samotný web žádný časovač nespouští.
+
+Před odesláním se porovná seznam potvrzených check-in ID s uloženým stavem.
+Nový check-in ukončí starou připomínku a další termín nastaví na čas zjištění
+plus interval. Rozpracovaný rozhovor není splnění. Všechna nová potvrzená
+check-in ID tohoto profilu jsou v této verzi splněním jediné obecné kontroly.
+Nejde ještě o vazbu na konkrétní typ dotazníku či individuální pozvánku.
+Po pozvánce se odešle nejvýše jedna stejná připomínka za zadaný odstup;
+při další neodpovědi zůstává plán čekat. Opožděný běh neposílá dvě zprávy
+najednou. Příjemce se vždy načítá z aktuální pracovní karty.
+
+SQLite transakce serializuje výběr i odeslání; souběžné běžné průchody
+neposílají stejný krok znovu. SMTP běží uvnitř transakce, proto používat
+jeden plánovací proces; může krátce blokovat příjem zpráv ve webu.
+Pád po přijetí SMTP před commitem může vést k opakování e-mailu.
+Chyba není úspěch, vrací stav `failed` a exit code 1; další spuštění opakuje
+pokus. Nejde o doručovací frontu, evidenci převzetí nebo klinickou eskalaci.
+Testy `test_notification_scheduler.py` používají syntetická data, řízený čas
+a náhradu SMTP; ověřují i restart, souběh a zachování schématu událostí.

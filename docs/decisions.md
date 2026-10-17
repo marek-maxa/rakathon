@@ -74,3 +74,12 @@ zůstávají odloženým K2b; volba produkční databáze zůstává součástí
 K2a nyní nerozšiřovat: jeho původní priorita před produktovými funkcemi byla
 pro MVP nepřiměřená. Existující ověřenou část ponechat uzavřenou a další
 kapacitu věnovat M1–M5; neprovádět další přestavbu úložiště před demonstrací.
+
+## Minimální plán notifikací
+
+Výslovně schválené malé rozšíření K5: jeden opakovaný dotazník na pacienta,
+ručně určený interval a nejvýše jedna připomínka při neodpovědi.
+Žádné odvození intervalu z barvy nebo LLM. Plány sdílejí `events.sqlite3`,
+ale mají vlastní verzi schématu; deník zdrojových událostí se nemění.
+Samostatný příkaz kontroluje potvrzené JSONy před SMTP; naplánování
+a periodické spouštění je explicitní, ne při startu Flasku.
