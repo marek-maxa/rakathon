@@ -7,6 +7,7 @@ from meddi.disposition import resolve_disposition
 from meddi.messages import evaluate_message_checkin
 from meddi.patient_inputs import build_triage_inputs
 from meddi.pipeline import evaluate_contact
+from meddi.routing import checkin_time
 from meddi.triage import TRIAGE_RULES_VERSION, evaluate_checkin
 from web.export import meddi_record
 
@@ -80,6 +81,18 @@ def checkin_assessments(patient: dict) -> list[dict]:
                         )
                     ),
                 )
+            # Upgrade only operational routing at the historical evaluation
+            # instant; never use today's clock or new patient facts for replay.
+            result = resolve_disposition(
+                result,
+                needs_clinical_review=result.get("needs_clinical_review", False),
+                at=saved.get("evaluated_at")
+                or checkin_time({"date": checkin["datum"], "time": checkin.get("cas")}),
+                palliative_care=(
+                    (saved.get("triage_inputs") or {}).get("context") or {}
+                ).get("palliative_care")
+                is True,
+            )
         else:
             # The shared adapter expects the organizer's complete check-in
             # shape; empty histories/measurements are valid for web profiles.

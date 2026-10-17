@@ -11,6 +11,11 @@
     <dl class="statistics">
       <dt>Další krok</dt><dd>{{ card.action }}</dd>
       <dt>Kontakt a lhůta</dt><dd>{{ assessment.doporuceny_kontakt or 'Kontakt není uveden.' }}</dd>
+      {% if assessment.routing %}
+      {% if assessment.routing.response_due_label %}<dt>Kontakt / vyřízení nejpozději</dt><dd>{{ assessment.routing.response_due_label }}</dd>{% endif %}
+      {% if assessment.routing.team_notify_by_label %}<dt>Tým upozornit nejpozději</dt><dd>{{ assessment.routing.team_notify_by_label }}</dd>{% endif %}
+      {% if assessment.routing.as_of_label %}<dt>Směrování k času hodnocení</dt><dd>{{ assessment.routing.as_of_label }}</dd>{% endif %}
+      {% endif %}
       <dt>Zdrojový check-in</dt><dd>{{ assessment.date }} {{ assessment.time or '' }} · {{ assessment.checkin_id }}</dd>
       <dt>Verze pravidel</dt><dd>{{ assessment.rules_version or 'Neuvedena' }}</dd>
     </dl>

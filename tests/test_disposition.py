@@ -121,7 +121,9 @@ def test_stable_missed_checkins_keep_reminder_before_three(count, color):
 
 
 def test_orange_and_red_recommendations_include_immediate_out_of_hours_routes():
-    orange = evaluate_checkin(prepared(), observations={"orthopnea": True})
+    data = prepared()
+    data.update(date="2026-10-17", time="10:00")  # Saturday, outside center hours.
+    orange = evaluate_checkin(data, observations={"orthopnea": True})
     red = evaluate_checkin(prepared(oxygen=89))
     assert "724 590 848" in orange["doporuceny_kontakt"]
     assert "Mimo pracovní dobu volejte ihned" in orange["doporuceni_pro_pacienta"]

@@ -113,6 +113,56 @@ relativní historický čas se automaticky neodhaduje.
 Tvar původních dat: [README balíčku §5](../rakathon_meddi_onco_data/README.md#5-datový-slovník).
 Trend a kontext: [pravidla triáže §4–6](../rakathon_meddi_onco_data/docs/pravidla_triaze.md).
 
+## Doporučení a směrování M4
+
+`meddi.routing.timed_route(color, at, ...)` určuje kontakt a termín podle
+pravidel triáže §2 a §5. Je čistá funkce bez systémových hodin, LLM nebo
+odesílání zpráv. `resolve_disposition(..., at=None, palliative_care=None)`
+ji používá až po určení výsledné úrovně; směrování nemění klinické minimum,
+barvu, podklady ani úplnost. `at` přijímá čas s pásmem nebo ISO řetězec;
+uvnitř se převádí na `Europe/Prague`. Bez času zůstává obecný kontaktní
+pokyn a `routing.time_status=unknown`, žádný smyšlený kalendářní termín.
+
+Centrum je otevřené Po–Pá **7:00 včetně až 15:30 nezahrnuto**. MVP používá
+běžný týdenní kalendář; státní svátky a výjimky konkrétního pracoviště nejsou
+dodané a nejsou součástí výpočtu. Před provozním použitím je nutné kalendář
+a kontakty potvrdit. Termíny vždy patří ke konkrétnímu času hodnocení:
+
+| Úroveň | Směrování |
+| --- | --- |
+| 1 | Záznam týmu v přehledu, další sledování; bez termínu zásahu |
+| 2 v pracovní době | Centrum, vyřízení do 15:30 následujícího pracovního dne |
+| 2 mimo pracovní dobu | Nejbližší otevření centra v 7:00, vyřízení do 15:30 tohoto pracovního dne; při zhoršení sloužící lékař, při ohrožení 155 |
+| 3 v pracovní době | Lékař MOÚ / telekonzultace do 2 hodin; při nedostupnosti centra nebo po zavření ihned služba |
+| 3 mimo pracovní dobu | Sloužící lékař MOÚ 724 590 848 ihned |
+| 4 vždy | 155 / urgentní příjem ihned, požadavek upozornit tým nejpozději do 15 minut |
+
+Dvouhodinová a patnáctiminutová lhůta se počítají jako skutečně uplynulý čas,
+včetně přechodu mezi letním a zimním časem. Přednost mají už doložené zvláštní
+pokyny §4: `symptomatic_hyperglycemia` ještě dnes (mimo dobu centra služba),
+`persistent_neuropathy` a `cisplatin_tinnitus` před další aplikací/dávkou.
+Budoucí termín podání se neodhaduje a systém léčbu ani dávkování nemění.
+
+Doložené `context.palliative_care=True` směruje úroveň 2/3 na 24h linku
+vlastního paliativního týmu / hospice podle plánu péče, při nedostupnosti 155.
+U červené zůstává primární neodkladná pomoc; přání se předají týmu a nejsou
+důvodem pomoc vynechat. Číslo hospice se nevymýšlí. `patient_inputs` tuto
+hodnotu odvodí pouze z přesného strukturovaného záměru `symptomatická
+paliativní péče`; obecný paliativní záměr systémové léčby nebo samotný text
+dříve vyslovených přání není doklad zapojení hospice. Zdroj je v
+`context_sources.palliative_care`.
+
+Strukturované hodnocení používá datum/čas check-inu v Praze, živý kontakt
+`evaluated_at`, ploché `evaluate_triage(data, at=...)` dodaný čas. Historický
+report doplní i starému uloženému hodnocení směrování k původnímu času;
+nepoužije dnešní hodiny ani novější léčebné údaje a původní JSON nepřepisuje.
+Nové `routing` nese `as_of`, `within_working_hours`, `next_center_open_at`,
+`contact_code`, `phone`, `response_due_at`, `team_notify_by` a zdroj pravidel.
+Časy jsou ISO s offsetem, pro UI jsou doplněné odpovídající textové popisky.
+Naléhavá instrukce P0, konečný výsledek, report a kartička ukazují kontaktní
+pokyn a lhůtu ze stejného hodnocení. Lhůty jsou požadavky, nikoli doklad
+skutečného předání nebo převzetí; fronta a doručování zůstávají mimo M4.
+
 ## Web a ukládání
 
 | Cesta | Význam |
@@ -199,7 +249,7 @@ zůstávají dostupní v rozbaleném seznamu.
 
 Předání je viditelně simulované. Přehled nemá frontu automatického předání ani převzetí,
 vlastní úložiště ani další LLM volání; časové lhůty zatím přebírá z obecného
-kontaktního textu backendu. Plné směrování a výpočet termínů zůstávají M4.
+kontaktního textu backendu. Kontakty a termíny podle času dodává M4 výše.
 Čitelnost a dohledatelnost vychází z [vzorových souhrnů](../rakathon_meddi_onco_data/docs/vzorove_souhrny_pro_lekare.md),
 oddíl Zásady; úplný souhrn vývoje podle vzorů ani jeho klinické ověření
 tím nejsou hotové.
@@ -291,7 +341,8 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
 - `web.app` předává explicitní čas hodnocení s pásmem; export a adaptér
   timestampovaných měření jej převádějí do `Europe/Prague`. `disposition`
   zatím vrací obecný kontaktní text, nikoli termín vypočtený pro konkrétní
-  okamžik. Směrování podle pracovního kalendáře zůstává M4.
+  okamžik. M4 počítá směrování podle běžného týdenního kalendáře; kalendář
+  svátků a výjimek pracoviště zůstává k doplnění a potvrzení.
 
 ## Spuštění a kontroly
 

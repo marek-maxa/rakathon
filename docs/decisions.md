@@ -28,6 +28,7 @@ relací, mergů a testovacích běhů nahrazuje Git.
 | Lékař | Stručná aktuální kartička, detail a LLM zpráva ze stejné revize | Nutný krok a zdroje viditelné bez čekání na LLM; starší zpráva je historická |
 | M1 · přehled týmu | Kartička a `/team` jsou pohledy nad stejnými posledními hodnoceními; krátký souhrn tvoří šablona | Bez nové fronty a LLM; předání je označené jako simulované, neúplnost je oddělená od priority |
 | M2 · měření a trendy | Export promítá vybrané validované vstupy stejného hodnocení; živý web přebírá trendy ze stávajícího adaptéru | Bez nového parseru, klinických prahů nebo registru léčby; rozporná měření zůstávají doložená, bez smyšleného bodu grafu. Nahrazené hodnoty zůstávají v intake |
+| M4 · směrování | Čistý výpočet kontaktu a lhůty podle času hodnocení v Europe/Prague a pravidel §2/§5 | Po–Pá 7:00 včetně až 15:30 nezahrnuto; červená vždy 155, oranžová do 2 h nebo služba ihned, paliativní linka s náhradní pomocí. Nezmění klinickou úroveň, netvrdí doručení; svátky a výjimky pracoviště nejsou v dodaném kalendáři |
 | Zastupování | Nenápadná volba pod otázkou, autor oddělený od subjektu potíží | Oslovení skutečného adresáta; křestní jméno a doložený rod, jinak neutrálně; kanonický význam otázky zachovat |
 | Léčba a čas | Poslední skutečné podání doložit; plán, D1 a typ cyklu rozlišovat | Neznámá léčba není negativní kontext, budoucí údaje nepatří do hodnocení |
 | Úložiště | SQLite deník původních událostí před LLM; potvrzené check-iny dál v atomických JSON working copies | Aditivní zavedení bez přepisu originálů; obnova dialogu/revize jsou K2b, produkční databáze K10 |
@@ -55,7 +56,8 @@ zápisu nebo otevřené opravě a nesníží se kvůli neúplnému novému návr
 Neprokazuje skutečné předání týmu ani vyhledání pomoci. Její uchování je
 v paměti procesu; obnova po restartu, úplné revize a explicitní klinické
 uzavření nálezu zůstávají mimo P0. Nejistota extrakce a klinické pokrytí
-šesti situací se dál ověřují v M3. Směrování podle aktuálního času zůstává P2.
+šesti situací se dál ověřují v M3. M4 doplňuje kontakty a lhůty podle času
+hodnocení; historický replay nepřebírá aktuální systémové hodiny.
 
 ## Úložiště událostí K2a
 

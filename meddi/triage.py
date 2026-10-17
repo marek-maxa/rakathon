@@ -17,6 +17,7 @@ from .answer_coverage import answer_coverage
 from .clinical_rules import HANDLED_QUESTIONS, HANDLED_VITALS, evaluate_clinical_rules
 from .common_types import Severity
 from .disposition import resolve_disposition
+from .routing import checkin_time
 from .validation import number, prepared_inputs
 
 RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
@@ -99,7 +100,7 @@ def pain_score(pain, persists_after_rescue_dose):
     return None
 
 
-def evaluate_triage(data):
+def evaluate_triage(data, *, at=None):
     """Take the highest known severity; unresolved criteria still need review.
 
     Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md, section 3:
@@ -158,6 +159,8 @@ def evaluate_triage(data):
             "skipped_rules": skipped_rules,
         },
         needs_clinical_review=requires_review or bool(skipped_rules),
+        at=at if at is not None else data.get("evaluated_at"),
+        palliative_care=data.get("palliative_care") is True,
     )
 
 
@@ -547,6 +550,8 @@ def evaluate_checkin(
             "covered_measurements": covered_measurements,
             "reminder_required": prepared.get("status") == "nevyplneno",
         },
+        at=checkin_time(prepared),
+        palliative_care=(context or {}).get("palliative_care") is True,
         needs_clinical_review=(
             # Unasked, independent criteria remain visible without automatically
             # creating an alarm. Supplied but unassessed data needs a real next step.

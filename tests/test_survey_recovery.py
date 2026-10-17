@@ -273,7 +273,9 @@ def test_orange_minimum_also_pauses_before_targeted_llm(survey, monkeypatch):
     ).get_data(as_text=True)
     assert sessions[key]["assessment"]["minimum_color"] == "orange"
     assert "Naléhavé doporučení" in html
-    assert "telekonzultaci" in html
+    assert (
+        sessions[key]["safety_notice"]["assessment"]["doporuceni_pro_pacienta"] in html
+    )
     assert "Výsledek triáže:" not in html
     assert calls == []
     assert not list(directory.rglob("*.json"))
@@ -430,7 +432,9 @@ def test_confirmed_urgent_answer_survives_save_failure_without_final_result(
         patch.setattr("web.app.save_packet", fail)
         html = client.post("/patient", data={"confirm": "1"}).get_data(as_text=True)
     assert "Naléhavé doporučení" in html
-    assert "telekonzultaci" in html
+    assert (
+        sessions[key]["safety_notice"]["assessment"]["doporuceni_pro_pacienta"] in html
+    )
     assert "Odpovědi se nepodařilo uložit" in html
     assert "Výsledek triáže:" not in html
     assert not sessions[key]["done"]

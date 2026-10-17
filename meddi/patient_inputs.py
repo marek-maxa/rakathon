@@ -85,6 +85,12 @@ def build_triage_inputs(patient, checkin):
         observations[field] = {"value": value, "source": source}
 
     treatment = patient.get("lecba") or {}
+    if normalized(treatment.get("zamer") or "") == "symptomaticka paliativni pece":
+        context["palliative_care"] = True
+        sources["palliative_care"] = {
+            "field": "lecba.zamer",
+            "value": treatment["zamer"],
+        }
     drugs = [
         {"name": name, "source": "lecba.leky"} for name in treatment.get("leky", [])
     ]

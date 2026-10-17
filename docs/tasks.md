@@ -30,7 +30,7 @@ ověření šesti situací a auditu K7/K9.
 | UI · vstup Pacient / Lékař | Relace Codex | done | Úvodní volba na `/`, rozhovor na `/patient`, lékařský přehled na `/team`; přepnutí v demo patičce zachová rozhovor. Výběr fiktivního profilu je označený jako ukázka; volba rozhraní není přihlášení/oprávnění |
 | M2 · měření, původ a potřebné trendy | Relace Codex | done | Vybraná ověřená měření v triáži, uložené historii a grafu; MASTER/cílené odpovědi a autor odděleně. Živý web přebírá zdrojované trendy a léčebný kontext stávajícího adaptéru; bez K2b a nového registru léčby |
 | M3 · šest situací a zprávy | Tým + mentor | doing | Integrační část hotová; zbývá nezávislý průchod šesti situacemi a negativními případy, kvalita extrakce a doložené klinické mezery. Koordinovat s auditem K7, neopakovat zavedení zpráv |
-| M4 · doporučení a směrování | Tým | todo | P0 dodává okamžitou instrukci před dalším LLM; zbývá správný krok/kontakt a termín podle běžné pracovní doby. Bez obecného přepisu orchestrace a doručovací fronty |
+| M4 · doporučení a směrování | Aktuální relace Codex | done | Kontakty a lhůty podle Europe/Prague, hranic 7:00/15:30, víkendů a doložené paliativní péče; červená vždy 155, zvláštní lhůty zachované. P0, výsledek a kartička používají stejné hodnocení. 880 testů včetně 34 směrovacích scénářů prošlo; Ruff a Azure ZIP ověřeny. Svátky/výjimky pracoviště a skutečné doručování zůstávají mimo MVP |
 | M5 · ověření, demo a návrh integrace | Tým | todo | Průchod šesti situacemi a relevantní negativní případy, existující replay, záložní demo a stručný návrh MEDDI/EU provozu |
 
 Následuje úplný backlog K1–K10, nikoli pořadí MVP. K2b, obecný K5,
@@ -77,7 +77,7 @@ Lint a SMTP testy nejsou prioritou před fungujícím M1–M5.
 | --- | --- | --- |
 | P0 · bezpečnostní bod K4/M4 · done | Relace Codex: uživatel schválil okamžitou naléhavou instrukci; checkpoint po obecné extrakci úvodu/odpovědi/opravy, před cíleným LLM; instrukce přežije chybu LLM/zápisu | Rozpoznané minimum 3/4 se zobrazí bez potvrzení/uložení; další doplnění až po výslovném pokračování, bez opakované obecné extrakce. Běžný konečný výsledek zůstává po potvrzení |
 | P1 · M3 + audit K7/K9 | Ověřit šest povinných situací přes zprávy i formuláře, pečujícího a negativní/mezní případy; vysvětlit změněné eskalace | Známá tvrdá minima zachovaná, žádné reference ve vstupu; doložené důvody pro nižší/vyšší výsledky, klinické nejasnosti potvrzené mentorem |
-| P2 · M4 | Konkrétní krok/kontakt a termín podle Europe/Prague, včetně mimo pracovní dobu a paliativního kontextu | Srozumitelný krok pro každou úroveň; neúplnost oddělená od priority, známé minimum zachované |
+| P2 · M4 · done | Konkrétní krok/kontakt a termín podle Europe/Prague, včetně mimo pracovní dobu a doložené paliativní péče | Běžný týdenní kalendář, historický čas zachovaný, minimum/úplnost beze změny; kalendář svátků a výjimek pracoviště před provozem potvrdit |
 | P3 · M5 | Pacient → potvrzený výsledek → kartička/přehled, záložní demo bez LLM, návrh MEDDI/EU a odevzdání | Opakovatelné demo se šesti situacemi; ověřit čitelnost, termín/formát a případné sdílené demo v cílovém prostředí |
 
 V M3 sledovat počet relevantních otázek a zbytečné opakování; celé formuláře
