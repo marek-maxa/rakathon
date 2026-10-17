@@ -38,6 +38,10 @@
           <p>Podle dosud uvedených údajů je potřeba jednat. Nečekejte na dokončení dotazníku.</p>
           <p><strong>{{ urgent.doporuceni_pro_pacienta }}</strong></p>
           <p>{{ urgent.doporuceny_kontakt }}</p>
+          {% if urgent.routing %}
+            {% if urgent.routing.response_due_label %}<p>Kontakt / vyřízení nejpozději: {{ urgent.routing.response_due_label }}</p>{% endif %}
+            {% if urgent.routing.team_notify_by_label %}<p>Tým je nutné upozornit nejpozději do: {{ urgent.routing.team_notify_by_label }}</p>{% endif %}
+          {% endif %}
           <p>Doplnění údajů v aplikaci nesmí odložit vyhledání pomoci.</p>
         </section>
       {% endif %}

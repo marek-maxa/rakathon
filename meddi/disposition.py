@@ -7,6 +7,8 @@ not a diagnosis or a claim that the missing clinical mapping is implemented.
 
 from copy import deepcopy
 
+from .routing import timed_route
+
 RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
 COLORS = ("green", "yellow", "orange", "red")
 ACTIONS = {
@@ -40,7 +42,9 @@ ACTIONS = {
 }
 
 
-def resolve_disposition(assessment: dict, *, needs_clinical_review: bool) -> dict:
+def resolve_disposition(
+    assessment: dict, *, needs_clinical_review: bool, at=None, palliative_care=None
+) -> dict:
     """Keep the clinical minimum; unresolved current inputs get human review.
 
     Callers decide whether uncertainty concerns actual supplied inputs. A skipped
@@ -81,6 +85,25 @@ def resolve_disposition(assessment: dict, *, needs_clinical_review: bool) -> dic
         )
     color = COLORS[level - 1]
     step, contact, recommendation = ACTIONS[color]
+    previous_route = result.get("routing") or {}
+    route = timed_route(
+        color,
+        at
+        if at is not None
+        else result.get("evaluated_at") or previous_route.get("as_of"),
+        palliative_care=palliative_care
+        if palliative_care is not None
+        else previous_route.get("palliative_care", False),
+        same_day=any(
+            r["rule_id"] == "symptomatic_hyperglycemia" for r in result["reasons"]
+        ),
+        before_next_dose=any(
+            r["rule_id"] in {"persistent_neuropathy", "cisplatin_tinnitus"}
+            for r in result["reasons"]
+        ),
+    )
+    contact = route.get("doporuceny_kontakt", contact)
+    recommendation = route.get("doporuceni_pro_pacienta", recommendation)
     if color == "green" and result.get("reminder_required"):
         recommendation = (
             "Chybí kontrolní dotazník. Vyplňte jej prosím. " + recommendation
@@ -99,5 +122,6 @@ def resolve_disposition(assessment: dict, *, needs_clinical_review: bool) -> dic
         doporuceni_pro_pacienta=recommendation,
         upozornit_tym=level >= 2,
         action_source=f"{RULES_SOURCE}, §1–2",
+        routing=route["routing"],
     )
     return result

@@ -648,6 +648,8 @@ def evaluate_contact(
             },
             "intake": deepcopy(packet),
         },
+        at=moment,
+        palliative_care=treatment.get("palliative_care") is True,
         needs_clinical_review=bool(
             result["needs_clinical_review"]
             or issues
