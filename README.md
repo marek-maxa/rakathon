@@ -4,9 +4,14 @@ Prototyp podpory onkologického pacienta mezi kontrolami: sběr obtíží,
 vysvětlitelná triáž a další krok pro pacienta i zdravotnický tým.
 
 Funguje MASTER rozhovor s cíleným doptáním, společným potvrzením, uložením
-kontaktu a historickým reportem. Aktivní karta, plánované kontroly a přeměření,
+kontaktu a historickým reportem. Původní zprávy se trvale ukládají před LLM.
+Aktivní karta, plánované kontroly a přeměření,
 předání týmu a odborné souhrny zbývají propojit. Stav jednotlivých částí je
 v [architektuře](docs/architecture.md#implementovaný-stav).
+
+Úvodní stránka nabízí volbu Pacient / Lékař. Pacient pokračuje na `/patient`.
+Zdravotnický přehled na `/team` ukazuje prioritní požadavky a stručné
+kartičky s odkazem na detail pacienta. Předání týmu je zatím simulované.
 
 ## Spuštění webu
 
@@ -24,9 +29,12 @@ Zkopírujte [llm_intake/.env.example](llm_intake/.env.example) do
 uv run --locked python -m web.app
 ```
 
-Otevřete http://127.0.0.1:5000 a vyberte syntetický profil. Web načítá `.env`
-automaticky; potvrzené kontakty zapisuje do `data/pacienti/`. Rozpracovaný
-rozhovor je pouze v paměti. Podrobnosti konfigurace a další příkazy jsou
+Otevřete http://127.0.0.1:5000 a zvolte Pacient nebo Lékař; pacient pak vybere
+syntetický profil. Volba rozhraní nenahrazuje přihlášení. Web načítá `.env`
+automaticky; původní zprávy ukládá do `data/events.sqlite3`, potvrzené kontakty
+do `data/pacienti/`. Stav rozpracovaného rozhovoru je zatím pouze v paměti;
+uložené zprávy přežijí restart, obnovení rozhovoru K2b je odložené po MVP.
+Podrobnosti konfigurace a další příkazy jsou
 v [architektuře](docs/architecture.md#spuštění-a-kontroly).
 
 ## Dokumentace

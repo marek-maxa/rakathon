@@ -72,6 +72,61 @@ body {
   box-shadow: var(--shadow);
 }
 
+.report-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  margin-top: 0.8rem;
+}
+
+.report-nav a {
+  color: #d0f0f3;
+}
+
+.demo-tools {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  color: #536371;
+  font-size: 12px;
+}
+
+.demo-tools a {
+  padding: 8px 0;
+  color: inherit;
+}
+
+.demo-tools a:focus-visible {
+  outline: 3px solid #80b6bd;
+  outline-offset: 3px;
+}
+
+.clinical-card {
+  margin-bottom: 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 0.55rem;
+  background: var(--surface);
+}
+
+.clinical-card small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.clinical-summary {
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.handoff-demo {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .patient-header {
   display: flex;
   align-items: center;

@@ -1,4 +1,5 @@
 {% from '_triage.html' import triage_result %}
+{% from '_clinical_card.html' import clinical_card as render_clinical_card %}
 <!doctype html>
 <html lang="cs">
 <head>
@@ -12,10 +13,14 @@
 </head>
 <body>
   <header class="report-header">
-    <p class="eyebrow">MEDDI ONCO · ZDRAVOTNICKÝ PŘEHLED</p>
+    <p class="eyebrow">MEDDI ONCO · PRO LÉKAŘE</p>
     <h1>Přehled stavu pacienta</h1>
+    <nav class="report-nav">
+      <a href="{{ url_for('patient_report.team_overview') }}">Požadavky pro tým</a>
+    </nav>
   </header>
   <main class="report-shell">
+    {% if clinical_card %}{{ render_clinical_card(clinical_card, detail_link=false) }}{% endif %}
     <aside class="note" aria-label="Rozsah a omezení reportu">
       Triáž a její důvody počítá společný backend z údajů dostupných v čase check-inu.
       Neúplnost posouzení se uvádí odděleně od doporučeného kroku.
@@ -221,6 +226,9 @@
         {% endfor %}
       </section>
     </section>
+    <footer class="demo-tools" aria-label="Ovládání ukázky">
+      <span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a>
+    </footer>
   </main>
 </body>
 </html>

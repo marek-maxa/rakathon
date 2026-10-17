@@ -1,0 +1,45 @@
+{% from '_clinical_card.html' import clinical_card %}
+{% from '_triage.html' import triage_badge %}
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Požadavky pro tým · MEDDI ONCO</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='patient_report.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='triage.css') }}">
+</head>
+<body>
+  <header class="report-header">
+    <p class="eyebrow">MEDDI ONCO · PRO LÉKAŘE</p>
+    <h1>Požadavky pro tým</h1>
+  </header>
+  <main class="report-shell">
+    <p class="note">Demonstrační přehled podle posledního check-inu každého pacienta.
+      Požadavky jsou seřazené podle úrovně, v rámci úrovně od nejstaršího záznamu.
+      Předání je simulované; přehled nesleduje doručení ani převzetí zdravotníkem.</p>
+    <section aria-labelledby="requests-title">
+      <h2 id="requests-title">K posouzení týmem ({{ cards | length }})</h2>
+      {% for card in cards %}
+        {{ clinical_card(card) }}
+      {% else %}
+        <p class="empty-state">Podle posledních hodnocení nyní není požadavek pro tým.</p>
+      {% endfor %}
+    </section>
+    <details>
+      <summary>Další pacienti ({{ other_patients | length }})</summary>
+      <ul>
+        {% for item in other_patients %}
+          <li><a href="{{ url_for('patient_report.report_patient', patient_id=item.patient_id) }}">{{ item.card.name if item.card else item.patient_id }}</a>
+            {% if item.card %}{{ triage_badge(item.card.assessment.color) }} · {{ item.card.assessment.date }}
+            {% else %} · Bez check-inů{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+    <footer class="demo-tools" aria-label="Ovládání ukázky">
+      <span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a>
+    </footer>
+  </main>
+</body>
+</html>

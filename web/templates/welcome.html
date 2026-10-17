@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vítejte · MEDDI ONCO</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="page welcome-page">
+    <header class="welcome-header">
+      <p class="eyebrow">MEDDI ONCO</p>
+      <h1>Péče i mezi návštěvami.</h1>
+      <p>Vítejte. Vyberte, jak chcete pokračovat.</p>
+    </header>
+    <nav class="role-grid" aria-label="Výběr rozhraní">
+      <a class="role-card" href="{{ url_for('index') }}">
+        <span class="role-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>
+          </svg>
+        </span>
+        <h2>Pacient</h2>
+        <p>Sdělte, jak se cítíte, a zjistěte doporučený další krok.</p>
+        <span class="role-action">Pokračovat jako pacient <span aria-hidden="true">→</span></span>
+      </a>
+      <a class="role-card role-card-doctor" href="{{ url_for('patient_report.team_overview') }}">
+        <span class="role-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/>
+            <path d="M9 13h6m-3-3v6"/>
+          </svg>
+        </span>
+        <h2>Lékař</h2>
+        <p>Projděte požadavky, hodnocení a podklady pro další péči.</p>
+        <span class="role-action">Pokračovat jako lékař <span aria-hidden="true">→</span></span>
+      </a>
+    </nav>
+    <p class="welcome-footer">Ukázková aplikace se syntetickými daty.</p>
+  </main>
+</body>
+</html>

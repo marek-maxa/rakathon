@@ -6,6 +6,41 @@ Tento dokument určuje cílové chování a přijímací podmínky dalšího vý
 [úkoly](tasks.md) určují otevřenou práci. Navržené záznamy níže nejsou hotové API.
 Rozvíjet existující Flask, intake, pravidla, export a report po malých krocích.
 
+## Aktuální rozsah MVP
+
+Priorita: funkční lokální demonstrace nad syntetickými daty v jednom procesu,
+s minimem nových vrstev a LLM volání. Detailní návrh níže je cílový stav pro
+další rozvoj; jeho úplné splnění není podmínkou MVP. Aktuální pořadí je M1–M5,
+nikoli postupné dokončování K1–K10.
+
+Vstupní stránka nabízí Pacient/Lékař: pacient pokračuje do rozhovoru,
+lékař do přehledu a detailů. Oddělení navigace nevyžaduje produkční přihlášení
+a při přepnutí zachovává rozpracovaný kontakt.
+
+| Pořadí | Minimum pro MVP | Podmínka dokončení |
+| --- | --- | --- |
+| M1 · kartička a požadavky, část K6/K8 | Rozšířit existující report; požadavky odvodit z uložených hodnocení bez nové fronty; souhrn nejprve šablonou | Zdravotník vidí aktuální úroveň, důvod, krok, kontakt, čas a zdroje stejného hodnocení; simulované předání je označené |
+| M2 · vstupy, část K2c/K3 | Opravit export měření a předat potřebné trendy ze stávajícího adaptéru; zachovat autora a původ | Měření je v triáži, historii i grafu; kontext léčby má zdroj, neznámé podání se přizná; bez nového obecného registru léčby |
+| M3 · povinné situace, část K7 | Propojit text a dotazníky pro šest situací zadání, včetně pečujícího a rozporu | Stejné jádro, správný subjekt a konkrétní opravy prokázaných mezer; není nutné předem vyřešit všechny pojmy a škály |
+| M4 · další krok, část K4/K6 | Doplnit konkrétní doporučení a směrování podle běžné pracovní doby Europe/Prague | Známé riziko se neztratí při doptání, chyba není zelený úspěch; konflikt okamžité instrukce dořešit bez obecného přepisu orchestrace |
+| M5 · demo, část K9/K10 | Ověřit šest situací a relevantní negativní/mezní případy; využít existující replay | Průchod pacient → výsledek → zdravotník, čitelnost a záložní demo; stručný návrh MEDDI/EU integrace, bez nového replay frameworku |
+
+Odložit K2b (resume a všechny průběžné revize), obecný registr epizod a
+automatický plánovač K5, spolehlivou frontu/pokusy/převzetí, produkční role,
+víceprocesový provoz, migrace celé karty a AWS nasazení. Potřebnou ukázku
+kontroly/přeměření nejprve spustit ručně; LLM souhrn přidat podle kapacity
+až po fungující šabloně. Jde o prototyp, nikoli provoz se skutečnými pacienty.
+
+K2a je hotová podpůrná část; její upřednostnění bylo pro MVP příliš
+infrastrukturní. Nyní ji nerozšiřovat ani na ni nenavazovat K2b. Novou práci
+přijmout jen pro mezeru v M1–M5 nebo konkrétní selhání. Přidávat jen testy
+změněného chování; stávající levné kontroly využít, drahé LLM evaluace spouštět
+jen pokud je změna vyžaduje.
+
+Tvrdá minima, oddělení referencí/budoucnosti a zákaz diagnózy či změn léčby
+patří ke správné funkci a hodnocení, nikoli k odložené provozní odolnosti
+(S1 s. 6–7 a 10–11; S3 §4/§6; S4 §3).
+
 ## Cílový tok
 
 1. Pacient otevře svůj profil a dostane širokou MASTER otázku. Pod otázkou
@@ -59,9 +94,9 @@ Při chybě zápisu nepotvrdit úspěšné přijetí; již známou kritickou ins
 neskrýt kvůli chybě dalšího ukládání nebo zpracování.
 
 Při změně úložiště zavést adaptér a migraci současných pracovních kopií.
-SQLite ze standardní knihovny je doporučený kandidát pro lokální prototyp
-kvůli transakcím a unikátním klíčům; volbu a migraci konkretizovat v K2a.
-Nejde o přijaté rozhodnutí o lokální ani produkční databázi.
+K2a používá SQLite pro nové zdrojové události a zachovává potvrzené JSONy;
+aditivní zavedení a verze schématu jsou v [rozhodnutích](decisions.md#úložiště-událostí-k2a).
+Produkční databáze tím není zvolena.
 Snapshot dialogu sám není implementované resume: uložit a obnovit také
 rozpracovaný stav, návrhy, potvrzení, závislosti a rozpočet dotazů,
 bez opakování již dokončených LLM volání. Neukládat klienta ani jeho tajemství.
@@ -168,6 +203,9 @@ Zdroj: S4 §2–6; týmový požadavek cílených kontrol a přeměření.
 
 ## Implementační kroky a závislosti
 
+Tabulka zachovává úplný cílový rozsah. Pro MVP ji přebíjí M1–M5 výše:
+K2b ani celý K3/K4/K5 nejsou podmínkou kartičky a jednoduchého předání.
+
 | Krok | Závislost a rozsah | Podmínka dokončení |
 | --- | --- | --- |
 | K1 · webový základ | Existující Flask, MASTER, doptání, kontrola a opravy | Funkční průchod a API ověřené náhradou LLM; základ již existuje |
@@ -183,19 +221,11 @@ Zdroj: S4 §2–6; týmový požadavek cílených kontrol a přeměření.
 | K9 · průběžný replay a demo | Kontroly od K2, celý tok po K4–K8 | Všech 171 check-inů a šest povinných situací, negativní/mezní případy, metriky záchytu i falešných eskalací, srozumitelnost a záložní demo bez API |
 | K10 · MEDDI/AWS | K9; pracoviště a provozní převzetí | Návrh adaptérů, EU cesta dat/LLM, identita, tajemství, audit, obnova, selhání a odpovědný tým; skutečné nasazení je samostatný milník |
 
-K2 je souhrn K2a–K2c; první implementační změnou má být K2a. Rozsah navazovat
-po malých samostatně ověřitelných krocích, poté propojit K3/K4. Audit nadměrných
-eskalací a klinických mezer K7 probíhá při rozšiřování se stávajícím vlastníkem.
-K9 začíná kontrolou každého kroku; celý replay nesmí být až posledním místem,
-kde se ověří propojení komponent.
-
-Po K3/K4 vytvořit první průchod K6/K8: trvalý požadavek týmu, příjemce,
-priorita, vypočtený termín, opakování a převzetí spolu s jednoduchou kartičkou
-ze stejné revize. Může používat doložené důvody současného hodnocení; úplné
-epizody a plánovač K5 ani LLM souhrn nejsou podmínkou tohoto průchodu.
-Simulované doručení viditelně označit; pro sdílený přístup zajistit oprávnění.
-Následně dokončit K5 a zbývající K6/K8. Toto pořadí upřednostňuje bezpečnost
-a využitelnost (S1 s. 10–12; S2 slidy 2–3 a 5), nemění klinické prahy.
+Další implementace začíná M1 nad existujícím reportem, pak pokračuje M2–M5.
+K2c lze upravit bez K2b, potřebné trendy předat bez nového registru a
+požadavky zobrazit bez doručovacího subsystému. Audit K7 zůstává původnímu
+vlastníkovi. Ověřovat konkrétní průchod s každou funkcí; úplný produktový
+replay a provozní odolnost nejsou její předběžnou podmínkou.
 
 Přehled aktuálních stavů/vlastníků je pouze v [tasks.md](tasks.md). Úložiště,
 nové soubory či služby nejprve konkretizovat v příslušném malém kroku;
@@ -209,7 +239,9 @@ K10 → P12/P23/P24.
 ## Ověření a otevřené závislosti
 
 Před každou změnou určit cíl, rozsah souborů a pozorovatelnou podmínku
-dokončení. Vedle vhodných regresních testů ověřit integrační chování daného
+dokončení. Následující seznam je cílové ověření rozšířeného řešení; pro MVP
+vybírat kontroly podle M1–M5 a skutečně měněného chování. Vedle vhodných
+regresních testů ověřit integrační chování daného
 kroku: restart, opakované odeslání, opravu, timeout/neplatný výstup LLM a chybu
 zápisu. Kontrola předchozího stavu dialogu sama neprokazuje zachování nového
 vstupu. Pro časový kontext ověřit, že přidání budoucího záznamu nezmění starší
@@ -249,8 +281,8 @@ Rozdíly proti referencím třídit podle příčiny: chybějící vstup, chyba 
 nepokryté mapování, chybějící trend nebo sporný klinický výklad. Vyšší výsledek
 není automaticky zbytečná eskalace a příznak `requires_review` není počet
 klinických poplachů. Zlepšení shody nesmí vzniknout odstraněním nevyhodnocených
-zpráv či měření. Výchozí omezení a stav replaye jsou v
-[architektuře](architecture.md#výchozí-stav-pro-k2); klinické výklady potvrzuje mentor.
+zpráv či měření. Aktuální integrační mezery jsou v
+[architektuře](architecture.md#otevřené-integrační-mezery); klinické výklady potvrzuje mentor.
 
 Klinické závislosti O1–O10 jsou pouze v [backendu](backend.md#otevřené-klinické-otázky).
 Konflikt bezpečnostního výstupu je v [rozhodnutích](decisions.md#otevřený-konflikt-bezpečnostního-výstupu).

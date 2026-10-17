@@ -24,6 +24,132 @@ body {
   margin-bottom: 28px;
 }
 
+.welcome-page {
+  width: min(100%, 920px);
+  padding-top: clamp(0px, 6vh, 64px);
+}
+
+.welcome-header {
+  margin-bottom: 36px;
+}
+
+.welcome-header h1 {
+  max-width: 650px;
+  font-size: clamp(36px, 6vw, 56px);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+.welcome-header > p:last-child {
+  color: #536371;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid #cfdedb;
+  border-top: 4px solid #176b63;
+  border-radius: 16px;
+  background: #fff;
+  color: #182735;
+  text-decoration: none;
+  box-shadow: 0 8px 28px #18273508;
+}
+
+.role-card:hover {
+  border-color: #176b63;
+  box-shadow: 0 12px 32px #18273512;
+}
+
+.role-card:focus-visible,
+.demo-tools a:focus-visible {
+  outline: 3px solid #25837b;
+  outline-offset: 5px;
+}
+
+.role-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 24px;
+  border-radius: 14px;
+  background: #e8f4f0;
+  color: #176b63;
+}
+
+.role-icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.role-card h2 {
+  margin-bottom: 4px;
+  font-size: 28px;
+}
+
+.role-card > p {
+  margin-bottom: 28px;
+  color: #536371;
+  line-height: 1.6;
+}
+
+.role-action {
+  margin-top: auto;
+  color: #176b63;
+  font-weight: 650;
+}
+
+.role-card-doctor {
+  border-top-color: #172b4d;
+}
+
+.role-card-doctor .role-icon {
+  background: #edf1f8;
+  color: #172b4d;
+}
+
+.role-card-doctor .role-action {
+  color: #172b4d;
+}
+
+.welcome-footer {
+  margin-top: 28px;
+  color: #697887;
+  font-size: 13px;
+}
+
+.demo-tools {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  color: #536371;
+  font-size: 12px;
+}
+
+.demo-tools a {
+  padding: 8px 0;
+  color: inherit;
+}
+
+@media (max-width: 620px) {
+  .role-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: #176b63;

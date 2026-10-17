@@ -19,6 +19,12 @@ patient_report = Blueprint(
     template_folder="templates",
 )
 PLOTLY_JS_VERSION = get_plotlyjs_version()
+ACTION_LABELS = {
+    "dalsi_sledovani": "Další sledování",
+    "kontaktovat_tym": "Kontaktovat tým",
+    "telekonzultace": "Telekonzultace",
+    "neodkladna_pomoc": "Neodkladná pomoc",
+}
 
 SEVERITY_CLASSES = {
     Severity.GREEN: "severity-green",
@@ -313,6 +319,7 @@ def report_patient(patient_id):
         "report.html",
         status=status,
         assessments=assessments,
+        clinical_card=_clinical_card(patient, assessments),
         charts=charts,
         plotly_js_version=PLOTLY_JS_VERSION,
         severity_classes=SEVERITY_CLASSES,
@@ -323,3 +330,49 @@ def report_patient(patient_id):
         measurement_severity=_measurement_severity,
         measurement_source_label=_measurement_source_label,
     )
+
+
+def _clinical_card(patient, assessments):
+    """A short view of the same latest assessment used by the detailed report."""
+    if not assessments:
+        return None
+    latest = assessments[-1]
+    reasons = sorted(
+        latest.get("reasons", []),
+        key=lambda item: ("green", "yellow", "orange", "red").index(item["color"]),
+        reverse=True,
+    )
+    findings = list(dict.fromkeys(reason["message"] for reason in reasons))
+    action = ACTION_LABELS.get(latest.get("doporuceny_krok"), "K posouzení týmem")
+    return {
+        "patient_id": patient["patient_id"],
+        "name": (patient.get("demografie") or {}).get("jmeno_fiktivni")
+        or patient["patient_id"],
+        "assessment": latest,
+        "action": action,
+        "summary": f"{action}. "
+        + (findings[0] if findings else "Bez doloženého důvodu ke zvýšení úrovně."),
+        "findings": findings[:3],
+        "needs_team": bool(latest.get("upozornit_tym")),
+    }
+
+
+@patient_report.route("/team")
+def team_overview():
+    cards, other_patients = [], []
+    for patient_id in list_patient_ids():
+        patient = load_patient(patient_id)
+        card = _clinical_card(patient, checkin_assessments(patient))
+        if card and card["needs_team"]:
+            cards.append(card)
+        else:
+            other_patients.append({"patient_id": patient_id, "card": card})
+    cards.sort(
+        key=lambda card: (
+            -("green", "yellow", "orange", "red").index(card["assessment"]["color"]),
+            card["assessment"]["date"],
+            card["assessment"].get("time") or "",
+            card["patient_id"],
+        )
+    )
+    return render_template("team.html", cards=cards, other_patients=other_patients)

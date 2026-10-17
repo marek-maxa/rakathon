@@ -1,0 +1,34 @@
+{% from '_triage.html' import triage_badge %}
+{% macro clinical_card(card, detail_link=true) -%}
+  {% set assessment = card.assessment %}
+  <article class="clinical-card" aria-label="Stručná kartička pacienta {{ card.name }}">
+    <header class="section-heading">
+      <h3>{{ card.name }} <small>{{ card.patient_id }}</small></h3>
+      {{ triage_badge(assessment.color) }}
+    </header>
+    <p class="clinical-summary">{{ card.summary }}</p>
+    <dl class="statistics">
+      <dt>Další krok</dt><dd>{{ card.action }}</dd>
+      <dt>Kontakt a lhůta</dt><dd>{{ assessment.doporuceny_kontakt or 'Kontakt není uveden.' }}</dd>
+      <dt>Zdrojový check-in</dt><dd>{{ assessment.date }} {{ assessment.time or '' }} · {{ assessment.checkin_id }}</dd>
+      <dt>Verze pravidel</dt><dd>{{ assessment.rules_version or 'Neuvedena' }}</dd>
+    </dl>
+    {% if assessment.requires_review %}
+      <p class="triage-incomplete">Posouzení je neúplné. Potřebné doplnění je v detailu.</p>
+    {% endif %}
+    {% if assessment.reasons | selectattr('provisional') | list %}
+      <p>Některé důvody hodnocení jsou předběžné; vyžadují ověření.</p>
+    {% endif %}
+    {% if card.findings | length > 1 %}
+      <ul>{% for finding in card.findings[1:] %}<li>{{ finding }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if card.needs_team %}
+      <p class="handoff-demo">Předání týmu: simulované. Zobrazení neprokazuje odeslání ani převzetí.</p>
+    {% endif %}
+    {% if detail_link %}
+      <a href="{{ url_for('patient_report.report_patient', patient_id=card.patient_id, _anchor='triage-title') }}">Detail pacienta a podklady</a>
+    {% else %}
+      <a href="#triage-title">Podklady hodnocení</a>
+    {% endif %}
+  </article>
+{%- endmacro %}

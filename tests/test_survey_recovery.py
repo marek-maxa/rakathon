@@ -1,6 +1,7 @@
 """Recovered survey flow: synthetic inputs, no external model calls."""
 
 import json
+import re
 from copy import deepcopy
 from pathlib import Path
 
@@ -106,7 +107,7 @@ def survey(monkeypatch, tmp_path):
     monkeypatch.setattr(Client, "from_env", lambda: SyntheticClient())
     monkeypatch.setattr("web.app.MasterExtractor", lambda _: fatigue)
     client = app.test_client()
-    assert client.post("/", data={"patient_id": "ONC-002"}).status_code == 302
+    assert client.post("/patient", data={"patient_id": "ONC-002"}).status_code == 302
     with client.session_transaction() as flask_session:
         key = flask_session["id"]
     yield client, key, directory, calls
@@ -114,11 +115,17 @@ def survey(monkeypatch, tmp_path):
 
 
 def start_review(client):
-    response = client.post(
-        "/", data={"answer": "Odpočinek pomůže."}, follow_redirects=True
-    )
+    response = post_answer(client, "Odpočinek pomůže.", follow_redirects=True)
     assert response.status_code == 200
     assert "Zkontrolujte všechny odpovědi" in response.get_data(as_text=True)
+
+
+def post_answer(client, text, **kwargs):
+    html = client.get("/patient").get_data(as_text=True)
+    token = re.search(r'name="submission_token" value="([^"]+)"', html)[1]
+    return client.post(
+        "/patient", data={"answer": text, "submission_token": token}, **kwargs
+    )
 
 
 def test_review_then_save_uses_selected_patient_and_survives_memory_loss(survey):
@@ -129,11 +136,13 @@ def test_review_then_save_uses_selected_patient_and_survives_memory_loss(survey)
     assert not list(directory.rglob("*.json"))
     assert not sessions[key]["contact"].snapshot()["question_answers"][0]["confirmed"]
     response = client.post(
-        "/", data={"confirm": "1", "patient_id": "ONC-001"}, follow_redirects=True
+        "/patient",
+        data={"confirm": "1", "patient_id": "ONC-001"},
+        follow_redirects=True,
     )
     html = response.get_data(as_text=True)
     assert "Odpovědi jsou uložené." in html
-    assert "/patients/ONC-002/report" in html
+    assert "/patients/ONC-002/report" not in html
     paths = list(directory.rglob("*.json"))
     assert len(paths) == 1 and paths[0] == directory / "pacienti" / "ONC-002.json"
     record = json.loads(paths[0].read_text(encoding="utf-8"))
@@ -151,14 +160,19 @@ def test_review_then_save_uses_selected_patient_and_survives_memory_loss(survey)
 
 def test_review_edit_and_follow_up_keep_profile_and_sources(survey):
     client, key, directory, _ = survey
-    response = client.post("/", data={"answer": "Nevím."}, follow_redirects=True)
+    response = post_answer(client, "Nevím.", follow_redirects=True)
     assert "Pomůže vám odpočinek?" in response.get_data(as_text=True)
-    client.post("/", data={"answer": "Ano."})
-    client.post("/", data={"edit": "0"})
+    before = sessions[key]["contact"].snapshot()
+    assert client.get("/").status_code == 200
+    assert client.get("/team").status_code == 200
+    assert "Pomůže vám odpočinek?" in client.get("/patient").get_data(as_text=True)
+    assert sessions[key]["contact"].snapshot() == before
+    post_answer(client, "Ano.")
+    client.post("/patient", data={"edit": "0"})
     assert sessions[key]["contact"].state == "needs_correction"
-    response = client.post("/", data={"answer": "Oprava."}, follow_redirects=True)
+    response = post_answer(client, "Oprava.", follow_redirects=True)
     assert "Zkontrolujte všechny odpovědi" in response.get_data(as_text=True)
-    client.post("/", data={"confirm": "1"})
+    client.post("/patient", data={"confirm": "1"})
     record = json.loads(next(directory.rglob("*.json")).read_text(encoding="utf-8"))
     checkin = record["checkiny"][-1]
     assert checkin["dotazniky"][0]["odpovedi"][0]["odpoved_index"] == 1
@@ -167,7 +181,7 @@ def test_review_edit_and_follow_up_keep_profile_and_sources(survey):
 
 def test_follow_up_and_review_precede_triage_result(survey):
     client, key, directory, calls = survey
-    response = client.post("/", data={"answer": "Nevím."}, follow_redirects=True)
+    response = post_answer(client, "Nevím.", follow_redirects=True)
     html = response.get_data(as_text=True)
     assert "Pomůže vám odpočinek?" in html
     assert 'name="answer"' in html
@@ -177,14 +191,14 @@ def test_follow_up_and_review_precede_triage_result(survey):
     assert sessions[key]["assessment"]  # Evaluation still runs during collection.
     assert not list(directory.rglob("*.json"))
 
-    response = client.post("/", data={"answer": "Ano."}, follow_redirects=True)
+    response = post_answer(client, "Ano.", follow_redirects=True)
     html = response.get_data(as_text=True)
     assert "Zkontrolujte všechny odpovědi" in html
     assert "Výsledek triáže:" not in html
     assert not list(directory.rglob("*.json"))
     assert calls[-1][-1]["question"] == "Pomůže vám odpočinek?"
 
-    response = client.post("/", data={"confirm": "1"}, follow_redirects=True)
+    response = client.post("/patient", data={"confirm": "1"}, follow_redirects=True)
     html = response.get_data(as_text=True)
     assert "Odpovědi jsou uložené." in html
     assert "Výsledek triáže:" in html
@@ -197,8 +211,8 @@ def test_assessment_waits_for_confirmation(survey, monkeypatch, color):
     assessment = {"color": color, "requires_review": True, "reasons": []}
     monkeypatch.setattr("web.app.assess_contact", lambda *_: assessment)
     start_review(client)
-    assert "Výsledek triáže:" not in client.get("/").get_data(as_text=True)
-    response = client.post("/", data={"confirm": "1"}, follow_redirects=True)
+    assert "Výsledek triáže:" not in client.get("/patient").get_data(as_text=True)
+    response = client.post("/patient", data={"confirm": "1"}, follow_redirects=True)
     assert "Výsledek triáže:" in response.get_data(as_text=True)
 
 
@@ -212,7 +226,7 @@ def test_red_finding_does_not_hide_or_finish_follow_up(survey, monkeypatch):
         ]
 
     monkeypatch.setattr("web.app.MasterExtractor", lambda _: confusion_and_fatigue)
-    response = client.post("/", data={"answer": "Nevím."}, follow_redirects=True)
+    response = post_answer(client, "Nevím.", follow_redirects=True)
     html = response.get_data(as_text=True)
     assert "Průběžné upozornění" not in html
     assert 'triage-red">Červená' not in html
@@ -231,12 +245,12 @@ def test_red_finding_does_not_hide_or_finish_follow_up(survey, monkeypatch):
 def test_completed_submission_rejects_further_posts_without_rewriting(survey, action):
     client, key, directory, calls = survey
     start_review(client)
-    client.post("/", data={"confirm": "1"})
+    client.post("/patient", data={"confirm": "1"})
     path = next(directory.rglob("*.json"))
     original = path.read_bytes()
     packet = sessions[key]["packet"]
     call_count = len(calls)
-    response = client.post("/", data=action)
+    response = client.post("/patient", data=action)
     assert response.status_code == 200
     assert "Odpovědi už jsou potvrzené." in response.get_data(as_text=True)
     assert path.read_bytes() == original
@@ -255,19 +269,19 @@ def test_failed_atomic_save_keeps_review_retryable(survey, monkeypatch):
             raise OSError("synthetic disk error")
 
         patch.setattr(Path, "replace", fail_replace)
-        response = client.post("/", data={"confirm": "1"})
+        response = client.post("/patient", data={"confirm": "1"})
     assert "Odpovědi se nepodařilo uložit." in response.get_data(as_text=True)
     assert not sessions[key]["done"]
     assert sessions[key]["contact"].snapshot() == before
     assert not list(directory.rglob("*.json"))
     assert not list((directory / "pacienti").iterdir())
-    assert client.post("/", data={"confirm": "1"}).status_code == 302
+    assert client.post("/patient", data={"confirm": "1"}).status_code == 302
     assert sessions[key]["done"]
 
 
 def test_failed_extraction_preserves_current_state(survey, monkeypatch):
     client, key, _, _ = survey
-    client.post("/", data={"answer": "Nevím."})
+    post_answer(client, "Nevím.")
     before = sessions[key]["contact"].snapshot()
 
     def fail_extract(*_):
@@ -276,7 +290,7 @@ def test_failed_extraction_preserves_current_state(survey, monkeypatch):
     monkeypatch.setattr(
         sessions[key]["contact"].active, "_extract_with_events", fail_extract
     )
-    response = client.post("/", data={"answer": "Ano."})
+    response = post_answer(client, "Ano.")
     assert "synthetic timeout" in response.get_data(as_text=True)
     assert sessions[key]["contact"].snapshot() == before
 
@@ -284,10 +298,10 @@ def test_failed_extraction_preserves_current_state(survey, monkeypatch):
 def test_failed_append_preserves_existing_working_copy(survey, monkeypatch):
     client, key, directory, _ = survey
     start_review(client)
-    client.post("/", data={"confirm": "1"})
+    client.post("/patient", data={"confirm": "1"})
     path = directory / "pacienti" / "ONC-002.json"
     original = path.read_bytes()
-    client.post("/", data={"restart": "1"})
+    client.post("/patient", data={"restart": "1"})
     start_review(client)
     with monkeypatch.context() as patch:
 
@@ -295,10 +309,10 @@ def test_failed_append_preserves_existing_working_copy(survey, monkeypatch):
             raise OSError("synthetic disk error")
 
         patch.setattr(Path, "replace", fail_replace)
-        assert client.post("/", data={"confirm": "1"}).status_code == 200
+        assert client.post("/patient", data={"confirm": "1"}).status_code == 200
     assert path.read_bytes() == original
     assert not sessions[key]["done"]
-    client.post("/", data={"confirm": "1"})
+    client.post("/patient", data={"confirm": "1"})
     assert len(json.loads(path.read_bytes())["checkiny"]) == 3
 
 
@@ -306,7 +320,7 @@ def test_report_includes_new_saved_answers_and_falls_back_to_source(survey):
     client, _, _, _ = survey
     assert client.get("/patients/ONC-002/report").status_code == 200
     start_review(client)
-    client.post("/", data={"confirm": "1"})
+    client.post("/patient", data={"confirm": "1"})
     response = client.get("/patients/ONC-002/report")
     assert response.status_code == 200
     assert "WEB-" in response.get_data(as_text=True)
@@ -356,15 +370,15 @@ def test_concurrent_appends_do_not_lose_checkins(survey):
 
 def test_early_confirmation_and_invalid_edits_do_not_change_review(survey):
     client, key, directory, _ = survey
-    assert client.post("/", data={"confirm": "1"}).status_code == 200
-    client.post("/", data={"answer": "Nevím."})
+    assert client.post("/patient", data={"confirm": "1"}).status_code == 200
+    post_answer(client, "Nevím.")
     assert "Nejprve dokončete všechny otázky." in client.post(
-        "/", data={"confirm": "1"}
+        "/patient", data={"confirm": "1"}
     ).get_data(as_text=True)
-    client.post("/", data={"answer": "Ano."})
+    post_answer(client, "Ano.")
     before = sessions[key]["contact"].snapshot()
     for index in ("-1", "99", "invalid"):
-        assert client.post("/", data={"edit": index}).status_code == 200
+        assert client.post("/patient", data={"edit": index}).status_code == 200
         assert sessions[key]["contact"].snapshot() == before
     assert not list(directory.rglob("*.json"))
 
@@ -372,12 +386,12 @@ def test_early_confirmation_and_invalid_edits_do_not_change_review(survey):
 def test_restart_preserves_profile_and_creates_a_new_submission(survey):
     client, key, directory, _ = survey
     start_review(client)
-    client.post("/", data={"confirm": "1"})
-    response = client.post("/", data={"restart": "1"}, follow_redirects=True)
+    client.post("/patient", data={"confirm": "1"})
+    response = client.post("/patient", data={"restart": "1"}, follow_redirects=True)
     assert "Úvodní otázka" in response.get_data(as_text=True)
     assert sessions[key]["patient_id"] == "ONC-002"
     start_review(client)
-    client.post("/", data={"confirm": "1"})
+    client.post("/patient", data={"confirm": "1"})
     path = directory / "pacienti" / "ONC-002.json"
     record = json.loads(path.read_text(encoding="utf-8"))
     assert len(record["checkiny"]) == 3
@@ -388,13 +402,13 @@ def test_restart_preserves_profile_and_creates_a_new_submission(survey):
 def test_two_browser_sessions_save_under_their_own_patient_profiles(survey):
     client, _, directory, _ = survey
     other = app.test_client()
-    other.post("/", data={"patient_id": "ONC-001"})
+    other.post("/patient", data={"patient_id": "ONC-001"})
     with other.session_transaction() as flask_session:
         other_key = flask_session["id"]
     try:
         for browser in (client, other):
             start_review(browser)
-            assert browser.post("/", data={"confirm": "1"}).status_code == 302
+            assert browser.post("/patient", data={"confirm": "1"}).status_code == 302
         for patient_id in ("ONC-001", "ONC-002"):
             path = directory / "pacienti" / f"{patient_id}.json"
             assert (
@@ -407,9 +421,9 @@ def test_two_browser_sessions_save_under_their_own_patient_profiles(survey):
 def test_limited_contact_saves_unresolved_answer_without_guessing(survey, monkeypatch):
     client, key, directory, _ = survey
     monkeypatch.setitem(app.config, "MAX_QUESTIONS", 1)
-    response = client.post("/", data={"answer": "Nevím."}, follow_redirects=True)
+    response = post_answer(client, "Nevím.", follow_redirects=True)
     assert "Dosáhli jsme limitu dotazů." in response.get_data(as_text=True)
-    client.post("/", data={"confirm": "1"})
+    client.post("/patient", data={"confirm": "1"})
     assert sessions[key]["done"]
     record = json.loads(next(directory.rglob("*.json")).read_text(encoding="utf-8"))
     answer = record["checkiny"][-1]["dotazniky"][0]["odpovedi"][0]
@@ -465,14 +479,14 @@ def test_triage_from_message_is_visible_after_confirmation_and_saved_for_report(
         return [Fact("confusion", "present", message.text, "patient")]
 
     monkeypatch.setattr("web.app.MasterExtractor", lambda _: confusion)
-    response = client.post("/", data={"answer": "Jsem zmatený."}, follow_redirects=True)
+    response = post_answer(client, "Jsem zmatený.", follow_redirects=True)
     html = response.get_data(as_text=True)
     assert 'triage-red">Červená' not in html
     assert sessions[key]["assessment"]["reasons"]
     assert "Posouzení je neúplné" not in html
     assert not list(directory.rglob("*.json"))
 
-    response = client.post("/", data={"confirm": "1"}, follow_redirects=True)
+    response = client.post("/patient", data={"confirm": "1"}, follow_redirects=True)
     assert "Odpovědi jsou uložené." in response.get_data(as_text=True)
     assert 'triage-red">Červená' in response.get_data(as_text=True)
     assert "Posouzení je neúplné" in response.get_data(as_text=True)
@@ -488,3 +502,7 @@ def test_triage_from_message_is_visible_after_confirmation_and_saved_for_report(
     report = client.get("/patients/ONC-002/report")
     assert report.status_code == 200
     assert 'triage-red">Červená' in report.get_data(as_text=True)
+    team = client.get("/team").get_data(as_text=True)
+    assert record["checkiny"][-1]["checkin_id"] in team
+    assert "/patients/ONC-002/report#triage-title" in team
+    assert "Předání týmu: simulované" in team

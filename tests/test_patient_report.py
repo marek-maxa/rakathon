@@ -15,6 +15,109 @@ from web.patient_report import (
 )
 
 
+def _assessment(checkin_id, color, *, review=False):
+    return {
+        "checkin_id": checkin_id,
+        "color": color,
+        "date": "2026-10-17",
+        "time": "10:15",
+        "rules_version": "synthetic-rules",
+        "requires_review": review,
+        "upozornit_tym": color != "green",
+        "doporuceny_krok": "dalsi_sledovani" if color == "green" else "kontaktovat_tym",
+        "doporuceny_kontakt": "Syntetický kontaktní pokyn",
+        "reasons": [
+            {
+                "color": color,
+                "message": f"Důvod {checkin_id}",
+                "source": "Syntetické pravidlo §3",
+                "provisional": review,
+            }
+        ],
+    }
+
+
+def test_team_overview_uses_latest_priority_and_keeps_incompleteness_separate(
+    monkeypatch,
+):
+    patients = {
+        key: {"patient_id": key, "demografie": {"jmeno_fiktivni": name}, "checkiny": []}
+        for key, name in [
+            ("green", "Zlepšený pacient"),
+            ("yellow", "Žlutý pacient"),
+            ("orange", "Oranžový pacient"),
+            ("red", "<Červený pacient>"),
+            ("empty", "Bez záznamu"),
+        ]
+    }
+    assessments = {
+        "green": [
+            _assessment("old-red", "red"),
+            _assessment("new-green", "green", review=True),
+        ],
+        "yellow": [_assessment("current-yellow", "yellow")],
+        "orange": [_assessment("current-orange", "orange")],
+        "red": [_assessment("current-red", "red", review=True)],
+        "empty": [],
+    }
+    monkeypatch.setattr("web.patient_report.list_patient_ids", lambda: list(patients))
+    monkeypatch.setattr("web.patient_report.load_patient", patients.__getitem__)
+    monkeypatch.setattr(
+        "web.patient_report.checkin_assessments", lambda p: assessments[p["patient_id"]]
+    )
+    response = app.test_client().get("/team")
+    html = response.get_data(as_text=True)
+    requests = html.split('<section aria-labelledby="requests-title">')[1].split(
+        "</section>"
+    )[0]
+
+    assert response.status_code == 200
+    assert "K posouzení týmem (3)" in requests
+    assert (
+        requests.index("&lt;Červený pacient&gt;")
+        < requests.index("Oranžový pacient")
+        < requests.index("Žlutý pacient")
+    )
+    assert "Zlepšený pacient" not in requests
+    assert "old-red" not in html
+    assert "Zlepšený pacient" in html and "Bez check-inů" in html
+    assert 'triage-red">Červená' in requests and "Posouzení je neúplné" in requests
+    assert "Předání týmu: simulované" in requests
+    assert "/patients/red/report#triage-title" in requests
+    assert "PRO LÉKAŘE" in html
+    assert 'href="/patient"' not in html
+    assert 'href="/"' in html
+
+
+def test_patient_card_and_detail_share_the_same_latest_assessment(monkeypatch):
+    patient = {"patient_id": "synthetic", "checkiny": []}
+    assessments = [
+        _assessment("older", "red"),
+        _assessment("latest", "yellow", review=True),
+    ]
+    monkeypatch.setattr("web.patient_report.list_patient_ids", lambda: ["synthetic"])
+    monkeypatch.setattr("web.patient_report.load_patient", lambda _: patient)
+    monkeypatch.setattr("web.patient_report.checkin_assessments", lambda _: assessments)
+    html = app.test_client().get("/patients/synthetic/report").get_data(as_text=True)
+    card = html.split('<article class="clinical-card"')[1].split("</article>")[0]
+    detail = html.split('<h3 id="triage-title">')[1].split("<details>")[0]
+
+    assert "Důvod latest" in card and "Důvod latest" in detail
+    assert "Důvod older" not in card
+    assert "2026-10-17 10:15 · latest" in card
+    assert "synthetic-rules" in card
+    assert "Syntetický kontaktní pokyn" in card
+    assert "Posouzení je neúplné" in card and "předběžné" in card
+    assert "Syntetické pravidlo §3" in detail
+
+
+def test_team_overview_with_no_patients_renders_empty_state(monkeypatch):
+    monkeypatch.setattr("web.patient_report.list_patient_ids", list)
+    response = app.test_client().get("/team")
+    assert response.status_code == 200
+    assert "nyní není požadavek pro tým" in response.get_data(as_text=True)
+
+
 def test_report_endpoint_renders_patient_in_shared_flask_app(monkeypatch):
     patient_data = {"patient_id": "<ONC-001>", "checkiny": []}
     monkeypatch.setattr("web.patient_report.list_patient_ids", lambda: ["ONC-001"])

@@ -4,18 +4,17 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>MEDDI ONCO</title>
+    <title>Pacient · MEDDI ONCO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='triage.css') }}">
   </head>
   <body>
     <main class="page">
       <header class="page-header">
-        <p class="eyebrow">MEDDI ONCO</p>
+        <p class="eyebrow">MEDDI ONCO · PRO PACIENTY</p>
         <h1>Pravidelná kontrola</h1>
         {% if page.patient_id %}
           <p class="progress">Profil: {{ page.patient_name }}</p>
-          <a href="{{ url_for('patient_report.report_patient', patient_id=page.patient_id) }}">Přehled stavu pacienta</a>
         {% endif %}
         {% if not page.select_patient and not page.done and not page.review %}
           <p class="progress">{% if page.master %}Úvodní otázka{% else %}Upřesnění podle vaší odpovědi{% endif %}</p>
@@ -34,15 +33,17 @@
       <section class="form-card" aria-labelledby="question-title">
         {% if error %}
           <div class="error" role="alert">
-            <strong>Odeslání se nezdařilo</strong>
+            <strong>{% if received %}Zpráva je uložená, zpracování se nezdařilo{% else %}Odeslání se nezdařilo{% endif %}</strong>
             <p>{{ error }}</p>
           </div>
+        {% elif received %}
+          <p class="notice">Zpráva je uložená, její zpracování zatím není dokončeno. Zkuste pokračovat znovu, nebo zprávu upravte.</p>
         {% endif %}
         {% if page.select_patient %}
-          <h2 id="question-title">Kdo jste?</h2>
-          <p>Než začnete, vyberte svůj profil.</p>
+          <h2 id="question-title">Ukázkový pacient</h2>
+          <p>Pro ukázku zvolte některý z fiktivních pacientských profilů.</p>
           <form method="post" class="question-form">
-            <label for="patient_id">Váš profil</label>
+            <label for="patient_id">Profil pro ukázku</label>
             <select id="patient_id" name="patient_id" required>
               <option value="" disabled selected>Vyberte svůj profil</option>
               {% for patient in page.patients %}
@@ -105,12 +106,22 @@
             </details>
           {% endif %}
           <form method="post" class="question-form">
+            <input type="hidden" name="submission_token" value="{{ page.submission_token }}">
             <label for="answer">Vaše odpověď</label>
-            <textarea id="answer" name="answer" placeholder="Napište svou odpověď" required></textarea>
-            <button type="submit">Pokračovat</button>
+            <textarea id="answer" name="answer" placeholder="Napište svou odpověď" required{% if received %} readonly{% endif %}>{{ answer_text | default('') }}</textarea>
+            <button type="submit">{% if received %}Zkusit zpracovat znovu{% else %}Pokračovat{% endif %}</button>
           </form>
+          {% if received %}
+            <form method="post">
+              <input type="hidden" name="submission_token" value="{{ page.submission_token }}">
+              <button type="submit" name="replace_message" value="1">Upravit uloženou zprávu</button>
+            </form>
+          {% endif %}
         {% endif %}
       </section>
+      <footer class="demo-tools" aria-label="Ovládání ukázky">
+        <span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a>
+      </footer>
     </main>
     <script src="{{ url_for('static', filename='form.js') }}" defer></script>
   </body>
