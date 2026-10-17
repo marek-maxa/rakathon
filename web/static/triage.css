@@ -117,3 +117,7 @@
   .triage-result-symbol { flex-basis: 44px; height: 44px; font-size: 2rem; }
   .triage-result-red .triage-result-heading { padding: 14px; }
 }
+
+.safety-notice { border: 2px solid; }
+.safety-red { border-color: #991b1b; background: #fff1f2; }
+.safety-orange { border-color: #9a3412; background: #fff7ed; }

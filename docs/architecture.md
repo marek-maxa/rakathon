@@ -9,10 +9,10 @@ závislosti. Požadované budoucí chování popisuje [plán](meddi-onco-plan.md
 
 | Část | Co existuje | Co chybí pro cílový tok |
 | --- | --- | --- |
-| `llm_intake/` | Obecná extrakce, katalog 49 otázek, MASTER s výběrem relevantních otázek, společné potvrzení/opravy | Výběr priorit podle rizika, bezpečnostní bod před dalším cíleným voláním, trvalé obnovení |
+| `llm_intake/` | Obecná extrakce, katalog 49 otázek, cílený MASTER, společné potvrzení/opravy a volitelný checkpoint před cílenou extrakcí | Výběr priorit podle rizika, trvalé obnovení |
 | `meddi/` | Sdílená deterministická pravidla, normalizace, validace, zdrojované důvody a výstupní politika | Úplné vstupy a klinické mapování, obecná nejistota/trendy, karta a orchestrace |
 | `web/export.py`, `web/triage.py` | Export vybraných ověřených měření s původem, živé trendy stávajícího adaptéru a zdrojovaný kontext léčby | Úplný registr měření/epizod a skutečného podání léčby |
-| `web/app.py` | Společné heslo dema, vstup Pacient/Lékař, výběr profilu, MASTER a cílené otázky, kontrola a opravy | Individuální oprávnění, volba zastupování, personalizace a bezpečnostní výstup během sběru |
+| `web/app.py` | Společné heslo dema, vstup Pacient/Lékař, výběr profilu, cílený MASTER, kontrola/opravy a naléhavá instrukce během sběru | Individuální oprávnění, volba zastupování, personalizace |
 | `web/patient_store.py` | Pracovní kopie pacienta, atomické přidání potvrzeného check-inu a zdrojově vázaná uložená extrakce historické zprávy | Sjednocení projekce s událostmi, průběžné revize a podpora více procesů |
 | `web/event_store.py` | SQLite deník původních zpráv před LLM, stabilní ID, dohledatelné opravy a deduplikace | Trvalé výsledky zpracování a obnova dialogu K2b; úplná historie měření/revizí K2c |
 | `web/patient_report.py`, `meddi/status.py` | Poslední/historická triáž, stručná kartička, přehled `/team`, historie odpovědí a měření, nezelené incidenty a grafy | Aktivní epizody, souhrn vývoje, plán kontrol a skutečné předání/převzetí |
@@ -43,16 +43,15 @@ a skutečné předání monitorovacímu centru nejsou implementované.
 
 ```text
 MessageEvent → EventStore.accept (commit původní zprávy)
-             → MasterDialogue.start/submit
-             → snapshot llm_intake/v1
-             → web.triage.assess_contact
-             → meddi.pipeline.evaluate_contact
-             → meddi.triage.evaluate_checkin → resolve_disposition
+             → MasterDialogue.start/submit → obecná extrakce
+             → checkpoint → assess_contact → evaluate_contact → evaluate_checkin
+             → minimum 3/4: paused → naléhavá instrukce ve webu
+             → jinak: cílená extrakce → průběžné assess_contact
 ```
 
 Po `confirm_all()` se výpočet zopakuje a export s celým hodnocením uloží.
-`MasterDialogue` sám triáž nevolá; jeho vnitřní cílená extrakce může předcházet
-návratu do webové vrstvy. Pro orchestraci je to otevřená integrační mezera.
+`MasterDialogue` sám klinická pravidla nezná. Volitelný callback předaný
+webem vyhodnotí obecnou extrakci dřív, než může začít cílené volání.
 
 Historický check-in:
 
@@ -156,7 +155,33 @@ otázky ze zdrojových dotazníků, neznamenají jejich úplný průchod.
 
 `dialogue.mode=targeted_from_message` zachovává úvodní aktuální nález i při
 pozdější mírnější volbě; pravidla dostanou oba podklady téhož kontaktu.
-Explicitní oprava/odeznění a úplný bezpečnostní bod jsou dále K4/K7.
+Explicitní klinické uzavření opravy/odeznění zůstává K4/K7.
+
+### Naléhavá instrukce P0
+
+Web předává `checkpoint(packet) -> bool` při `MasterDialogue.start/submit`.
+Callback po obecné extrakci zavolá `assess_contact`. Při minimu orange/red
+uloží `safety_notice` do paměťové session a při prvním naléhavém pokynu nebo
+zvýšení z oranžové na červenou pozastaví kontakt (`paused`,
+`external_checkpoint`) před navazující cílenou extrakcí. To platí také pro
+novou odpověď a opravu. Stejný již zobrazený pokyn nevyžaduje opakované
+pokračování; zůstává viditelný. Ostatní kontakty pokračují bez přerušení;
+zobrazovací barvy, nejistý nebo cizí subjekt samy instrukci nevytvářejí.
+
+Pacient ihned vidí samostatné „Naléhavé doporučení“ s doporučením a kontaktem
+ze stejného backendu, bez konečného výsledku triáže. Nemusí nic potvrdit ani
+uložit. Výslovný POST `continue` zavolá `resume()`, které dokončí odložený
+seed/odpověď bez opakování obecné extrakce a bez přidání dalšího zdrojového
+sdělení. Jde o pokračování v paměti procesu, nikoli obnovu K2b. Callback
+ani Flask closure se do dialogu neukládá.
+
+Známá instrukce je oddělená od rollbacku rozpracované odpovědi: chyba LLM,
+ukládání nebo otevření opravy ji neschová ani nesníží dosavadní červenou.
+Nově doložené minimum při konečném potvrzení se zachytí před zápisem, takže
+instrukci nezablokuje ani selhání exportu. Pokračování je volitelné a UI
+výslovně říká, že doplnění nesmí odložit pomoc. Konečný výsledek zůstává až
+po potvrzení a úspěšném uložení; nový výslovný restart založí nový kontakt.
+Rozhodnutí uživatele a hranice jsou v [rozhodnutích](decisions.md#bezpečnostní-výstup-k4m4).
 
 M1 používá `_clinical_card(patient, assessments)` jako společný pohled nad
 posledním výsledkem `checkin_assessments`. Kartička nahoře v reportu a na
@@ -248,14 +273,9 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
 
 ## Otevřené integrační mezery
 
-- Triáž se ve formuláři vykreslí až po potvrzení a úspěšném zápisu, pro všechny
-  barvy. Některá upozornění možností se zobrazují při kontrole souhrnu;
-  nejsou úplnou bezpečnostní reakcí. Konflikt s okamžitým kritickým krokem
-  je v [rozhodnutích](decisions.md#otevřený-konflikt-bezpečnostního-výstupu).
-- Cílený `MasterDialogue.start/submit` může při využití známých zpráv spustit
-  další cílenou extrakci před návratem do `assess_contact`. K4 potřebuje
-  bezpečnostní bod také uvnitř tohoto pořadí; samotný výpočet po návratu
-  nechrání před selháním předchozího cíleného volání.
+- P0 chrání již rozpoznané minimum. Kvalitu a úplnost extrakce ani klinické
+  ověření všech šesti situací nenahrazuje. Instrukce zůstává v paměti;
+  úplné průběžné/přerušené revize a obnova po restartu zůstávají K2b/K4.
 - K2a ukládá originál před LLM, ale výsledky extrakce a stav dialogu zůstávají
   v paměti. Restart tedy neztratí přijatý vstup, avšak neobnoví rozhovor ani
   průběžnou revizi; to je K2b. Testy `test_web_events.py` rozlišují zachování
@@ -306,8 +326,9 @@ Chyby zpráv jsou v řádku i souhrnu; při selhání LLM vrací proces 1
 a barevný výsledek označuje jako záložní. Reference nikdy nevstupují do modelu.
 Ani jedna cesta nenahrazuje evaluaci celého produktu.
 Vyšší výsledek není automaticky zbytečná eskalace a `requires_review` zahrnuje
-i chybějící podmínky hypotetických pravidel. Prošlé testy současného skrývání
-červené triáže neprokazují splnění P07.
+i chybějící podmínky hypotetických pravidel. Testy naléhavého výstupu ověřují
+pořadí před cíleným LLM a zachování instrukce při chybě; neprokazují skutečné
+doručení klinického požadavku.
 `--comparison` filtruje řádky, souhrn stále počítá celou sadu. Testy intake/webu
 používají náhrady LLM; SMTP ověřují testy uvedené níže. Živé evaluace jsou
 samostatná explicitní volání se syntetickými daty.
@@ -337,7 +358,8 @@ uv run --locked gunicorn --bind 0.0.0.0:8000 --workers 1 --timeout 600 web.app:a
 
 Gunicorn je pouze pro Linux, Windows používá lokální `python -m web.app`.
 ZIP `dist/meddi-azure.zip` obsahuje runtime, šablony/statiku, syntetické
-profily a definice; vynechává `.env`, data working copies, SQLite a reference.
+profily, definice a `notifications/mailer.py` pro ruční e-mail; vynechává
+`.env`, data working copies, SQLite a reference.
 Na serveru nastavit stabilní `FLASK_SECRET_KEY`, obě Basic Auth hodnoty,
 `MEDDI_LLM_*` a `MEDDI_DATA_DIR` na trvalé úložiště mimo balík. Jeden worker
 je nutný kvůli paměťovému dialogu a zámku JSON zápisu; nejde o víceprocesový

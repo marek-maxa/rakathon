@@ -145,6 +145,53 @@ def test_missing_value_is_clarified_without_repeating_master():
     assert result["facts"][1]["source_message_id"] == result["messages"][1]["id"]
 
 
+def test_checkpoint_pauses_before_seed_and_resume_does_not_repeat_extraction():
+    order = []
+
+    def extract_message(message):
+        order.append("general")
+        return fatigue(message)
+
+    def checkpoint(packet):
+        order.append("checkpoint")
+        assert packet["facts"][0]["source_message_id"] == "synthetic-master"
+        return True
+
+    def extract_answer(*_):
+        order.append("targeted")
+        return unclear()
+
+    contact = MasterDialogue(extract_message, extract_answer, bulk_confirmation=True)
+    result = contact.start(event(), checkpoint=checkpoint)
+    assert order == ["general", "checkpoint"]
+    assert result["dialogue"]["state"] == "paused"
+    assert not result["question_answers"]
+    contact.resume()
+    assert order == ["general", "checkpoint", "targeted"]
+    assert contact.state == "needs_answer"
+    with pytest.raises(ValueError, match="pokračování"):
+        contact.resume()
+    assert len(order) == 3
+
+
+def test_reply_checkpoint_preserves_facts_before_targeted_answer_is_processed():
+    general = Mock(side_effect=fatigue)
+    targeted = Mock(side_effect=[unclear(), answered(0, "Ano.", 1)])
+    contact = MasterDialogue(general, targeted, bulk_confirmation=True)
+    contact.start(event())
+    message = reply(contact, "Ano.")
+    seen = []
+    contact.submit(message, checkpoint=lambda packet: seen.append(packet) or True)
+    assert contact.state == "paused"
+    assert targeted.call_count == 1
+    assert seen[0]["facts"][-1]["source_message_id"] == message.id
+    assert len(contact.snapshot()["messages"]) == 2
+    contact.resume()
+    assert general.call_count == targeted.call_count == 2
+    assert contact.state == "complete"
+    assert len(contact.snapshot()["question_answers"][0]["turns"]) == 2
+
+
 def test_rejection_requires_correction_and_never_exports_old_value():
     extract = Mock(
         side_effect=[
