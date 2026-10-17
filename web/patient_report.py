@@ -8,8 +8,10 @@ from flask import Blueprint, Response, abort, render_template
 from plotly.offline import get_plotlyjs, get_plotlyjs_version
 
 from meddi.common_types import Severity
-from meddi.loader import list_patient_ids, load_patient
+from meddi.loader import list_patient_ids
 from meddi.status import MeasurementStatus, build_patient_status
+from web.patient_store import load_patient
+from web.triage import checkin_assessments
 
 patient_report = Blueprint(
     "patient_report",
@@ -298,7 +300,9 @@ def plotly_js(version: str):
 def report_patient(patient_id):
     if patient_id not in list_patient_ids():
         abort(404)
-    status = build_patient_status(load_patient(patient_id))
+    patient = load_patient(patient_id)
+    status = build_patient_status(patient)
+    assessments = checkin_assessments(patient)
     charts = {
         measurement.measurement_id: _measurement_chart(
             measurement, status.measurement_incidents
@@ -308,6 +312,7 @@ def report_patient(patient_id):
     return render_template(
         "report.html",
         status=status,
+        assessments=assessments,
         charts=charts,
         plotly_js_version=PLOTLY_JS_VERSION,
         severity_classes=SEVERITY_CLASSES,

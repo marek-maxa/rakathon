@@ -100,7 +100,7 @@ def test_newer_normal_measurement_does_not_permanently_keep_old_red():
             {**source, "facts": list(facts)},
             context={"chemotherapy_within_6_weeks": True},
         )
-        assert result["color"] is None
+        assert result["color"] == "green"
         assert result["minimum_color"] == "green"
         assert [
             r["value"] for r in result["triage_inputs"]["observations"]["temperature_c"]
@@ -220,7 +220,8 @@ def test_no_invented_24h_or_exact_count(kwargs):
     if kwargs.get("time_text"):
         source["message"]["text"] += " " + kwargs["time_text"]
     result = evaluate_contact(source)
-    assert result["color"] is None
+    assert result["color"] == "yellow"
+    assert result["doporuceny_krok"] == "kontaktovat_tym"
     assert result["unprocessed_facts"]
     assert "vomiting_episodes_24h" not in result["triage_inputs"]["observations"]
 
@@ -228,7 +229,7 @@ def test_no_invented_24h_or_exact_count(kwargs):
 def test_total_stools_do_not_become_increase_above_baseline():
     source = packet("diarrhea.episodes", 8, "episodes", time_text="24h")
     result = evaluate_contact(source, context={"immunotherapy": True})
-    assert result["color"] is None
+    assert result["color"] == "yellow"
     assert "stools_above_baseline_24h" not in result["triage_inputs"]["observations"]
 
 
@@ -246,7 +247,8 @@ def test_latest_explicit_negation_replaces_prior_symptom_without_inventing_zero(
         {**source["facts"][0], "presence": "absent"},
     ]
     result = evaluate_contact(source)
-    assert result["color"] is None
+    assert result["color"] == "yellow"
+    assert not any(r["color"] == "red" for r in result["reasons"])
     assert result["triage_inputs"]["observations"]["confusion"][0]["value"] is False
 
 
@@ -255,7 +257,7 @@ def test_patient_rules_do_not_consume_someone_elses_symptom(subject):
     source = packet("confusion", None, None)
     source["facts"][0]["subject"] = subject
     result = evaluate_contact(source)
-    assert result["color"] is None
+    assert result["color"] == "yellow"
     assert result["unprocessed_facts"][0]["reason"] == "other_or_unknown_subject"
 
 
@@ -265,7 +267,8 @@ def test_future_message_is_not_decision_input():
     result = evaluate_contact(
         source, context={"chemotherapy_within_6_weeks": True}, now=TIME
     )
-    assert result["color"] is None
+    assert result["color"] == "yellow"
+    assert not result["triage_inputs"]["observations"]
     assert result["deferred_inputs"][0]["reason"] == "future_input"
 
 
@@ -286,7 +289,8 @@ def test_fabricated_citation_is_rejected_at_backend_boundary(field):
 )
 def test_future_or_expired_context_is_not_treatment_evidence(record, reason):
     result = evaluate_contact(packet(), context={"chemotherapy_within_6_weeks": record})
-    assert result["color"] is None
+    assert result["color"] == "red"
+    assert all(item["provisional"] for item in result["reasons"])
     assert result["deferred_inputs"][0]["reason"] == reason
     assert not result["triage_inputs"]["context"]
 
@@ -407,7 +411,7 @@ def test_rejected_proposal_never_becomes_confirmed_rule_input():
     session.submit(message.text)
     session.reject()
     result = evaluate_contact(build_pipeline_packet(message, [], [session]))
-    assert result["color"] is None
+    assert result["color"] == "yellow"
     assert not result["triage_inputs"]["prepared"]["answers"]
 
 

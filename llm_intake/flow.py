@@ -44,8 +44,10 @@ class QuestionnaireFlow:
         *,
         targets: Iterable[str] | None = None,
         path: Path = DEFINITIONS,
+        allow_drafts: bool = False,
     ):
         self.questionnaire_id = questionnaire_id
+        self._allow_drafts = allow_drafts
         self._questions = {
             q.id: q
             for q in load_questions(path)
@@ -109,9 +111,11 @@ class QuestionnaireFlow:
             return False
         if parent_id in self._sessions:
             session = self._sessions[parent_id]
-            if session.state != "confirmed":
+            if session.state != "confirmed" and not (
+                self._allow_drafts and session.state == "needs_confirmation"
+            ):
                 return None
-            value = session.confirmed_data()["odpoved_index"]
+            value = session.snapshot()["odpoved_index"]
             return index in value if parent.kind == "vice" else index == value
         if (
             self._targets is not None
@@ -135,9 +139,21 @@ class QuestionnaireFlow:
         """Přijímá jen očekávanou ukončenou relaci; návrh větev neaktivuje."""
         if session.question != self.next_question():
             raise ValueError("Relace neodpovídá další otázce tohoto průchodu.")
-        if session.state not in {"confirmed", "unresolved"}:
+        if session.state not in {"confirmed", "unresolved"} and not (
+            self._allow_drafts and session.state == "needs_confirmation"
+        ):
             raise ValueError("Nejprve odpověď potvrďte nebo uzavřete jako nevyřešenou.")
         self._sessions[session.question.id] = session
+
+    def discard(self, question_id: str) -> set[str]:
+        """Invalidate an edited answer and all conditional descendants."""
+        removed = {question_id}
+        for question in self._questions.values():
+            if question.condition and parse_condition(question.condition)[0] in removed:
+                removed.add(question.id)
+        for removed_id in removed:
+            self._sessions.pop(removed_id, None)
+        return removed
 
     def snapshot(self) -> dict:
         questions = []

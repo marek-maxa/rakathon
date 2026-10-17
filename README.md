@@ -6,8 +6,8 @@ vysvětlitelná triáž a srozumitelný další krok pro pacienta i zdravotnick�
 Implementované jsou LLM intake a společný backend triáže. Úplný průchod
 s kartou, sledováním nálezů, doporučením a předáním týmu zbývá propojit.
 [Aktuální plán pipeline a webu](docs/meddi-onco-plan.md) obsahuje zdrojované
-požadavky a malé integrační kroky. Web existuje v dostupné větvi `origin/web`;
-jeho napojení vyžaduje opravu API a exportu. Tato revize mění pouze dokumentaci.
+požadavky a malé integrační kroky. Větev `web` zahrnuje aktuální backend z `main`
+a zobrazuje barvu triáže, důvody a neúplnost posouzení.
 
 ## Soubory
 
@@ -43,8 +43,8 @@ uv sync --locked
 | `uv run --locked python main.py` | Strukturované porovnání s oddělenými referencemi |
 | `git status --short` / `git diff` | Přehled změn |
 
-Web používá Flask; další runtime závislosti zůstávají omezené. Rozhraní má
-chatový vzhled, ale zprávy odesílá běžnými HTML formuláři bez JavaScriptu.
+Web používá Flask a HTML formuláře; JavaScript zobrazuje průběh zpracování
+a brání opakovanému odeslání.
 
 ## Lokální webový průchod
 
@@ -55,16 +55,21 @@ Nastavte `MEDDI_LLM_API_KEY` lokálně v `llm_intake/.env` podle
 uv run python -m web.app
 ```
 
-Otevřete `http://127.0.0.1:5000`. Uživatel odpovídá vlastními slovy; návrh
-LLM následně zkontroluje nebo upraví ve strukturovaném formuláři. Odpovědi se
-zobrazují v historii běžící relace. Stav je jen v paměti jednoho procesu.
-Aktuální tok obsahuje tři nepodmíněné otázky; triáž, trvalé ukládání a klinické
-doporučení nejsou součástí webu.
+Otevřete `http://127.0.0.1:5000` a vyberte profil pacienta. Po úvodní otázce
+následují cílená doptání a společná kontrola všech odpovědí s možností oprav.
+Potvrzení přidá nový check-in do pracovní kopie `data/pacienti/<patient_id>.json`;
+nevyřešené odpovědi zůstávají bez přiřazené hodnoty. Rozpracovaný stav je pouze
+v paměti procesu. Pracovní kopie zachovává původní kontext a historii pacienta;
+zdrojový balíček se nemění. Report dostupný z odkazu u profilu zahrnuje i nové
+uložené odpovědi. Po zpracování odpovědi a při závěrečném potvrzení se volá
+společný backend triáže. Formulář i report zobrazují barvu, důvody a neúplnost;
+potvrzený check-in uchovává také vyhodnocení s celým původním kontaktem.
+Jde o prototyp s omezeným pokrytím, nikoli klinicky ověřený systém.
 
-Na main nejsou runtime závislosti; testy používají pytest a Ruff. Kontrakt
+Výpočetní backend nemá vlastní runtime závislosti; testy používají pytest a Ruff. Kontrakt
 a syntetický CLI průchod popisuje [docs/backend.md](docs/backend.md).
 LLM konfigurace a použití jsou v [llm_intake/README.md](llm_intake/README.md).
-Webové knihovny a spuštění patří do navazující integrace ve větvi web.
+Webové knihovny jsou již zahrnuté v manifestu a locku větve web.
 
 ## Startovní prompt pro agenta
 

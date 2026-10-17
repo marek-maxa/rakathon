@@ -1,6 +1,8 @@
 import os
 import secrets
 import sys
+from copy import deepcopy
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,19 +12,32 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / "llm_intake" / ".env")
 sys.path.insert(0, str(ROOT))
 
-from llm_intake import Intake, load_question
 from llm_intake.client import APIError, Client
+from llm_intake.dialogue import MasterDialogue
+from llm_intake.master import MasterExtractor
+from llm_intake.master_contract import MessageEvent
 from meddi.loader import list_patient_ids, load_patient
+from web.export import meddi_record
 from web.patient_report import patient_report
+from web.patient_store import append_checkins
+from web.patient_store import load_patient as load_working_patient
+from web.triage import assess_contact
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(16)
 app.register_blueprint(patient_report)
-questions = [
-    load_question("nezadouci_ucinky", name)
-    for name in ("pocit", "sobestacnost", "ucinky")
-]
+app.config["MAX_QUESTIONS"] = 6
+app.config["DATA_DIR"] = ROOT / "data"
+MASTER_QUESTION = "Jak se dnes cítíte?"
 sessions = {}
+
+
+def state():
+    key = session.get("id")
+    if key not in sessions:
+        key = session["id"] = secrets.token_urlsafe(16)
+        sessions[key] = {"contact": None, "done": False, "patient_id": None}
+    return key, sessions[key]
 
 
 def patient_choices():
@@ -35,105 +50,168 @@ def patient_choices():
     ]
 
 
-def state():
-    key = session.get("id")
-    if key not in sessions:
-        key = session["id"] = secrets.token_urlsafe(16)
-        sessions[key] = {"index": 0, "intake": None, "patient_id": None}
-    data = sessions[key]
+def page_for(data):
     if data["patient_id"] is None:
-        return {
-            "select_patient": True,
-            "patients": patient_choices(),
-        }, data
-    intake = data["intake"]
-    if data["index"] == len(questions):
-        return {"done": True}, data
-    question = questions[data["index"]]
-    page = {
-        "question": (
-            intake.next_question
-            if intake and intake.state in {"needs_answer", "needs_correction"}
-            else question.text
-        ),
-        "instruction": question.instruction if intake is None else None,
-        "intake": intake,
-        "number": data["index"] + 1,
-        "total": len(questions),
+        return {"select_patient": True, "patients": patient_choices()}
+    return {
+        **survey_page(data),
         "patient_id": data["patient_id"],
         "patient_name": data["patient_name"],
+        "assessment": data.get("assessment"),
     }
-    if intake and intake.state == "unresolved":
-        page["unresolved"] = intake.patient_summary()
-    return page, data
+
+
+def survey_page(data):
+    contact = data["contact"]
+    if contact is None:
+        return {"master": True, "question": MASTER_QUESTION}
+    packet = contact.snapshot()
+    if contact.state in {"needs_answer", "needs_correction"}:
+        return {
+            "question": contact.active.next_question,
+            "instruction": contact.active.question.instruction,
+            "options": contact.active.question.patient_options(),
+        }
+    return {
+        "done": data["done"],
+        "review": True,
+        "master_text": packet["message"]["text"],
+        "drafts": contact.review_sessions,
+        "gaps": packet["analysis_status"] == "no_facts"
+        or bool(packet["unmapped_concepts"])
+        or bool(packet["unknown_subject_fact_indices"]),
+        "blocked": any(
+            q["state"] == "blocked"
+            for flow in packet["dialogue"]["flows"]
+            for q in flow["questions"]
+        ),
+        "limited": contact.state == "limited",
+        "pending": packet["dialogue"]["pending_topic_ids"],
+        "warnings": list(
+            dict.fromkeys(
+                warning
+                for form in meddi_record(
+                    packet, datetime.now().astimezone(), include_drafts=True
+                )["checkiny"][0]["dotazniky"]
+                for warning in form["zobrazena_upozorneni"]
+            )
+        ),
+    }
+
+
+def message(key, text, question, source):
+    return MessageEvent(
+        id=secrets.token_urlsafe(16),
+        patient_id=key,
+        text=text,
+        available_at=datetime.now(UTC).isoformat(),
+        source=source,
+        author="patient",
+        question=question,
+    )
+
+
+def save_packet(packet, patient_id, assessment):
+    if packet["message"]["patient_id"] != patient_id:
+        raise ValueError("Odpovědi nepatří vybranému pacientovi.")
+    record = meddi_record(packet, datetime.now().astimezone())
+    record["checkiny"][0]["triage_assessment"] = assessment
+    return append_checkins(patient_id, record["checkiny"])
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    page, data = state()
+    key, saved = state()
     error = None
+    data = saved
     if request.method == "POST":
+        data = deepcopy(saved)
         try:
-            if page.get("select_patient"):
+            if "restart" in request.form:
+                data.update(contact=None, done=False)
+                data.pop("packet", None)
+                data.pop("output_file", None)
+                data.pop("assessment", None)
+                sessions[key] = data
+                return redirect("/")
+            if data["done"]:
+                raise ValueError("Odpovědi už jsou potvrzené.")
+            if data["patient_id"] is None:
                 selected_id = request.form.get("patient_id", "")
-                selected_patient = next(
-                    (
-                        patient
-                        for patient in page["patients"]
-                        if patient["id"] == selected_id
-                    ),
-                    None,
+                selected = next(
+                    (p for p in patient_choices() if p["id"] == selected_id), None
                 )
-                if selected_patient is None:
+                if selected is None:
                     raise ValueError("Vyberte platný profil pacienta.")
                 data["patient_id"] = selected_id
-                data["patient_name"] = selected_patient["name"]
-            else:
-                intake = data["intake"]
-                if "continue" in request.form:
-                    if intake is None or intake.state != "unresolved":
-                        raise ValueError("Není nevyřešená odpověď k přeskočení.")
-                    data["answers"] = data.get("answers", [])
-                    data["answers"].append(intake.snapshot())
-                    data["index"] += 1
-                    data["intake"] = None
-                elif "answer" in request.form:
-                    if not request.form["answer"].strip():
-                        raise ValueError("Odpověď nesmí být prázdná.")
-                    if not os.environ.get("MEDDI_LLM_API_KEY", "").strip():
-                        raise ValueError("Chybí MEDDI_LLM_API_KEY.")
-                    if intake is None:
-                        intake = data["intake"] = Intake(
-                            questions[data["index"]], Client.from_env()
+                data["patient_name"] = selected["name"]
+                sessions[key] = data
+                return redirect("/")
+            contact = data["contact"]
+            if "confirm" in request.form:
+                if contact is None:
+                    raise ValueError("Nejprve dokončete všechny otázky.")
+                data["packet"] = contact.confirm_all()
+                data["assessment"] = assess_contact(
+                    data["packet"],
+                    load_working_patient(data["patient_id"]),
+                    datetime.now().astimezone(),
+                )
+                data["output_file"] = str(
+                    save_packet(data["packet"], data["patient_id"], data["assessment"])
+                )
+                data["done"] = True
+            elif "edit" in request.form:
+                if contact is None:
+                    raise ValueError("Nejprve dokončete všechny otázky.")
+                contact.revise(int(request.form["edit"]))
+                data.pop("assessment", None)
+            elif "answer" in request.form:
+                text = request.form["answer"].strip()
+                if not text:
+                    raise ValueError("Odpověď nesmí být prázdná.")
+                if contact is None:
+                    client = Client.from_env()
+                    contact = MasterDialogue(
+                        MasterExtractor(client),
+                        client,
+                        extract_with_events=client.extract_events,
+                        max_questions=app.config["MAX_QUESTIONS"],
+                        bulk_confirmation=True,
+                    )
+                    contact.start(
+                        message(
+                            data["patient_id"], text, MASTER_QUESTION, "master_question"
                         )
-                    intake.submit(request.form["answer"])
+                    )
+                    data["contact"] = contact
                 else:
-                    question = questions[data["index"]]
-                    value = request.form.get("value", "")
-                    if question.kind == "jedna":
-                        value = int(value)
-                    elif question.kind == "vice":
-                        value = [int(index) for index in request.form.getlist("value")]
-                    if intake is None or intake.state != "needs_confirmation":
-                        raise ValueError("Nejprve zadejte odpověď.")
-                    data["answers"] = data.get("answers", [])
-                    data["answers"].append(intake.confirm(value))
-                    data["index"] += 1
-                    data["intake"] = None
+                    if contact.state not in {"needs_answer", "needs_correction"}:
+                        raise ValueError("Nyní zkontrolujte souhrn odpovědí.")
+                    contact.submit(
+                        message(
+                            data["patient_id"],
+                            text,
+                            contact.active.next_question,
+                            "targeted_answer",
+                        )
+                    )
+                data["assessment"] = assess_contact(
+                    contact.snapshot(),
+                    load_working_patient(data["patient_id"]),
+                    datetime.now().astimezone(),
+                )
+            else:
+                raise ValueError("Neplatná akce formuláře.")
+            sessions[key] = data
             return redirect("/")
         except (APIError, ValueError, TypeError) as exc:
             error = str(exc)
-            page, data = state()
-            if page.get("select_patient"):
-                page["selected_patient"] = request.form.get("patient_id", "")
-
-    if page.get("intake") and page["intake"].state == "needs_confirmation":
-        question = questions[data["index"]]
-        page["value"] = page["intake"].snapshot()["extraction"]["value"]
-        page["options"] = question.options
-        page["kind"] = question.kind
-        page["summary"] = page["intake"].patient_summary()
-    return render_template("index.html", page=page, error=error)
+            data = saved
+        except OSError:
+            error = "Odpovědi se nepodařilo uložit. Zkuste potvrzení znovu."
+            data = saved
+    return render_template("index.html", page=page_for(data), error=error)
 
 
 if __name__ == "__main__":

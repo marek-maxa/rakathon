@@ -1,0 +1,40 @@
+{% macro triage_badge(color) -%}
+  {% set labels = {'green': 'Zelená', 'yellow': 'Žlutá', 'orange': 'Oranžová', 'red': 'Červená'} %}
+  <span class="triage-badge triage-{{ color if color in labels else 'unknown' }}">{{ labels.get(color, 'Neurčeno') }}</span>
+{%- endmacro %}
+
+{% macro triage_result(assessment, detailed=false) -%}
+  <div class="triage-result">
+    <p>Výsledek triáže: {{ triage_badge(assessment.color) }}</p>
+    {% if assessment.doporuceni_pro_pacienta %}
+      <p class="triage-action"><strong>Co udělat:</strong> {{ assessment.doporuceni_pro_pacienta }}</p>
+      <p><strong>Kontakt:</strong> {{ assessment.doporuceny_kontakt }}</p>
+    {% endif %}
+    {% if assessment.requires_review %}
+      <p class="triage-incomplete">Posouzení je neúplné. Některé údaje je potřeba doplnit nebo ověřit.</p>
+    {% endif %}
+    {% if assessment.reasons %}
+      <ul class="triage-findings">
+        {% for reason in assessment.reasons %}
+          <li>{{ triage_badge(reason.color) }} {{ reason.message }}{% if reason.provisional %} (Předběžný nález.){% endif %}
+            {% if detailed %}<small class="triage-source">Zdroj: {{ reason.source }}</small>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Z dostupných údajů nebyl doložen důvod ke zvýšení úrovně.</p>
+    {% endif %}
+    {% if detailed and assessment.requires_review %}
+      <details class="triage-review">
+        <summary>Co zbývá posoudit</summary>
+        <ul>
+          {% for issue in assessment.review_issues %}<li>{{ issue.message }}</li>{% endfor %}
+        </ul>
+        {% if assessment.skipped_rules %}<p>Pravidla s chybějícími vstupy: {{ assessment.skipped_rules | length }}.</p>{% endif %}
+        {% if assessment.adapter_issues %}<p>Údaje vyžadující upřesnění nebo kontrolu času: {{ assessment.adapter_issues | length }}.</p>{% endif %}
+        {% if assessment.unprocessed_facts %}<p>Dosud nevyhodnocená sdělení: {{ assessment.unprocessed_facts | length }}.</p>{% endif %}
+        {% if assessment.deferred_inputs %}<p>Údaje mimo čas posouzení: {{ assessment.deferred_inputs | length }}.</p>{% endif %}
+      </details>
+    {% endif %}
+  </div>
+{%- endmacro %}

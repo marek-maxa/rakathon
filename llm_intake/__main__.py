@@ -67,6 +67,8 @@ def main() -> int:
                     print(
                         f"Triáž (omezená sada pravidel): {triage['color'] or 'neurčeno'}"
                     )
+                    print(triage["doporuceni_pro_pacienta"])
+                    print(f"Kontakt: {triage['doporuceny_kontakt']}")
                     if triage["requires_review"]:
                         print("Posouzení je neúplné; chybí další údaje pro triáž.")
                     if args.debug:

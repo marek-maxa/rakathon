@@ -13,18 +13,25 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
+from .answer_coverage import answer_coverage
 from .clinical_rules import HANDLED_QUESTIONS, HANDLED_VITALS, evaluate_clinical_rules
 from .common_types import Severity
+from .disposition import resolve_disposition
 from .validation import number, prepared_inputs
 
 RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
+PULSE_SOURCE = (
+    "https://medlineplus.gov/ency/article/003399.htm (Normal Results, adults)"
+)
+TRIAGE_RULES_VERSION = 4
 
 
 def fever_score(temperature, recent_chemotherapy):
     """Fever >= 38 C during chemotherapy or within 6 weeks after it is red.
 
     Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
-    section 3, Red / Horečka. Chills are not covered by this function.
+    section 3, Red / Horečka; §6.4 retains red while treatment is unknown.
+    Chills are not covered by this function.
     """
     number("temperature_c", temperature)
     if recent_chemotherapy is not None and type(recent_chemotherapy) is not bool:
@@ -34,7 +41,7 @@ def fever_score(temperature, recent_chemotherapy):
     if temperature < 38:
         return Severity.GREEN
     if recent_chemotherapy is None:
-        return None
+        return Severity.RED  # Provisional higher alternative, §6.4.
     return Severity.RED if recent_chemotherapy else Severity.GREEN
 
 
@@ -71,7 +78,8 @@ def pain_score(pain, persists_after_rescue_dose):
 
     Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
     section 3, Orange / Bolest; section 4, pain NRS 4–6.
-    Other severe-pain cases return None pending review.
+    Unknown SOS response retains provisional orange (§6.4); an explicit
+    non-persistent response returns None pending review.
     """
     number("pain_nrs", pain)
     if (
@@ -85,7 +93,7 @@ def pain_score(pain, persists_after_rescue_dose):
         return Severity.GREEN
     if pain <= 6:
         return Severity.YELLOW
-    if persists_after_rescue_dose is True:
+    if persists_after_rescue_dose is not False:
         return Severity.ORANGE
     # Severe pain without a confirmed rescue-dose response needs review.
     return None
@@ -127,16 +135,30 @@ def evaluate_triage(data):
     skipped_rules = []
     for criterion, fields in inputs.items():
         missing = [field for field in fields if data.get(field) is None]
-        if scores[criterion] is None and missing:
+        provisional = (
+            criterion == "fever"
+            and data.get("temperature_c") is not None
+            and data["temperature_c"] >= 38
+            and data.get("chemotherapy_within_6_weeks") is None
+        ) or (
+            criterion == "pain"
+            and data.get("pain_nrs") is not None
+            and data["pain_nrs"] >= 7
+            and data.get("pain_persists_after_rescue_dose") is None
+        )
+        if (scores[criterion] is None or provisional) and missing:
             skipped_rules.append(
                 {"rule_id": criterion, "missing_fields": missing, "evidence": []}
             )
-    return {
-        "color": level.name.lower() if level is not None else None,
-        "scores": scores,
-        "requires_review": requires_review,
-        "skipped_rules": skipped_rules,
-    }
+    return resolve_disposition(
+        {
+            "color": level.name.lower() if level is not None else None,
+            "scores": scores,
+            "requires_review": requires_review or bool(skipped_rules),
+            "skipped_rules": skipped_rules,
+        },
+        needs_clinical_review=requires_review or bool(skipped_rules),
+    )
 
 
 def evaluate_checkin(
@@ -148,9 +170,9 @@ def evaluate_checkin(
     whole patient file or reference evaluation. Supported context fields are
     chemotherapy_within_6_weeks, pain_persists_after_rescue_dose, and
     suicide_plan_intent_or_means (bool/None).
-    Missing rule inputs are retained in skipped_rules and excluded from color
-    selection, as requested for this development step. Review issues remain
-    visible even when the evaluated rules return green.
+    Missing inputs remain in skipped_rules. Established symptoms with unknown
+    treatment context and unassessed colored answers retain a provisional
+    higher level under §6.4; an entirely missing criterion does not escalate.
     Additional treatment flags and symptom observations are documented in
     clinical_rules.py and docs/architecture.md; only explicit facts are used.
     """
@@ -169,6 +191,8 @@ def evaluate_checkin(
     skipped_rules = []
     supplied_criteria = set()
     fever_observations = []
+    covered_answers = []
+    covered_measurements = []
     scores = {"fever": None, "oxygen": None, "overall_feeling": None, "pain": None}
 
     def issue(code, message, evidence):
@@ -218,8 +242,16 @@ def evaluate_checkin(
             skip("fever", ["chemotherapy_within_6_weeks"], evidence)
             issue(
                 "chemotherapy_context_unknown",
-                "Ověřte probíhající chemoterapii nebo podání v posledních 6 týdnech; pravidlo bylo přeskočeno.",
+                "Ověřte probíhající chemoterapii nebo podání v posledních 6 týdnech; do vyjasnění platí předběžná červená (§6.4).",
                 evidence,
+            )
+            record(
+                "fever",
+                Severity.RED,
+                "Teplota alespoň 38 °C; kontext chemoterapie není známý. Do vyjasnění platí červená úroveň.",
+                evidence + [treatment_evidence],
+                "§3 / Červená / Horečka",
+                provisional=True,
             )
             return
         if chemotherapy is False:
@@ -257,6 +289,23 @@ def evaluate_checkin(
                 evidence,
                 "§3 / Dýchání",
             )
+        elif (
+            field == "tepova_frekvence"
+            and type(prepared.get("patient_age")) is int
+            and prepared["patient_age"] >= 18
+            and 60 <= value <= 100
+        ):
+            # This reference range resolves a normal isolated pulse, not the
+            # patient's entire state. Other findings and trends still win.
+            record("normal_adult_pulse", Severity.GREEN, "", evidence, "§1 / Zelená")
+            covered_measurements.append(
+                {
+                    "field": field,
+                    "source": PULSE_SOURCE,
+                    "age_source": prepared.get("patient_age_source"),
+                    "evidence": evidence,
+                }
+            )
         elif field not in HANDLED_VITALS:
             issue(
                 "unassessed_measurement",
@@ -275,6 +324,34 @@ def evaluate_checkin(
                 "Odpověď chybí; nelze ji považovat za popření příznaku.",
                 evidence,
             )
+            continue
+        coverage = answer_coverage(answer, prepared["answers"], observations or {})
+        if coverage is not None:
+            kind, missing = coverage
+            covered_answers.append(
+                {
+                    "questionnaire_id": key[0],
+                    "question_id": key[1],
+                    "coverage": kind,
+                    "missing_questions": missing,
+                    "source": f"{RULES_SOURCE}, §1, §4, §6.3; rakathon_meddi_onco_data/docs/dotazniky_definice.json / {key[0]} / {key[1]}",
+                }
+            )
+            if missing:
+                issue(
+                    "missing_followup_answer",
+                    f"Chybí odpovědi pro zvolenou větev: {', '.join(missing)}.",
+                    evidence,
+                )
+            elif kind == "mild":
+                record(
+                    f"mild_answer:{key[0]}:{key[1]}",
+                    Severity.GREEN,
+                    "",
+                    evidence,
+                    "§1 / Zelená / Mírné obtíže",
+                )
+            # Context and routing do not establish a clinical severity on their own.
             continue
         if (
             key in HANDLED_QUESTIONS
@@ -301,7 +378,7 @@ def evaluate_checkin(
                 skip("pain", ["pain_persists_after_rescue_dose"], evidence)
                 issue(
                     "rescue_dose_response_unknown",
-                    "Ověřte, zda silná bolest nepovolila po SOS dávce; pravidlo bylo přeskočeno.",
+                    "Ověřte účinek SOS dávky; do vyjasnění silné bolesti platí předběžná oranžová (§6.4).",
                     evidence,
                 )
             elif score is None:
@@ -329,9 +406,10 @@ def evaluate_checkin(
                 if value <= 6
                 else "Bolest NRS je alespoň 7 a nepovolila po SOS dávce."
                 if persists is True
-                else "Silná bolest vyžaduje upřesnění účinku SOS dávky.",
+                else "Silná bolest vyžaduje upřesnění účinku SOS dávky; do vyjasnění platí oranžová úroveň.",
                 pain_evidence,
                 "§4 / Bolest" if value <= 6 else "§3 / Oranžová / Bolest",
+                provisional=value >= 7 and persists is None,
             )
         elif key == ("bolest_analgeticka_terapie", "sos") and value is not None:
             record(
@@ -370,9 +448,11 @@ def evaluate_checkin(
                 details = context.get("suicide_plan_intent_or_means")
                 record(
                     "suicidal_thoughts",
-                    Severity.RED if details is True else Severity.ORANGE,
+                    Severity.ORANGE if details is False else Severity.RED,
                     "Pacient udává myšlenky na sebevraždu a plán, úmysl nebo prostředky."
                     if details is True
+                    else "Pacient udává myšlenky na sebevraždu; plán, úmysl nebo prostředky nejsou ověřeny. Do vyjasnění platí červená úroveň."
+                    if details is None
                     else "Pacient odpověděl ano na otázku o myšlenkách na sebevraždu.",
                     evidence
                     + [
@@ -383,6 +463,7 @@ def evaluate_checkin(
                         }
                     ],
                     "§3 / Psychika",
+                    provisional=details is None,
                 )
                 if details is None:
                     skip(
@@ -392,7 +473,7 @@ def evaluate_checkin(
                     )
                     issue(
                         "suicide_risk_details_unknown",
-                        "Je nutné ověřit plán, úmysl nebo prostředky; červené pravidlo bylo přeskočeno, známá oranžová zůstává.",
+                        "Je nutné ověřit plán, úmysl nebo prostředky; do vyjasnění platí předběžná červená (§6.4).",
                         evidence,
                     )
             else:
@@ -405,6 +486,16 @@ def evaluate_checkin(
                 "Odpověď zatím není pokryta pravidly tohoto kroku.",
                 evidence,
             )
+            if answer.get("color") in {"yellow", "orange", "red"}:
+                record(
+                    f"unassessed_answer:{answer['questionnaire_id']}:{answer['question_id']}",
+                    Severity[answer["color"].upper()],
+                    f"Odpověď „{answer['question']}“ má nezelený signál a její klinické vyhodnocení není pokryté. Do ověření platí předběžná úroveň podle signálu odpovědi.",
+                    evidence,
+                    "§6.4; rakathon_meddi_onco_data/docs/dotazniky_definice.json / "
+                    f"{answer['questionnaire_id']} / {answer['question_id']}",
+                    provisional=True,
+                )
 
     if len({has_fever for has_fever, _ in fever_observations}) > 1:
         issue(
@@ -445,18 +536,36 @@ def evaluate_checkin(
     skipped_rules.extend(clinical["skipped_rules"])
     review_issues.extend(clinical["review_issues"])
     level = max((score for score in scores.values() if score is not None), default=None)
-    return {
-        "patient_id": prepared.get("patient_id"),
-        "checkin_id": prepared.get("checkin_id"),
-        "color": level.name.lower() if level is not None else None,
-        "scores": scores,
-        "reasons": reasons,
-        "non_green_answers": deepcopy(prepared["non_green_answers"]),
-        "skipped_rules": skipped_rules,
-        "requires_review": bool(review_issues or skipped_rules),
-        "review_issues": review_issues,
-        "scope": "supported_structured_checkin_rules",
-    }
+    return resolve_disposition(
+        {
+            "patient_id": prepared.get("patient_id"),
+            "checkin_id": prepared.get("checkin_id"),
+            "color": level.name.lower() if level is not None else None,
+            "scores": scores,
+            "reasons": reasons,
+            "non_green_answers": deepcopy(prepared["non_green_answers"]),
+            "skipped_rules": skipped_rules,
+            "requires_review": bool(review_issues or skipped_rules),
+            "assessment_status": "incomplete"
+            if review_issues or skipped_rules
+            else "complete",
+            "review_issues": review_issues,
+            "scope": "supported_structured_checkin_rules",
+            "rules_version": TRIAGE_RULES_VERSION,
+            "covered_answers": covered_answers,
+            "covered_measurements": covered_measurements,
+            "reminder_required": prepared.get("status") == "nevyplneno",
+        },
+        needs_clinical_review=(
+            # Unasked, independent criteria remain visible without automatically
+            # creating an alarm. Supplied but unassessed data needs a real next step.
+            any(
+                item["code"] not in {"unresolved_criterion", "checkin_not_completed"}
+                for item in review_issues
+            )
+            or level is None
+        ),
+    )
 
 
 def main():

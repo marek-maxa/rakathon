@@ -12,16 +12,19 @@ from triage import evaluate_intake
     "form, question, value, color",
     [
         ("nezadouci_ucinky", "pocit", 4, "orange"),
-        ("nezadouci_ucinky", "pocit", 0, None),
+        ("nezadouci_ucinky", "pocit", 0, "yellow"),
         ("bolest_analgeticka_terapie", "nrs", 5, "yellow"),
-        ("bolest_analgeticka_terapie", "nrs", 8, None),
-        ("nezadouci_ucinky", "unava", 0, None),
+        ("bolest_analgeticka_terapie", "nrs", 8, "orange"),
+        ("esas", "unava", 8, "red"),
+        ("nezadouci_ucinky", "unava", 0, "yellow"),
     ],
 )
 def test_confirmed_answer_mapping(form, question, value, color):
     session = Intake(load_question(form, question), Mock(return_value=extracted(value)))
     session.submit("Pomůže.")
-    assert evaluate_intake(session.snapshot())["color"] is None
+    draft = evaluate_intake(session.snapshot())
+    assert draft["color"] == "yellow"
+    assert draft["minimum_color"] is None
     result = evaluate_intake(session.confirm())
     assert result["color"] == color
     assert result["requires_review"]  # One answer cannot complete the assessment.
@@ -80,8 +83,11 @@ def test_evaluate_pipeline_packet_with_fever_and_chemo_context():
             }
         ],
     }
-    # Bez kontextu chemoterapie zůstává horečka k posouzení
-    assert evaluate_pipeline_packet(packet)["color"] is None
+    # Neznámý kontext nesmí potlačit předběžnou eskalaci známé horečky (§6.4).
+    provisional = evaluate_pipeline_packet(packet)
+    assert provisional["color"] == "red"
+    assert provisional["requires_review"]
+    assert all(item["provisional"] for item in provisional["reasons"])
 
     # S kontextem chemoterapie je to červená úroveň
     result = evaluate_intake(packet, context={"chemotherapy_within_6_weeks": True})
@@ -104,7 +110,7 @@ def test_pipeline_duration_is_not_a_temperature_measurement():
         ]
     }
     result = evaluate_pipeline_packet(packet, {"chemotherapy_within_6_weeks": True})
-    assert result["color"] is None
+    assert result["color"] == "yellow"
     assert result["scores"]["fever"] is None
 
 

@@ -50,6 +50,11 @@ def build_triage_inputs(patient, checkin):
     assumed available earlier on their start day.
     """
     prepared = prepare_checkin(checkin)
+    # Age is static patient context, needed before applying adult reference
+    # ranges. Do not infer adulthood from the diagnosis or medication names.
+    if "vek" in (patient.get("demografie") or {}):
+        prepared["patient_age"] = patient["demografie"]["vek"]
+        prepared["patient_age_source"] = "demografie.vek"
     # Without a current time, do not expose other records from that day.
     now = instant({**checkin, "cas": checkin.get("cas") or "00:00:00"})
     today = now.date()

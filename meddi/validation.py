@@ -12,6 +12,7 @@ DOMAINS = {
     "systolic_bp": (0, None, False),
     "diastolic_bp": (0, None, False),
     "weight_kg": (0, None, False),
+    "pulse_bpm": (0, None, False),
 }
 UNITS = {
     "temperature_c": {None, "degC", "C", "°C", "celsius"},
@@ -22,6 +23,7 @@ UNITS = {
     "glucose_mmol_l": {None, "mmol/l", "mmol/L", "mmol_l"},
     "weight_kg": {None, "kg"},
     "pain_nrs": {None, "NRS_0_10"},
+    "pulse_bpm": {None, "bpm", "/min", "min-1"},
 }
 VITAL_FIELDS = {
     "teplota_c": "temperature_c",
@@ -30,6 +32,7 @@ VITAL_FIELDS = {
     "tk_dia": "diastolic_bp",
     "glykemie_mmol_l": "glucose_mmol_l",
     "vaha_kg": "weight_kg",
+    "tepova_frekvence": "pulse_bpm",
 }
 
 

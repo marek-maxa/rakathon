@@ -23,6 +23,30 @@ def skipped(result, rule_id):
 
 
 @pytest.mark.parametrize(
+    "observations,context,color",
+    [
+        ({}, {}, "green"),
+        ({}, {"chemotherapy_within_6_weeks": True}, "green"),
+        ({"chills": False}, {}, "green"),
+        ({"chills": True}, {"chemotherapy_within_6_weeks": False}, "green"),
+        ({"chills": True}, {}, "red"),
+    ],
+)
+def test_missing_context_escalates_only_an_established_non_rejected_symptom(
+    observations, context, color
+):
+    result = evaluate(observations, context)
+    assert result["color"] == color
+    if color == "red":
+        why = reason(result, "chemotherapy_chills")
+        assert why["provisional"]
+        assert "§6.4" in why["uncertainty_source"]
+        assert skipped(result, "chemotherapy_chills")["missing_fields"] == [
+            "chemotherapy_within_6_weeks"
+        ]
+
+
+@pytest.mark.parametrize(
     "rule_id,color,observations,context",
     [
         (
@@ -184,7 +208,12 @@ def skipped(result, rule_id):
         ),
         ("reported_oxygen_red", "red", {"spo2_pct": 89}, {}),
         ("reported_oxygen_orange", "orange", {"spo2_pct": 90}, {}),
-        ("reported_suicidal_thoughts", "orange", {"suicidal_thoughts": True}, {}),
+        (
+            "reported_suicidal_thoughts",
+            "orange",
+            {"suicidal_thoughts": True},
+            {"suicide_plan_intent_or_means": False},
+        ),
         (
             "suicidal_thoughts_with_plan",
             "red",
@@ -320,10 +349,11 @@ def test_actual_c02_triggers_yellow_without_using_reference_data():
 )
 def test_pressure_thresholds_use_either_component(systolic, diastolic, color):
     result = evaluate(
+        context={"antiangiogenic_treatment": False},
         vitals={
             "tk_sys": {"hodnota": systolic, "zdroj": "synthetic-cuff"},
             "tk_dia": {"hodnota": diastolic, "zdroj": "synthetic-cuff"},
-        }
+        },
     )
     assert result["color"] == color
     if color == "red":
@@ -352,7 +382,7 @@ def test_pressure_missing_component_does_not_block_proven_red():
         (160, 80, True, "orange"),
         (120, 100, True, "orange"),
         (160, 80, False, "green"),
-        (160, 80, None, "green"),
+        (160, 80, None, "orange"),
     ],
 )
 def test_antiangiogenic_pressure_requires_treatment(
@@ -364,6 +394,7 @@ def test_antiangiogenic_pressure_requires_treatment(
     )
     assert result["color"] == color
     if treatment is None:
+        assert reason(result, "antiangiogenic_hypertension")["provisional"]
         assert skipped(result, "antiangiogenic_hypertension")["missing_fields"] == [
             "antiangiogenic_treatment"
         ]
@@ -410,17 +441,21 @@ def test_each_critical_bleeding_site_is_independently_red(field):
 
 @pytest.mark.parametrize("minutes,color", [(0, "green"), (20, "green"), (20.1, "red")])
 def test_nosebleed_strict_threshold(minutes, color):
-    assert evaluate({"nosebleed_minutes": minutes})["color"] == color
+    assert (
+        evaluate({"nosebleed_minutes": minutes}, {"anticoagulation": False})["color"]
+        == color
+    )
 
 
 @pytest.mark.parametrize(
     "injury,treatment,color",
-    [(True, True, "red"), (True, None, "green"), (False, None, "green")],
+    [(True, True, "red"), (True, None, "red"), (False, None, "green")],
 )
 def test_head_injury_requires_anticoagulation(injury, treatment, color):
     result = evaluate({"head_injury": injury}, {"anticoagulation": treatment})
     assert result["color"] == color
     if injury and treatment is None:
+        assert reason(result, "head_injury_on_anticoagulation")["provisional"]
         assert skipped(result, "head_injury_on_anticoagulation")["missing_fields"] == [
             "anticoagulation"
         ]
@@ -440,12 +475,17 @@ def test_composite_bleeding_answer_does_not_invent_a_bleeding_site():
         == "krvaceni"
     )
     assert "blood_in_stool" in skipped(result, "critical_bleeding")["missing_fields"]
-    assert evaluate_checkin(data)["color"] == "green"
+    unknown = evaluate_checkin(data)
+    assert unknown["color"] == "orange"
+    assert reason(unknown, "bleeding_on_anticoagulation")["provisional"]
 
 
 def test_composite_urinary_answer_does_not_invent_blood_in_urine():
     data = prepared(questionnaire("nezadouci_ucinky", answer("moceni", "Ano", 1)))
-    assert evaluate_checkin(data)["color"] == "green"
+    result = evaluate_checkin(data)
+    assert result["color"] == "yellow"
+    assert reason(result, "unassessed_answer:nezadouci_ucinky:moceni")["provisional"]
+    assert not any(item["rule_id"] == "critical_bleeding" for item in result["reasons"])
 
 
 @pytest.mark.parametrize("hours,color", [(0, "green"), (10, "green"), (10.01, "red")])
@@ -593,7 +633,7 @@ def test_metabolic_red_flags_require_all_symptoms_and_risk_context(treatment):
         (3.99, True, "orange"),
         (4, True, "green"),
         (3, False, "green"),
-        (3, None, "green"),
+        (3, None, "orange"),
     ],
 )
 def test_low_glucose_boundary_and_insulin_context(glucose, insulin, color):
@@ -605,6 +645,7 @@ def test_low_glucose_boundary_and_insulin_context(glucose, insulin, color):
     )
     assert result["color"] == color
     if insulin is None:
+        assert reason(result, "hypoglycemia_on_insulin")["provisional"]
         assert skipped(result, "hypoglycemia_on_insulin")["missing_fields"] == [
             "insulin_treatment"
         ]
@@ -640,7 +681,8 @@ def test_opioid_rule_uses_explicit_symptoms_and_treatment(field):
     assert reason(result, "opioid_red_flags")
     result = evaluate({field: True})
     assert skipped(result, "opioid_red_flags")["missing_fields"] == ["opioid_treatment"]
-    assert result["color"] == ("red" if field == "unresponsiveness" else "green")
+    assert result["color"] == "red"
+    assert reason(result, "opioid_red_flags")["provisional"]
 
 
 def test_nausea_does_not_lower_proven_red_and_keeps_all_reasons():

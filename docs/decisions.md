@@ -2,9 +2,9 @@
 
 Revize požadavků a cíl webu (17. 10. 2026): aktuální
 [plán K0–K10](meddi-onco-plan.md) vychází z opětovného přečtení všech
-dostupných podkladů MEDDI a komentářů týmu. Tým upřesnil rozsah této relace
-na plán a seznam kroků; aplikace a větve se nemění. Následná implementace
-má využít existující prvky ve větvi web. Nahrazuje to starší cílový odklad
+dostupných podkladů MEDDI a komentářů týmu. Původní revize byla omezena
+na plán a seznam kroků. Následný pokyn již povolil merge main do web a
+zobrazení barev i problémů triáže s využitím existujících prvků. Nahrazuje to starší cílový odklad
 webu a interpretace zpráv; historická omezení auditu zůstávají popisem
 tehdejšího rozsahu, ne novým omezením výsledného produktu.
 
@@ -30,6 +30,13 @@ tvrdém pravidle. Důvody a zdroje jsou v návrhu.
 
 | Datum | Rozhodnutí | Důvod |
 | --- | --- | --- |
+| 2026-10-17 | Na pokyn týmu neponechávat nevyhodnocený nezelený signál bez předběžného minima; zachovat vyšší variantu při doložených příznacích a neznámém léčebném/rizikovém kontextu | Reprodukováno neurčeno s červeným ESAS. Pravidla §6.4 požadují vyšší možnou úroveň. Nepokryté signály mají dočasné minimum podle definic a `provisional=true`; známá klinická pravidla mají přednost. ESAS gradient není klinicky ověřený převod, politika může zvyšovat falešné poplachy a vyžaduje kvalifikované review. Report staré výsledky přepočítá ze zmrazených vstupů, originál zůstane zachovaný |
+| 2026-10-17 | Na výslovný pokyn týmu zobrazit triáž ve formuláři až po potvrzení a úspěšném uložení, bez výjimky pro barvu | Během doptávání a kontroly odpovědí se nemá zobrazovat nic navíc. Průběžné vyhodnocení na serveru pokračuje; tento pokyn nahrazuje předchozí návrh průběžného červeného upozornění ve formuláři |
+| 2026-10-17 | Na pokyn týmu sloučit aktuální main do web a připojit zobrazení barvy/důvodů společné triáže | Zachovat rozpracovaný MASTER a úložiště. Formulář používá evaluate_contact, historický report sdílené evaluate_checkin s časovým adaptérem; žádná nová klinická pravidla. Neúplné zelené minimum se zobrazuje jako neurčené |
+| 2026-10-17 | Ukládat celý výstup meddi_contact_assessment/v1 do triage_assessment u potvrzeného webového check-inu | Původní export ztrácel fakta mimo dotazníky; report musí po restartu zobrazit stejné důvody i zdrojový kontakt. Záznam a výsledek se zapíší společně atomicky do pracovní kopie, zdrojový balíček zůstává nezměněný |
+| 2026-10-17 | Na upřesnění týmu ukládat nové check-iny do pracovní kopie `data/pacienti/<patient_id>.json` a číst ji ve webovém reportu | Nahrazuje předchozí samostatné exporty; zachovat původní kontext i historii a neměnit zdrojový balíček ani CLI loader. Atomický zápis a zámek v procesu brání ztrátě historie při souběhu |
+| 2026-10-17 | Obnovit kolegův MASTER formulář z `6aeb385`, potřebný backend z lokálního `main` a doplnit společné potvrzení | Oprava regresí při rebase na pokyn týmu; zachovat výběr profilu i reporty. Návrhy mohou řídit větvení, potvrzené jsou až po kontrole souhrnu; oprava rodiče ruší podřízené návrhy |
+| 2026-10-17 | Potvrzený webový dotazník ukládat atomicky jako samostatný JSON pod vybraným patient_id v ignorovaném `data/` | Vazba na profil místo ID prohlížečové relace, zachování zdrojových pacientů a předchozích průchodů; chyba zápisu dovoluje opakování, dokončený formulář odmítá další změny |
 | 2026-10-17 | V této etapě pouze zdrojovaný plán; další cíl začlenění pipeline do existující větve web | Výslovné upřesnění týmu. Zachovat hotové prvky, nejprve kompatibilita API, pak identita/úložiště a propojení; přenos do větve neznamená ostré klinické nasazení |
 | 2026-10-17 | Všechny nezelené odpovědi i klinické nálezy zařadit mezi klíčové a sledovat jako epizody; zahrnout zlepšení a kontext | Komentáře týmu. Barva odpovědi není úroveň triáže, proto zahrnout také významné zelené/neobarvené vstupy. Aktivní varovné nálezy vedoucí k 3/4 jsou podmnožina klíčových; u 1/2 varovné prázdné. Nejde o nově implementovaný registr |
 | 2026-10-17 | Průběžné urgentní vyhodnocení a závěrečná uložená triáž jsou dva spouštěče stejné služby | Známé kritické minimum nesmí čekat na další cílené LLM volání ani na potvrzení; konec dotazníku vždy vytvoří revizi. Přerušení a chyba mají vlastní neúplný stav, nikoli green |

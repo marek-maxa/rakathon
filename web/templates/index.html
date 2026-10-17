@@ -1,3 +1,4 @@
+{% from '_triage.html' import triage_result %}
 <!doctype html>
 <html lang="cs">
   <head>
@@ -5,22 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MEDDI ONCO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='triage.css') }}">
   </head>
   <body>
     <main class="page">
       <header class="page-header">
         <p class="eyebrow">MEDDI ONCO</p>
         <h1>Pravidelná kontrola</h1>
-        {% if page.number %}
-          <p class="progress">Otázka {{ page.number }} z {{ page.total }}</p>
+        {% if page.patient_id %}
           <p class="progress">Profil: {{ page.patient_name }}</p>
           <a href="{{ url_for('patient_report.report_patient', patient_id=page.patient_id) }}">Přehled stavu pacienta</a>
+        {% endif %}
+        {% if not page.select_patient and not page.done and not page.review %}
+          <p class="progress">{% if page.master %}Úvodní otázka{% else %}Upřesnění podle vaší odpovědi{% endif %}</p>
         {% endif %}
       </header>
       <div id="loading" class="loading" role="status" hidden>
         <span class="spinner" aria-hidden="true"></span>
         <span>Zpracováváme odpověď, chvíli prosím počkejte…</span>
       </div>
+      {% if page.done and page.assessment %}
+        <section class="form-card" aria-label="Triáž podle dostupných údajů" aria-live="polite">
+          <h2>Triáž podle dostupných údajů</h2>
+          {{ triage_result(page.assessment) }}
+        </section>
+      {% endif %}
       <section class="form-card" aria-labelledby="question-title">
         {% if error %}
           <div class="error" role="alert">
@@ -34,20 +44,50 @@
           <form method="post" class="question-form">
             <label for="patient_id">Váš profil</label>
             <select id="patient_id" name="patient_id" required>
-              <option value="" disabled
-                {% if not page.selected_patient %}selected{% endif %}>Vyberte svůj profil</option>
+              <option value="" disabled selected>Vyberte svůj profil</option>
               {% for patient in page.patients %}
-                <option value="{{ patient.id }}"
-                  {% if patient.id == page.selected_patient %}selected{% endif %}>
-                  {{ patient.name }} ({{ patient.id }})
-                </option>
+                <option value="{{ patient.id }}">{{ patient.name }} ({{ patient.id }})</option>
               {% endfor %}
             </select>
             <button type="submit">Pokračovat</button>
           </form>
         {% elif page.done %}
           <h2 id="question-title">Děkujeme</h2>
-          <p>Všechny odpovědi jsou potvrzené.</p>
+          <p>Odpovědi jsou uložené. Odpovědi bez přiřazení zůstávají označené jako nevyřešené.</p>
+        {% elif page.review %}
+          <h2 id="question-title">Zkontrolujte všechny odpovědi</h2>
+          <p>Rozuměli jsme vám správně? Případné chyby opravte a pak potvrďte celý souhrn.</p>
+          <p class="answer-summary">Vaše úvodní zpráva: {{ page.master_text }}</p>
+          <form method="post">
+            <button type="submit" name="restart" value="1">Změnit úvodní zprávu a začít znovu</button>
+          </form>
+          {% if page.gaps %}
+            <p class="notice">Pro část sdělení prototyp nemá navazující otázky. Zpráva zůstává zaznamenaná; nejde o posouzení zdravotního stavu.</p>
+          {% endif %}
+          {% if page.blocked %}
+            <p class="notice">Některé navazující otázky nelze položit bez vyřešení předchozí odpovědi.</p>
+          {% endif %}
+          {% if page.limited %}
+            <p class="notice">Dosáhli jsme limitu dotazů. Zbývající údaje zůstávají nevyřešené; potvrzením se nedoplní.</p>
+          {% endif %}
+          {% for warning in page.warnings %}
+            <p class="notice">{{ warning }}</p>
+          {% endfor %}
+          {% for draft in page.drafts %}
+            <div class="review-answer">
+              <p class="answer-summary">{{ draft.patient_summary() }}</p>
+              {% if draft.state == "unresolved" %}
+                <p>{{ draft.question.text }}</p>
+                <p>Zaznamenáno: {{ draft.snapshot().source_messages | join('; ') }}</p>
+              {% endif %}
+              <form method="post">
+                {% if not page.limited %}<button type="submit" name="edit" value="{{ loop.index0 }}">Opravit odpověď</button>{% endif %}
+              </form>
+            </div>
+          {% endfor %}
+          <form method="post" class="question-form">
+            <button type="submit" name="confirm" value="1">Potvrdit všechny odpovědi</button>
+          </form>
         {% elif page.unresolved %}
           <h2 id="question-title">Odpověď se nepodařilo přiřadit</h2>
           <div class="notice">{{ page.unresolved }}</div>
@@ -55,35 +95,15 @@
           <form method="post" class="question-form">
             <button type="submit" name="continue" value="1">Pokračovat</button>
           </form>
-        {% elif page.intake and page.intake.state == "needs_confirmation" %}
-          <h2 id="question-title">Zkontrolujte navrženou odpověď</h2>
-          <p class="answer-summary">{{ page.summary }}</p>
-          <form method="post" class="question-form">
-            {% if page.kind == "vice" %}
-              <fieldset>
-                <legend>Vyberte odpověď, která vás vystihuje</legend>
-                {% for option in page.options %}
-                  <label class="option">
-                    <input type="checkbox" name="value" value="{{ loop.index0 }}"
-                      {% if loop.index0 in page.value %}checked{% endif %}>
-                    <span>{{ option }}</span>
-                  </label>
-                {% endfor %}
-              </fieldset>
-            {% else %}
-              <label for="value">Upravte nebo potvrďte odpověď</label>
-              <select id="value" name="value">
-                {% for option in page.options %}
-                  <option value="{{ loop.index0 }}"
-                    {% if loop.index0 == page.value %}selected{% endif %}>{{ option }}</option>
-                {% endfor %}
-              </select>
-            {% endif %}
-            <button type="submit">Potvrdit a pokračovat</button>
-          </form>
         {% else %}
           <h2 id="question-title">{{ page.question }}</h2>
           {% if page.instruction %}<p class="instruction">{{ page.instruction }}</p>{% endif %}
+          {% if page.options %}
+            <details>
+              <summary>Ukázat možnosti odpovědi</summary>
+              <p class="answer-summary">{{ page.options }}</p>
+            </details>
+          {% endif %}
           <form method="post" class="question-form">
             <label for="answer">Vaše odpověď</label>
             <textarea id="answer" name="answer" placeholder="Napište svou odpověď" required></textarea>

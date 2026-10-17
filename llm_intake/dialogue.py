@@ -26,6 +26,7 @@ class MasterDialogue:
         extract_with_events: Callable | None = None,
         max_questions: int = 6,
         max_clarifications: int = 2,
+        bulk_confirmation: bool = False,
     ):
         if type(max_questions) is not int or max_questions < 1:
             raise ValueError("Rozpočet kontaktu musí být kladné celé číslo.")
@@ -33,6 +34,8 @@ class MasterDialogue:
             raise ValueError("Limit doptání musí být nezáporné celé číslo.")
         self._extract_message, self._extract_answer = extract_message, extract_answer
         self._extract_with_events = extract_with_events
+        self._bulk_confirmation = bulk_confirmation
+        self._confirmed = False
         self._max_questions, self._max_clarifications = (
             max_questions,
             max_clarifications,
@@ -70,7 +73,9 @@ class MasterDialogue:
             if form in self._flows:
                 self._flows[form].add_targets(targets)
             else:
-                self._flows[form] = QuestionnaireFlow(form, targets=targets)
+                self._flows[form] = QuestionnaireFlow(
+                    form, targets=targets, allow_drafts=self._bulk_confirmation
+                )
 
     def _reserve_question(self):
         if self._questions_asked >= self._max_questions:
@@ -89,7 +94,10 @@ class MasterDialogue:
                     extract_with_events=self._extract_with_events,
                 )
                 self.active = session
-                if self._questions_asked >= self._max_questions:
+                if (
+                    not self._bulk_confirmation
+                    and self._questions_asked >= self._max_questions
+                ):
                     self.state, self._reason = "limited", "question_budget"
                     return
                 related = [
@@ -108,7 +116,9 @@ class MasterDialogue:
                 ]
                 if related:
                     session.seed(related)
-                if session.state == "unresolved":
+                if session.state == "unresolved" or (
+                    self._bulk_confirmation and session.state == "needs_confirmation"
+                ):
                     flow.record(session)
                     self._sessions.append(session)
                     self.active = None
@@ -152,7 +162,9 @@ class MasterDialogue:
         self._messages.append(message)
         self._analyses.append(analysis)
         self.state = self.active.state
-        if self.state == "unresolved":
+        if self.state == "unresolved" or (
+            self._bulk_confirmation and self.state == "needs_confirmation"
+        ):
             self._finish_active()
         elif self.state in {"needs_answer", "needs_confirmation"}:
             self._reserve_question()
@@ -168,6 +180,8 @@ class MasterDialogue:
         self._advance()
 
     def confirm(self) -> dict:
+        if self._bulk_confirmation:
+            raise ValueError("Potvrďte celý souhrn odpovědí.")
         if self.state != "needs_confirmation" or self.active is None:
             raise ValueError("Není co potvrdit.")
         self.active.confirm()
@@ -180,6 +194,49 @@ class MasterDialogue:
         self.active.reject()
         self.state = self.active.state
         self._reserve_question()
+        return self.snapshot()
+
+    @property
+    def review_sessions(self) -> tuple[Intake, ...]:
+        return (*self._sessions, *([self.active] if self.active else []))
+
+    def revise(self, index: int) -> dict:
+        if (
+            not self._bulk_confirmation
+            or self._confirmed
+            or self.state not in {"complete", "unresolved"}
+            or type(index) is not int
+            or not 0 <= index < len(self._sessions)
+        ):
+            raise ValueError("Tuto odpověď nyní nelze opravit.")
+        selected = self._sessions[index]
+        selected.revise()
+        form = selected.question.questionnaire_id
+        removed = self._flows[form].discard(selected.question.id)
+        self._sessions = [
+            session
+            for session in self._sessions
+            if not (
+                session.question.questionnaire_id == form
+                and session.question.id in removed
+            )
+        ]
+        self.active = selected
+        self.state, self._reason = selected.state, None
+        self._reserve_question()
+        return self.snapshot()
+
+    def confirm_all(self) -> dict:
+        if (
+            not self._bulk_confirmation
+            or self._confirmed
+            or self.state not in {"complete", "unresolved", "limited"}
+        ):
+            raise ValueError("Nejprve dokončete všechny otázky.")
+        for session in self.review_sessions:
+            if session.state == "needs_confirmation":
+                session.confirm()
+        self._confirmed = True
         return self.snapshot()
 
     def cancel(self, reason="user_exit"):

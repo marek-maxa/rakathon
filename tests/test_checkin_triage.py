@@ -37,8 +37,8 @@ def reason(result, rule_id):
     [
         (37.99, True, "green", False),
         (38, True, "red", False),
-        (38.1, None, "green", False),
-        (38.1, False, "green", False),
+        (38.1, None, "red", True),
+        (38.1, False, "yellow", False),
     ],
 )
 def test_fever_threshold_and_explicit_treatment_context(
@@ -56,7 +56,12 @@ def test_fever_threshold_and_explicit_treatment_context(
         assert why["evidence"][0]["hodnota"] == temperature
         assert why["evidence"][1]["value"] is chemotherapy
         assert "Horečka" in why["source"]
-        assert not any(item["rule_id"] == "fever" for item in result["skipped_rules"])
+        assert (
+            any(item["rule_id"] == "fever" for item in result["skipped_rules"])
+            is provisional
+        )
+        if provisional:
+            assert "§6.4" in why["uncertainty_source"]
     elif color == "green":
         assert result["reasons"] == []
         assert result["requires_review"]  # Other newly supported rules lack inputs.
@@ -126,8 +131,8 @@ def test_structured_answers_trigger_source_linked_reasons(
     "persists,color,provisional",
     [
         (True, "orange", False),
-        (None, "green", False),
-        (False, "green", False),
+        (None, "orange", True),
+        (False, "yellow", False),
     ],
 )
 def test_severe_pain_does_not_infer_rescue_dose_effect(persists, color, provisional):
@@ -157,7 +162,7 @@ def test_severe_pain_does_not_infer_rescue_dose_effect(persists, color, provisio
     [
         (True, "red", False),
         (False, "orange", False),
-        (None, "orange", False),
+        (None, "red", True),
     ],
 )
 def test_uncolored_suicidal_thoughts_are_not_ignored(details, color, provisional):
@@ -221,21 +226,75 @@ def test_highest_rule_wins_but_all_escalation_reasons_are_preserved():
     }
 
 
-def test_questionnaire_colors_are_not_final_triage():
+def test_unassessed_esas_signal_sets_only_a_provisional_level():
     data = prepared(*neutral_forms(), questionnaire("esas", answer("bolest", 6)))
     assert data["non_green_answers"][0]["color"] == "red"
     result = evaluate_checkin(data)
-    assert result["color"] == "green"
-    assert result["reasons"] == []
+    assert result["color"] == "red"
+    why = reason(result, "unassessed_answer:esas:bolest")
+    assert why["provisional"]
+    assert "§6.4" in why["uncertainty_source"]
+    assert "dotazniky_definice.json" in why["source"]
+    assert why["evidence"][0]["value"] == 6
+    assert result["scores"]["pain"] == 1  # ESAS was not converted to NRS.
     assert result["requires_review"]
     assert result["non_green_answers"] == data["non_green_answers"]
+
+
+@pytest.mark.parametrize(
+    "value,color",
+    [
+        (1, "yellow"),
+        (3, "yellow"),
+        (4, "yellow"),
+        (5, "yellow"),
+        (6, "red"),
+        (10, "red"),
+    ],
+)
+def test_unassessed_esas_preserves_definition_boundaries(value, color):
+    data = prepared(*neutral_forms(), questionnaire("esas", answer("unava", value)))
+    before = deepcopy(data)
+    result = evaluate_checkin(data)
+    assert result["color"] == color
+    assert data == before
+    if value >= 4:
+        assert reason(result, "unassessed_answer:esas:unava")["provisional"]
+        assert result["requires_review"]
+    else:
+        assert reason(result, "clinical_review_required")["provisional"]
+
+
+@pytest.mark.parametrize(
+    "data,color,rule",
+    [
+        (
+            {"temperature_c": 38, "spo2_pct": 97, "pain_nrs": 1, "overall_feeling": 1},
+            "red",
+            "fever",
+        ),
+        (
+            {"temperature_c": 36, "spo2_pct": 97, "pain_nrs": 8, "overall_feeling": 1},
+            "orange",
+            "pain",
+        ),
+    ],
+)
+def test_flat_provisional_level_still_requires_review_when_all_measurements_present(
+    data, color, rule
+):
+    result = evaluate_triage(data)
+    assert result["color"] == color
+    assert result["requires_review"]
+    assert any(item["rule_id"] == rule for item in result["skipped_rules"])
 
 
 def test_uninterpreted_patient_message_is_retained_without_suppressing_color():
     data = prepared(*neutral_forms())
     data["patient_message"] = "V dotazníku jsem se spletl, nemůžu pít."
     result = evaluate_checkin(data)
-    assert result["color"] == "green"
+    assert result["color"] == "yellow"
+    assert result["doporuceny_krok"] == "kontaktovat_tym"
     assert result["requires_review"]
     issue = next(
         item
@@ -245,12 +304,13 @@ def test_uninterpreted_patient_message_is_retained_without_suppressing_color():
     assert issue["evidence"][0]["value"] == data["patient_message"]
 
 
-def test_missing_checkin_never_defaults_to_green():
+def test_missing_checkin_without_known_stability_requires_human_review():
     data = prepare_checkin({"dotazniky": [], "stav": "nevyplneno"})
     result = evaluate_checkin(data)
-    assert result["color"] is None
+    assert result["color"] == "yellow"
+    assert result["minimum_color"] is None
     assert result["requires_review"]
-    assert result["reasons"] == []
+    assert reason(result, "clinical_review_required")
     assert {item["rule_id"] for item in result["skipped_rules"]} >= {
         "fever",
         "oxygen",
@@ -281,11 +341,11 @@ def test_missing_measurements_and_pain_are_skipped_without_blocking_known_green(
     assert result["scores"]["oxygen"] is None  # A skipped rule was not evaluated green.
 
 
-def test_unknown_chemotherapy_does_not_trigger_red_without_other_evaluable_rules():
+def test_known_fever_retains_provisional_red_with_unknown_chemotherapy():
     data = prepared(temperature=38.2, oxygen=None)
     result = evaluate_checkin(data)
-    assert result["color"] is None
-    assert result["reasons"] == []
+    assert result["color"] == "red"
+    assert reason(result, "fever")["provisional"]
     assert next(item for item in result["skipped_rules"] if item["rule_id"] == "fever")[
         "missing_fields"
     ] == ["chemotherapy_within_6_weeks"]
@@ -296,8 +356,12 @@ def test_unknown_rescue_effect_does_not_hide_confirmed_yellow_dose_count():
         questionnaire("bolest_analgeticka_terapie", answer("nrs", 8), answer("sos", 3))
     )
     result = evaluate_checkin(data)
-    assert result["color"] == "yellow"
-    assert {item["rule_id"] for item in result["reasons"]} == {"rescue_dose_count"}
+    assert result["color"] == "orange"
+    assert {item["rule_id"] for item in result["reasons"]} == {
+        "rescue_dose_count",
+        "pain",
+    }
+    assert reason(result, "pain")["provisional"]
     assert any(
         item["missing_fields"] == ["pain_persists_after_rescue_dose"]
         for item in result["skipped_rules"]
@@ -306,14 +370,15 @@ def test_unknown_rescue_effect_does_not_hide_confirmed_yellow_dose_count():
 
 def test_flat_facts_skip_missing_criteria_and_preserve_their_names():
     result = evaluate_triage({"overall_feeling": 1})
-    assert result["color"] == "green"
+    assert result["color"] == "yellow"
+    assert result["minimum_color"] == "green"
     assert result["requires_review"]
     assert {item["rule_id"] for item in result["skipped_rules"]} == {
         "fever",
         "oxygen",
         "pain",
     }
-    assert evaluate_triage({})["color"] is None
+    assert evaluate_triage({})["color"] == "yellow"
 
 
 def test_output_does_not_share_mutable_evidence_with_inputs():
@@ -372,7 +437,10 @@ def test_answers_without_required_rule_details_remain_for_review(question, index
         ),
     )
     result = evaluate_checkin(data)
-    assert result["color"] == "green"
+    assert result["color"] == "red"
+    assert reason(result, f"unassessed_answer:nezadouci_ucinky:{question}")[
+        "provisional"
+    ]
     assert result["requires_review"]
     assert result["non_green_answers"]
     assert any(item["code"] == "unassessed_answer" for item in result["review_issues"])
@@ -383,7 +451,7 @@ def test_unsupported_measurements_and_attachments_remain_separate_from_color():
     data["vital_signs"]["unmapped_sensor"] = {"hodnota": 85, "zdroj": "synthetic"}
     data["attachments"] = [{"popis": "Syntetická příloha"}]
     result = evaluate_checkin(data)
-    assert result["color"] == "green"
+    assert result["color"] == "yellow"
     codes = {item["code"] for item in result["review_issues"]}
     assert {"unassessed_measurement", "unassessed_attachments"} <= codes
 

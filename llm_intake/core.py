@@ -404,6 +404,15 @@ class Intake:
             snapshot["source_events"] = deepcopy(self._source_events)
         return snapshot
 
+    def revise(self) -> None:
+        """Reopen a draft or unresolved answer from the combined review."""
+        if self.state not in {"needs_confirmation", "unresolved"}:
+            raise ValueError("Není co opravit.")
+        self._state = "needs_correction"
+        self._rejections += 1
+        self._clarifications = 0
+        self._unresolved_reason = None
+
     def confirm(self, value=None) -> dict:
         if self.state != "needs_confirmation":
             raise ValueError("Potvrdit lze pouze platný aktuální návrh.")

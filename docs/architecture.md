@@ -1,16 +1,18 @@
 # Technické řešení
 
 Základ: Python 3.12 + uv, Linux / Windows PowerShell. Vývojové nástroje: pytest a Ruff.
-Implementované jsou `llm_intake/` a společné výpočetní jádro `meddi/` bez runtime
-závislostí. Kořenový `triage.py` zachovává starší vstupní funkce a deleguje do
-`meddi/`. Pacientská karta a celá aplikace zatím nejsou implementované.
+Implementované jsou `llm_intake/`, společné výpočetní jádro `meddi/` bez vlastních
+runtime závislostí a ve větvi web formulář Flask s reportem Plotly. Kořenový
+`triage.py` deleguje do `meddi/`. Úplná pacientská karta a orchestrace zůstávají
+v plánu; aktuální propojení webu je popsáno v oddílu Web níže.
 
 ## Aktuální cílový plán pipeline a webu (17. 10. 2026)
 
 [Zdrojovaná specifikace a kroky K0–K10](meddi-onco-plan.md) jsou aktuálním
 plánem po nové revizi všech podkladů MEDDI. Obsahují požadavky P01–P27,
 klinický inventář, datové závislosti, otevřené otázky a podmínky dokončení.
-V této relaci tým zvolil pouze plán; přenos do `web` následuje po domluvě.
+Původní relace zvolila pouze plán. Následný pokyn týmu již povolil merge main
+do web a zobrazení backendových barev a problémů; nejde o splnění celých K2–K10.
 Dosavadní odklad webu a interpretace zpráv byl omezením předchozích etap,
 nikoli cílovým omezením tohoto plánu.
 
@@ -31,10 +33,10 @@ nálezy vedoucí k 3/4 tvoří jejich podmnožinu. Doporučení vychází z nál
 úrovně a pravidel i při úrovni 1/2. Poslední skutečná chemoterapie a odstup
 se dokládají zdrojem, ne jen existencí cyklu.
 
-Webový snapshot `origin/web=6aeb385` má nekompatibilní potvrzovací API a
+Historický webový snapshot `origin/web=6aeb385` měl nekompatibilní potvrzovací API a
 ztrátový export. Přesný plán zachování Flasku, formuláře, stylů a JS je
-v §8 specifikace. Aktuální main modul `web` nemá; příkaz
-`uv run --locked python -m web.app` bude platný až po K1 ve větvi web.
+v §8 specifikace. Samostatný main modul `web` nemá; ve sloučené větvi web již platí
+`uv run --locked python -m web.app` a společné potvrzovací API je doplněné.
 Existující backendový příkaz je níže. Nové úložné/API návrhy ve specifikaci
 nejsou dosud volatelné moduly.
 
@@ -66,13 +68,33 @@ Neúplné zelené minimum se navenek vrací jako `color=null`, známé vyšší 
 zůstává zachováno. Společná validace odmítá NaN/nekonečno, neplatné domény
 a jednotky. Dlouhodobá bolest na hrudi již není chybně vykládána jako její negace.
 
+Bezpečnostní oprava 17. 10. 2026 (`rules_version=2`): nepokryté nezelené
+odpovědi včetně ESAS zachovávají předběžné minimum podle signálu odpovědi.
+Již vyhodnocené odpovědi se řídí klinickým pravidlem: pocit 5 zůstává oranžový,
+i když má možnost v dotazníku červenou. Doložené příznaky s neznámým léčebným
+kontextem zachovají vyšší variantu, pokud nechybí další příznaky pravidla.
+Horečka ≥38 °C s neznámou chemoterapií a suicidální myšlenky s neznámým
+plánem mají předběžnou červenou; NRS ≥7 s neznámým účinkem SOS oranžovou.
+`provisional=true`, zdroj §6.4 a chybějící vstupy zůstávají viditelné;
+neznámé hodnoty se nepřepisují na true. Samotná absence příznaků ve vstupu
+nespouští alarm. Zdroj: `rakathon_meddi_onco_data/docs/pravidla_triaze.md`,
+§3 a §6.4; signály odpovědí z `docs/dotazniky_definice.json` ve stejném balíčku,
+u ESAS pouze zobrazovací gradient. Předběžná politika nenahrazuje chybějící
+klinické mapování ESAS a vyžaduje kvalifikované ověření.
+
+Report při staré/chybějící `rules_version` přepočítá uloženou triáž výhradně
+z jejích zmrazených `triage_inputs`, zachová původní kontakt a neúplnost adaptéru.
+Původní záznam na disku nemění; novější historii ani léčbu nepoužije.
+Tento aktuální kontrakt nahrazuje níže uvedené historické přeskakování
+rizikových pravidel při neznámém kontextu.
+
 Offline syntetický průchod na Linuxu i v PowerShellu:
 
 ```text
 uv run --locked python -m meddi.pipeline meddi/contact.example.json --snapshot meddi/snapshot.example.json --output assessment.json
 ```
 
-Web ani jeho API se neupravovaly. Historické review níže vysvětluje důvody
+Při původním sjednocení backendu se web ani jeho API neupravovaly. Historické review níže vysvětluje důvody
 změny; popis dvou nezávislých sad pravidel už není aktuálním integračním rozhraním.
 
 ## Revize připravenosti před sjednocením (16. 10.)
@@ -529,13 +551,81 @@ není totéž jako pravidlo o nevyplněných check-inech (§4 pravidel).
 
 Spusťte z kořene `uv run python web/app.py`. Web při startu automaticky načte
 `llm_intake/.env`; existující proměnné prostředí mají přednost.
-Po výběru profilu se zobrazí tři pevné otázky. LLM navrhne odpověď; pacient ji
-potvrdí nebo upraví, nevyřešenou odpověď může ponechat bez přiřazení a pokračovat.
-Stav intake zůstává v paměti procesu a po restartu se ztratí. Historický report
-profilu je dostupný na `/patients/<patient_id>/report` a zpracovává jej
-samostatný `patient_report` blueprint. Report není výsledkem nového intake ani
-úplná klinická triáž. Chyby odeslání formuláře se zobrazují jako samostatná
+Po výběru profilu následuje úvodní „Jak se dnes cítíte?“ a cílené doptání podle
+sdělení. `MasterDialogue` používá `MasterExtractor`, katalog témat a podmínky
+zdrojových dotazníků. Web zapíná `bulk_confirmation=True`: návrhy se kontrolují
+společně, jednotlivou odpověď lze slovně opravit nebo začít úvodní zprávu znovu.
+Profil při tomto restartu zůstává vybraný. Výchozí `MAX_QUESTIONS=6` omezuje
+počet skutečně položených otázek včetně úvodní; nevyřešené údaje se nedomýšlejí.
+
+Rozpracovaná relace zůstává v paměti procesu. Teprve potvrzení souhrnu atomicky
+přidá nový check-in do UTF-8 JSON `data/pacienti/<patient_id>.json`.
+`DATA_DIR` ve Flask konfiguraci mění kořen výstupu; výchozí je `data/` v kořeni
+repozitáře, ignorovaný Gitem. `patient_id` v cestě, obálce i check-inu pochází
+z profilu vybraného na začátku, nikoli z dalšího POSTu ani z ID prohlížečové relace.
+Existující pracovní kopie zachovává veškerý kontext i historii; pokud dosud není,
+`web.patient_store` ji vytvoří z původního `rakathon_meddi_onco_data/pacienti/`.
+Zdrojové pacientské JSON se nepřepisují. Export přes `web.export.meddi_record`
+vytvoří check-in se zprávami a odpověďmi v dodaném formátu; nevyřešené odpovědi
+mají `null`. Nové záznamy přibývají do `checkiny`, ostatní pole se nemění.
+Zámek v rámci jednoho procesu chrání načtení, přidání i zápis proti souběhu
+prohlížečových relací; opakované `checkin_id` se podruhé nepřidá.
+Zápis používá dočasný soubor ve stejném adresáři a `Path.replace`. Při chybě
+zápisu zůstává souhrn nepotvrzený a lze jej znovu uložit. Po úspěchu server
+odmítá další potvrzení, odpovědi i opravy; výslovný restart založí nový průchod.
+Uložené soubory přetrvají restart serveru; rozpracované relace se neobnovují.
+
+Report profilu je dostupný na `/patients/<patient_id>/report` a zpracovává jej
+samostatný `patient_report` blueprint. Přednostně načítá pracovní kopii včetně
+nových uložených odpovědí, jinak původní data. Report není úplná klinická triáž.
+Referenční `ground_truth` se do ukládání ani reportu nepřimíchává; původní
+`meddi.loader` pro CLI a vyhodnocování stále načítá nezměněný zdrojový balíček.
+Chyby odeslání formuláře se zobrazují jako samostatná
 upozornění.
+
+### Propojení barev a problémů s aktuálním backendem
+
+Po návratu `MasterDialogue.start/submit` a znovu po `confirm_all` web volá
+`web.triage.assess_contact(packet, patient, at)` → `meddi.pipeline.evaluate_contact`.
+Používá fakta kontaktu a časově omezený léčebný kontext z existujícího
+`build_triage_inputs`; stará měření nepovažuje za aktuální. Zobrazuje `color`,
+`reasons` a `requires_review`. Neúplné zelené minimum zůstává navenek neurčené.
+Barvy a důvody nepočítá LLM ani nová webová sada klinických pravidel.
+Podle upřesnění týmu se ve formuláři celý blok triáže zobrazí teprve po
+potvrzení a úspěšném uložení záznamu (`page.done`), pro všechny barvy.
+Během doptávání a kontroly souhrnu se nezobrazuje ani průběžné upozornění.
+Průběžný výpočet na serveru zůstává zachovaný; neukončuje sběr odpovědí.
+
+Atomicky ukládaný check-in má navíc `triage_assessment`: celý výstup
+`meddi_contact_assessment/v1` včetně `intake`, důkazů a nevyřešených vstupů.
+Report zobrazuje tento uložený výsledek i po ztrátě relace. Pro starší záznamy
+bez něj volá `build_triage_inputs` → `meddi.triage.evaluate_checkin` v čase
+každého check-inu a neúplné zelené minimum rovněž prezentuje jako neurčené.
+Poslední výsledek vybírá podle času, nikoli podle nejhorší historické barvy.
+Přehled definovaných barev odpovědí a původní přehled samostatných prahů měření
+zůstávají doplňkovými pohledy; nejsou výslednou kontextovou triáží.
+
+Sdílená šablona `_triage.html` přidává textové štítky barev, důvody a ve
+zdravotnickém reportu zdroje pravidel, `review_issues` a počty dalších problémů.
+Reference ani `nazev_scenare` do rozhodování nevstupují.
+Zdroj klinických pravidel se nemění: `pravidla_triaze.md`, §3–6; rozsah a známé
+rozpory definic jsou v [backend.md](backend.md). Kvalifikované klinické review
+zůstává nutné. Bezpečnostní bod před dalším cíleným LLM voláním, kontakty,
+doporučení a úplná orchestrace K4–K6 nejsou tímto zobrazením implementované.
+
+```text
+uv run --locked pytest tests/test_web_triage.py tests/test_survey_recovery.py tests/test_patient_report.py -q
+```
+
+Backend obnovený z lokálního `main` zachovává samostatný `Intake` a standardní
+potvrzování po otázkách. Webová varianta přidává `review_sessions`, `revise(index)`
+a `confirm_all()`. Podmíněné větve lze v této variantě projít podle návrhu,
+aniž by se stal potvrzenou odpovědí. Oprava rodiče zneplatní jeho podřízené
+odpovědi; potvrzení souhrnu nepotvrdí nevyřešené položky. Nejde o triáž.
+
+```text
+uv run --locked pytest tests/test_survey_recovery.py tests/test_web.py tests/test_patient_report.py -q
+```
 
 ## Minimální propojení intake → triáž
 
@@ -824,8 +914,9 @@ uv run --env-file llm_intake/.env python -m llm_intake --question unava
 uv run python -m pytest tests/test_llm_intake.py -q
 ```
 
-Rozsah: jedna otázka a potvrzovací cyklus; průchod podmíněnými otázkami,
-pacientská karta, časování a triáž zůstávají oddělené. Testy nahrazují LLM i HTTP
+Samostatný `Intake` řeší jednu otázku a potvrzovací cyklus; webový MASTER průchod
+nad ním řeší témata a podmíněné větve, jak je popsáno výše. Pacientská karta,
+časování a triáž zůstávají oddělené. Testy nahrazují LLM i HTTP
 transport. Živé volání brány se syntetickou odpovědí je ověřené; systematické
 měření kvality modelu zůstává další krok. Export přidává `signaly_odpovedi`:
 původní barvy možností načítá deterministicky kód, nejsou výslednou triáží.
@@ -959,8 +1050,11 @@ s. 7 a 10. Rozdělení komponent výše je náš návrh, ne předepsaná archite
 - Po funkčním průchodu: jednoduché UI, ukládání stavu a způsob předvedení.
 - Nakonec: popis budoucí integrace MEDDI. API na akci není (zadání, s. 12).
 
-API adaptér je ověřený na dodané bráně se syntetickou odpovědí. LLM dostává
-pouze jednu otázku, interní texty možností a odpovědi k ní, nikoli barvy.
+API adaptér byl ověřený na dodané bráně se syntetickou odpovědí pro samostatný
+Intake. Cílený extraktor dostává jednu otázku, interní texty možností a odpovědi
+k ní, nikoli barvy. MASTER extraktor dostává úvodní či navazující zprávu a katalog
+témat; ID pacienta a systémové časy se do jeho promptu neposílají. Obnovení webu
+bylo ověřeno bez sítě, nikoli novým živým voláním modelu.
 
 ## Příkazy
 

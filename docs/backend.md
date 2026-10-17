@@ -110,7 +110,7 @@ Výstup je JSON `kind=meddi_contact_assessment`, `schema_version=1`:
 
 | Pole | Význam |
 | --- | --- |
-| `minimum_color` | Maximum úrovní prokázaných implementovanými pravidly; green znamená jen neprokázanou eskalaci |
+| `minimum_color` | Maximum doložených a výslovně předběžných úrovní; green znamená jen neprokázanou eskalaci |
 | `color` | Známá eskalace, nebo null při neúplném posouzení se zeleným minimem |
 | `assessment_status`, `requires_review` | Complete/incomplete a potřeba dořešení; complete platí jen pro implementovaný rozsah |
 | `scores`, `reasons` | Skóre, důvody, zdrojový oddíl pravidel a důkazy |
@@ -119,12 +119,29 @@ Výstup je JSON `kind=meddi_contact_assessment`, `schema_version=1`:
 | `triage_inputs` | Přesné `prepared`, `context`, `observations` použité jádrem včetně odkazů na zdroje |
 | `intake` | Hluboká kopie celého původního paketu: zprávy, fakta, odpovědi, potvrzení a stav dialogu |
 | `evaluated_at` | Čas přehrávání s pásmem |
+| `rules_version` | Verze politiky pravidel; aktuálně 2, umožňuje reportu přepočítat staré výsledky z původních vstupů |
 
 `color=red` a `assessment_status=incomplete` se nevylučují. Chybějící vstupy
 jiných pravidel neruší známé červené minimum. Null není zelená ani automaticky
 červená. `skipped_rules` se nemají mechanicky proměnit v desítky otázek pacientovi.
 Karta má zachovat kontakt a vyhodnocení zvlášť; `triage_inputs` jsou odvozené
 vstupy, nikoli náhrada zdrojových zpráv a skutečných potvrzení.
+
+Od bezpečnostní opravy 17. 10. (`rules_version=2`) se nepokrytá nezelená odpověď
+uchová jako předběžná úroveň podle jejího zdrojového signálu, včetně ESAS.
+Vyhodnocené klinické pravidlo má přednost před barvou možnosti (např. pocit 5
+→ oranžová). Pokud pravidlo má doložené příznaky a chybí pouze léčebný/rizikový
+kontext, zachovává vyšší možnou úroveň. To platí také pro horečku ≥38 °C bez
+známé chemoterapie, NRS ≥7 bez známého účinku SOS a suicidální myšlenky bez
+ověřeného plánu. Důvod má `provisional=true` a `uncertainty_source` s §6.4;
+`skipped_rules` nadále eviduje chybějící podmínky. Nepotvrzené návrhy odpovědí,
+budoucí/expirované údaje ani pouhá chybějící měření žádné minimum nevytvářejí.
+Jde o konzervativní dočasnou politiku; ESAS gradient sám není klinické mapování.
+Zdroj: pravidla §3, §6.4 a `dotazniky_definice.json`, ESAS / poznamka.
+
+Web staré uložené výsledky přepočítává z uložených `triage_inputs`, bez změny
+záznamu na disku a bez současných/budoucích údajů pacienta. Zachovává `intake`,
+`evaluated_at`, problémy adaptéru a neúplnost původního posouzení.
 
 ## Lokální průchod bez API a tokenů
 
@@ -152,9 +169,10 @@ zeleného minima + review; konzervativní prezentaci dělá nová fasáda.
 
 Zdroj: `rakathon_meddi_onco_data/docs/pravidla_triaze.md`, §3 a §6.2–6.4;
 definice odpovědí: `rakathon_meddi_onco_data/docs/dotazniky_definice.json`.
-Nejde o úplné klinické ověření protokolu. Obecné intervaly a podložené nejisté
-alternativy ještě neumíme vyhodnotit podle celého §6.4, pouze je zachovat a
-označit neúplnost. Časování, relevantnost chybějících podmínek, intervence týmu
+Nejde o úplné klinické ověření protokolu. Předběžná politika výše pokrývá
+nevyhodnocené signály odpovědí a neznámý kontext při doložených příznacích.
+Obecné intervaly a alternativy s chybějícími příznaky stále pouze zachováváme
+a označujeme jako neúplné. Časování, relevantnost chybějících podmínek, intervence týmu
 a napojení vyhodnocení po každém tahu jsou úkolem nadřazené orchestrace.
 Zůstávají rozpory zdroje NRS 0–10 vs. typ škály 1–10 a průjem >7 vs. ≥7;
 zdrojový JSON ani LLM prompt se v tomto kroku neměnily. Backendové pravidlo

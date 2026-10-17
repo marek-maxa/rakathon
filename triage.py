@@ -35,11 +35,8 @@ __all__ = [
 def evaluate_triage(data):
     """Legacy flat inputs; known minimum is separate from assessment completeness."""
     result = _evaluate_flat(data)
-    minimum = result["color"]
     return {
         **result,
-        "minimum_color": minimum,
-        "color": None if minimum == "green" and result["requires_review"] else minimum,
         "assessment_status": "incomplete" if result["requires_review"] else "complete",
         "scope": "flat_four_criteria",
     }

@@ -1,5 +1,12 @@
 # LLM intake: jedna otázka a potvrzení
 
+Web navíc používá obnovený `MasterDialogue`: úvodní zpráva → témata a podmíněné
+otázky → společná kontrola návrhů (`bulk_confirmation=True`). `review_sessions`
+vrací návrhy, `revise(index)` otevře slovní opravu a zneplatní podřízené odpovědi,
+`confirm_all()` potvrdí pouze vyřešené návrhy. Výchozí režim nadále potvrzuje
+jednotlivé otázky. Ukládání souhrnu pro vybraný profil řeší web; podrobnosti
+jsou v [architektuře](../docs/architecture.md#web).
+
 Samostatný modul pro první experimenty. Pacient vidí otázku a odpovídá vlastními
 slovy. LLM sémanticky přiřadí odpověď k možnosti z interních definic a pacient
 potvrdí její slovní znění. Nabídka možností se pacientovi předem nezobrazuje.

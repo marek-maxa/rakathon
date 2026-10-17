@@ -144,6 +144,7 @@ def test_three_missed_forms_count_history_and_reset_after_completion():
             stav="nevyplneno",
             dotazniky=[],
             vitalni_funkce=None,
+            prilohy=[],
         )
         patient["checkiny"].append(item)
         prepared, context, observations = build_triage_inputs(patient, item)
@@ -231,15 +232,15 @@ def test_cli_lower_filter_still_reports_the_full_summary(monkeypatch, capsys):
     assert "Matches: 0/2" in output
 
 
-def test_compares_rule_results_by_id_and_preserves_undetermined():
+def test_compares_rule_results_by_id_and_preserves_review_disposition():
     result = app.compare_patient(patient_with_checkins(), references())
     assert result[0]["rules_color"] == "yellow"
     assert result[0]["reference_color"] == "yellow"
     assert result[0]["comparison"] == "match"
     assert result[0]["reference_reason"] == "Reference first"
-    assert result[1]["rules_color"] is None
+    assert result[1]["rules_color"] == "yellow"
     assert result[1]["reference_color"] == "green"
-    assert result[1]["comparison"] == "undetermined"
+    assert result[1]["comparison"] == "higher"
     assert app.count_matches([{"checkins": result}]) == (1, 2)
 
 
@@ -292,7 +293,7 @@ def test_rejects_ambiguous_or_missing_reference_pairs(problem):
         app.compare_patient(patient, refs)
 
 
-def test_missing_rescue_response_does_not_create_an_escalation_or_hide_red():
+def test_missing_rescue_response_retains_provisional_orange_without_hiding_red():
     patient = patient_with_checkins()
     patient["checkiny"][0]["dotazniky"] = [
         questionnaire("bolest_analgeticka_terapie", answer("nrs", 7)),
@@ -307,8 +308,8 @@ def test_missing_rescue_response_does_not_create_an_escalation_or_hide_red():
     )
     patient["checkiny"][0]["dotazniky"].pop()
     result = app.compare_patient(patient, references())
-    assert result[0]["rules_color"] == "green"
-    assert not result[0]["provisional"]
+    assert result[0]["rules_color"] == "orange"
+    assert result[0]["provisional"]
 
 
 @pytest.mark.parametrize("details", [False, True])
@@ -324,7 +325,7 @@ def test_cli_prints_every_checkin_and_optional_reasons(monkeypatch, capsys, deta
     assert output.count("synthetic-C01") == 1
     assert output.count("synthetic-C02") == 1
     assert "undetermined" in output
-    assert "Matches: 1/2; undetermined: 1; review: 2" in output
+    assert "Matches: 1/2; undetermined: 0; review: 2" in output
     assert ("Reference first" in output) is details
     assert ("Bolest NRS je mezi 4 a 6." in output) is details
     assert ("Skipped [oxygen]: missing spo2_pct" in output) is details

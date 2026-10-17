@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .clinical_rules import CONTEXT_FLAGS, OBSERVATION_FLAGS, OBSERVATION_NUMBERS
+from .disposition import resolve_disposition
 from .form import QUESTIONNAIRE_DEFINITIONS, prepare_checkin
 from .triage import evaluate_checkin
 from .validation import number
@@ -495,26 +496,32 @@ def evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None):
         or packet.get("unmapped_concepts")
         or packet.get("unknown_subject_fact_indices")
     )
-    minimum = result["color"]
-    return {
-        **result,
-        "kind": "meddi_contact_assessment",
-        "schema_version": 1,
-        "evaluated_at": moment.isoformat() if moment else None,
-        "minimum_color": minimum,
-        "color": None if minimum == "green" and incomplete else minimum,
-        "assessment_status": "incomplete" if incomplete else "complete",
-        "requires_review": incomplete,
-        "adapter_issues": issues,
-        "unprocessed_facts": unused,
-        "deferred_inputs": deferred,
-        "triage_inputs": {
-            "prepared": prepared,
-            "context": treatment,
-            "observations": dict(observations),
+    return resolve_disposition(
+        {
+            **result,
+            "kind": "meddi_contact_assessment",
+            "schema_version": 1,
+            "evaluated_at": moment.isoformat() if moment else None,
+            "assessment_status": "incomplete" if incomplete else "complete",
+            "requires_review": incomplete,
+            "adapter_issues": issues,
+            "unprocessed_facts": unused,
+            "deferred_inputs": deferred,
+            "triage_inputs": {
+                "prepared": prepared,
+                "context": treatment,
+                "observations": dict(observations),
+            },
+            "intake": deepcopy(packet),
         },
-        "intake": deepcopy(packet),
-    }
+        needs_clinical_review=bool(
+            result["needs_clinical_review"]
+            or issues
+            or unused
+            or packet.get("unmapped_concepts")
+            or packet.get("unknown_subject_fact_indices")
+        ),
+    )
 
 
 def main():

@@ -4,15 +4,23 @@ Stavy: `todo`, `doing`, `blocked`, `done`. Jeden vlastník na úkol.
 Implementační kroky zahajujeme po společné domluvě, postupně.
 
 Aktuální navazující pořadí K1–K10 a přijímací podmínky určuje
-[plán pipeline a webu](meddi-onco-plan.md), §9. V této relaci tým výslovně
-zvolil pouze plán. Starší `todo` níže zůstávají jako historie a tematický
+[plán pipeline a webu](meddi-onco-plan.md), §9. Původní relace zvolila pouze plán;
+následně tým povolil merge main do web a napojení zobrazení barev a problémů.
+Starší `todo` níže zůstávají jako historie a tematický
 backlog; při další práci je konkretizovat příslušným K krokem, nespouštět
 všechny souběžně. Dřívější odklad webu není cílovým omezením nového plánu.
 
 | Úkol / rozsah souborů | Vlastník | Stav | Hotovo, když |
 | --- | --- | --- | --- |
+| Audit nadměrné eskalace po odstranění neurčeno; coverage, triáž, testy a docs/triage-coverage-audit.md | Aktuální relace / web | doing | Vysvětlené příčiny všech 109 review-only žlutých výsledků. Běžné/mírné odpovědi a vyřešené větvení se skutečně vyhodnotí; neodkládat chybějící odpovědi, texty nebo neznámé měření jen kvůli počtu zelených. Ověřit celou časovou sadu i syntetické proti-příklady bez použití referencí při rozhodování |
+| Nahradit konečné neurčeno konkrétním krokem; meddi/disposition.py, triage/pipeline, webový adaptér a šablony, testy a docs/ | Aktuální relace / web | doing | Každý posuzovaný kontakt má úroveň 1–4 a doporučený kontakt/krok. Nevyhodnocené aktuální údaje vedou alespoň ke žluté; neúplnost zůstává oddělená, známá 3/4 se nesnižuje, neaktivní hypotetická pravidla neeskalují rutinní záznamy. Ověřit uložené výsledky, Patient 1 a celé testy |
+| Zachovat rizikovou úroveň při neúplné triáži; meddi/triage.py, meddi/clinical_rules.py, web/triage.py, regresní testy a docs/ | Aktuální relace / web | done | Nepokryté nezelené odpovědi a doložené příznaky s neznámým léčebným kontextem mají zdrojované předběžné minimum; známé klinické pravidlo má přednost. Staré reporty se přepočítají ze zmrazených vstupů. 608 testů, Ruff, formát změněného Pythonu a git diff --check prošly; 14 reportů / 174 místních check-inů bez neurčené triáže s oranžovou/červenou odpovědí. Klinické mapování neobarvených odpovědí a kontrola falešných poplachů zůstávají otevřené |
+| Opravit předčasné zobrazení výsledku triáže; web/templates/index.html, tests/test_survey_recovery.py, docs/ | Aktuální relace / web | done | Triáž všech barev se zobrazí až po potvrzení a úspěšném uložení; během doptávání a kontroly souhrnu žádný blok triáže ani průběžné upozornění. Prošlo 39 webových testů bez sítě, Ruff, formát a git diff --check |
+| Sloučit aktuální main do web a zobrazit barvu i problémy společné triáže; web/triage.py, web/app.py, report, šablony/CSS, testy a docs/ | Aktuální relace / web | done | Zachované rozpracované změny, merge 272581c, backendové důvody a neúplnost ve formuláři i reportu; uložené vyhodnocení s celým kontaktem; 583 testů, Ruff, formát a všech 14 reportů prošlo bez sítě |
+| Ukládat dotazníky do pracovní kopie pacienta; web/app.py, web/patient_store.py, web/patient_report.py, tests/test_survey_recovery.py, README.md, docs/ | Aktuální relace / web | done | Nové check-iny přibývají do data/pacienti/<patient_id>.json, zůstává historie a kontext, originály se nemění, report načítá pracovní kopii a zápis je atomický |
+| Obnovit webový MASTER průchod po chybném rebase; web/, llm_intake/, tests/, README.md, docs/, .gitignore | Aktuální relace / web | done | Zachované profily a reporty, cílené doptání a společná kontrola odpovědí; atomické uložení pod vybraným pacientem, ochrana dokončeného formuláře a ověření bez sítě |
 | Úplná revize zadání a plán pipeline → web; docs/meddi-onco-plan.md, challenge.md, architecture.md, decisions.md, tasks.md, README.md, historické přehledy | Aktuální relace / main | done | Všechny dostupné podklady MEDDI znovu přečtené; 27 zdrojovaných požadavků, zpracované komentáře týmu, 12 otevřených závislostí a kroky K0–K10 s podmínkami dokončení. Prošlo 543 testů, Ruff, strukturovaný replay, 65 místních odkazů a kontrola úplnosti seznamů. Pouze dokumentace podle upřesnění týmu; aplikace ani větve se neměnily |
-| K1 · kompatibilní webový základ; existující web/, manifest a lock ve větvi web | Tým | todo | Domluvené převzetí aktuálního backendu, zachovaný formulář a vzhled, skutečné API MASTER/doptání/potvrzení/opravy; podmínky v plánu §9 |
+| K1 · kompatibilní webový základ; existující web/, manifest a lock ve větvi web | Aktuální relace / web | done | Main převzat, zachovaný formulář, styly a JS, skutečné API MASTER/doptání/společného potvrzení/opravy ověřené falešným LLM; stav sběru je oddělený od backendové triáže. K2–K10 tím nejsou splněné |
 | K2 · stabilní identita a úplné uložení; úložný adaptér, karta, web/app.py a export | Tým | todo | Originál před LLM, celý paket a revize po načtení, neúplnost a autor zachované, ochrana před duplicitami; závisí na domluveném kontraktu |
 | K3 · časový kontext a poslední chemoterapie; patient_inputs, karta a adaptér | Tým | todo | Skutečné podání oddělené od plánu a typu cyklu, odstup se zdrojem, časová hranice bez budoucích informací; po K2 |
 | K4 · průběžná a závěrečná orchestrace; aplikační služba, dialogue, web | Tým | todo | Vyhodnocení před dalším cíleným LLM voláním, okamžitá red instrukce, závěrečná/přerušená revize uložená bez ztráty faktů; po K2/K3 |
@@ -44,7 +52,6 @@ všechny souběžně. Dřívější odklad webu není cílovým omezením novéh
 | Sloučit dokumentaci triáže a LLM intake před commitem; docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Zachované obě implementace a historie rozhodnutí, sjednocený popis aktuálního stavu; 59 testů a Ruff prošly |
 | Minimálně propojit potvrzený intake s triáží; triage.py, llm_intake/__main__.py, tests/test_triage_intake.py, docs/ | Aktuální relace / main | done | CLI po potvrzení vypíše barvu či neurčeno; mapuje pocit a NRS, neodvozuje chybějící fakta; 65 testů a Ruff prošly |
 | Vícekrokový formulář propojený s backendem; web/, llm_intake/core.py, tests/test_web.py, docs/, README.md, pyproject.toml, uv.lock | Aktuální relace / main | done | Nechat chatové bubliny mimo rozhraní; serverové formuláře, potvrzení/upravení výběru, doptání, pokračování bez přiřazení a chyby zřetelně oddělené od formuláře |
-
 | Návrh MASTER QUESTION a propojení; docs/master-question.md, docs/architecture.md, docs/decisions.md, docs/tasks.md | Aktuální relace / main | done | Prověřené aktuální moduly a podklady; zdrojované mezery, tok zprávy/faktů/otázek/karty, konzervativní triáž bez falšování faktů, limity zátěže a malé implementační kroky; zatím jen návrh bez změny běžícího API |
 | Minimální LLM kontrakt faktů a první katalog; llm_intake/master_contract.py, llm_intake/question_catalog.py, llm_intake/master_examples.json, llm_intake/MASTER_CONTRACT.md, tests/test_master_contract.py, docs/ | Aktuální relace / main | done | Samostatný formát zprávy a faktů se zdrojem, časovým textem a nejistotou; 49 dvojic ID a první vazby šesti témat, pět syntetických příkladů; 86 testů a Ruff prošly, bez zásahů do triáže, karty a intake v2 |
 | Extraktor MASTER QUESTION nad připraveným kontraktem; llm_intake/master.py, master_prompt.md, master_schema.json, client.py, ukázkové JSON, tests/test_master_extraction.py a docs/ | Aktuální relace / main | done | Striktní extrakce s pěti příklady a sdíleným transportem, kandidáti a nepokryté pojmy, CLI nad zaznamenanou zprávou; 149 testů a tři živé syntetické scénáře prošly. Bez triáže, karty a automatického rozhovoru |
@@ -58,6 +65,36 @@ všechny souběžně. Dřívější odklad webu není cílovým omezením novéh
 | První průchod načtení → triáž → výstup | Nepřiřazeno | todo | Po domluvě předchozího kroku konkretizovat soubory; jeden případ běží s dohledatelnými důvody a bez budoucích dat či referencí ve vstupu |
 | Vyhodnocení všech šesti povinných situací a hraničních vstupů | Nepřiřazeno | todo | Časové přehrávání, podhodnocení závažnosti a zbytečné poplachy mají ověřitelné výsledky; klinickou interpretaci prošel mentor |
 | Demo pro pacienta a tým, návrh integrace | Nepřiřazeno | todo | Srozumitelný další krok, souhrn a simulované upozornění; opakovatelný scénář i záloha bez externí služby |
+
+Bezpečnostní oprava neúplné triáže 17. 10. 2026: podle pravidel §3 a §6.4
+zavedené předběžné minimum pro nepokryté nezelené odpovědi a doložené
+příznaky s neznámým léčebným/rizikovým kontextem. Reprodukované neurčeno
+s červeným ESAS nyní zachovává předběžnou červenou, bez převodu ESAS na NRS.
+Změněné soubory: `meddi/triage.py`, `meddi/clinical_rules.py`, `web/triage.py`,
+šest regresních testových souborů a dokumentace. Bez změny zdrojových pacientů,
+referencí, závislostí či neobarvených klinických mapování.
+
+Ověření: `uv --cache-dir /tmp/rakathon-uv-cache run --locked --no-sync python -m pytest -q`
+— **608 prošlo**; Ruff check celého projektu, formát devíti dotčených Python
+souborů a `git diff --check` prošly. Globální formát našel již dříve
+neformátované Python ukázky v Markdownu `architecture.md`, `backend.md`
+a `llm-flow.md`; ty nebyly přeformátovány. Výchozí uv cache byla pouze pro
+čtení, proto kontroly používají zapisovatelnou cache v `/tmp`.
+Flask test klient načetl všech **14 reportů / 174 místních check-inů**;
+žádná oranžová/červená odpověď neměla výslednou barvu neurčeno.
+Replay původních **171** check-inů: **121 shod, 23 nižších, 27 vyšších**, 25
+předběžných výsledků; dříve 132/30/9. Červené reference zachyceny 5/6,
+`ONC-011-C09` zůstává oranžový. Větší počet vyšších výsledků je důsledek
+konzervativní politiky; nutné klinické review, zejména ESAS gradientu.
+Reference byly pouze vyhodnocení, nikdy rozhodovací vstup.
+
+Upřesnění ONC-001: C07 (9. 9., 38,4 °C po chemoterapii) již vrací červenou.
+Poslední místní webový kontakt (17. 10., kožní potíže a částečná soběstačnost)
+má neobarvenou kožní odpověď a zelenou možnost soběstačnosti, bez dostatečného
+klinického mapování. Není podklad pro automatickou červenou z dávné horečky;
+závažnost aktuálních neobarvených obtíží zůstává otevřenou mezerou K7/O3.
+Zdroj: pacient ONC-001, C07 a aktuální pracovní kopie; pravidla §3, §6.3;
+definice `nezadouci_ucinky/kuze` a `sobestacnost`.
 
 Revize zadání a plán 17. 10. 2026: znovu přečteno celé pořadatelské PDF
 (13 stran, s. 5–12 také vizuálně), všech 6 slidů PPTX včetně poznámek, README
@@ -210,6 +247,49 @@ neexistují, proto tento tok nelze bezpečně sloučit bez přidání jeho imple
 `uv run --locked pytest -q` — 81 testů prošlo; Ruff, `git diff --check` a kontrola
 konfliktních značek prošly. Žádný commit vytvořen.
 
+Oprava rebase 17. 10. 2026: kolegův web z `6aeb385` obnoven se zachováním
+výběru profilu a reportů. Potřebné MASTER moduly a jejich regresní testy převzaty
+z lokálního `main`; doplněna společná kontrola, slovní opravy a zneplatnění
+podřízených odpovědí při opravě rodiče. Potvrzení uloží samostatný JSON pod
+`data/<patient_id>/`; ID vychází z úvodního výběru. Chyba atomického zápisu
+zachová nepotvrzený souhrn, dokončený průchod odmítá další POSTy kromě výslovného
+restartu. Data jsou ignorovaná Gitem. Původní reporty, meddi/, CSS, form.js,
+pyproject.toml a uv.lock zůstaly beze změny; tři původní nesledované testovací
+soubory zachovány, v test_web.py upravena dvě očekávání pro obnovený tok.
+
+Ověření: `uv --cache-dir /tmp/rakathon-uv-cache run --locked --offline pytest -q`
+— 213 testů prošlo. Ruff check, format --check pro změněný Python a intake
+dokumentaci, `git diff --check` a CLI `python -m llm_intake.dialogue --help`
+prošly. Testy používají syntetické vstupy bez sítě a dočasné adresáře: vybraný
+profil ve výstupu, dva různé profily současně, opravy, podmíněné větve, limit,
+nevyřešené hodnoty, opakovaný POST, chyba API i zápisu a opakování uložení.
+Kontroly proběhly na Linuxu s Pythonem 3.12; cache byla přesunuta do /tmp kvůli
+omezení zápisu v prostředí. Windows, živý model ani klinická interpretace nebyly
+nově ověřeny. Rozpracované relace se po restartu neobnovují a historické reporty
+zatím nové uložené dotazníky nenačítají. Žádný commit ani push vytvořen.
+
+Upřesnění ukládání 17. 10. 2026: existující `data/pacienti/` je pracovní kopie
+zdrojového balíčku, kterou samostatné exporty obcházely. Dohledaný commit
+`6aeb385` už používal samostatné exporty; dřívější automatické přidávání do
+kopie se z prohlédnuté historie nepotvrdilo. Na pokyn týmu nyní web přidává
+check-in do `data/pacienti/<patient_id>.json`, při chybějící kopii použije
+originál jako základ. Zachovává kontext a historii, zámek v procesu chrání
+souběžné zápisy a opakované checkin_id se neduplikuje. Report čte pracovní
+kopii, případně původní zdroj. CLI loader a reference se nemění.
+
+Jeden existující samostatný export pro ONC-001 byl lokálně přidán do pracovní
+kopie; export zůstal zachován a původní pracovní soubor má zálohu v
+`/tmp/rakathon-patient-backup-camwtrv4/`. Hash kontrola všech 43 JSON pod
+zdrojovým balíčkem a pracovními pacienty potvrdila jedinou změnu:
+`data/pacienti/ONC-001.json`; žádný originál se nezměnil. Report tohoto pacienta
+vrátil HTTP 200 a obsahoval přidaný WEB check-in.
+
+Ověření: `uv --cache-dir /tmp/rakathon-uv-cache run --locked --offline pytest -q`
+— 217 testů prošlo. Ruff check, format --check čtyř dotčených Python souborů
+a git diff --check prošly. Testy navíc pokrývají nezměněný originál, zachování
+historie a kontextu, opakované i souběžné přidání, zachování již uložené kopie
+při chybě zápisu a report s novou odpovědí. Linux / Python 3.12, bez sítě;
+Windows ani živý model se neověřovaly. Žádný commit ani push vytvořen.
 Návrh MASTER QUESTION 16. 10. 2026: přečteny aktuální `triage.py`, intake v2,
 README balíčku, pravidla a pacientská cesta; ověřeny definice 4 dotazníků /
 49 otázek a relevantní zprávy dvou fiktivních pacientů, bez ground truth.
@@ -596,3 +676,55 @@ vyřešen zachováním obou sad záznamů: vzdálený research a lokální sjedn
 backendu jsou odlišné dokončené kroky. Prošlo 543 testů, Ruff, offline CLI
 meddi.pipeline nad syntetickými ukázkami a načtení jeho výstupního JSON;
 23 místních odkazů ověřeno. Linux, bez živého LLM a bez Windows.
+
+
+Sloučení main → web a napojení triáže 17. 10. 2026: fetch přinesl
+`origin/main=ebdc475`; merge commit `272581c` má rodiče `d6e7cc0` a `ebdc475`.
+Předchozích 34 změněných/nesledovaných souborů bylo zazálohováno do
+`/tmp/rakathon-web-merge-aqw8wivi/` a do stash
+`codex-preserve-web-before-main-merge`, který zůstává zachovaný.
+Konflikty dokumentace a form.py vyřešeny se zachováním obou modulů;
+`answer_colors` je kompatibilní pohled nad přípravou odpovědí z main,
+nikoli nová implementace barev. Z obnoveného lokálního flow zůstaly společné
+potvrzení a opravy; aktuální optimalizace a úplný katalog z main zachovány.
+
+Nové změny: `web/triage.py`, `web/app.py`, `web/patient_report.py`, obě
+stránkové šablony, `_triage.html`, `triage.css`, `tests/test_web_triage.py`,
+rozšíření `tests/test_survey_recovery.py` a README/týmové zápisy. Formulář
+ukazuje backendové barvy a důvody po návratu extrakce a po potvrzení; uložený
+check-in obsahuje celé vyhodnocení včetně intake. Report má poslední výsledek
+a historii s důvody, zdroji a problémy k dořešení. Starší záznamy vyhodnocuje
+sdílené jádro s kontextem dostupným v jejich čase; nebere maximum celé historie.
+Zelené minimum s neúplným posouzením se navenek nezobrazuje jako zelená.
+
+Ověření: `uv --cache-dir /tmp/rakathon-uv-cache run --locked --offline pytest -q`
+— 583 testů prošlo. Ruff check celého projektu a format --check devíti
+dotčených Python souborů prošly. Regrese ověřují rozdíl červené barvy možnosti
+a oranžové triáže pro pocit 5, budoucí léčbu, odeznělé staré varování, neúplnost,
+backendovou shodu, HTML escaping a uložení nálezu mimo dotazníkové odpovědi
+s načtením reportu po ztrátě relace. Všech 14 zdrojových profilů v reportu
+vrátilo HTTP 200 s triáží; všech 29 zdrojových JSON má nezměněný SHA-256
+před/po této kontrole a nevznikl žádný pacientský soubor. Git diff --check
+a kontrola konfliktových značek prošly. Linux / Python 3.12, bez volání LLM;
+Windows ani klinické ověření se neprováděly. Manifest a lock beze změny.
+
+Zbývá klinické review a úplná orchestrace K2–K10, zejména urgentní vyhodnocení
+před dalším cíleným LLM voláním a úplné ukládání událostí před LLM. Původní
+barvy odpovědí a samostatný měřicí přehled zůstávají doplňkovým pohledem,
+nejsou výslednou triáží. Kromě vyžádaného merge commitu nebyl vytvořen další
+commit ani push; navazující úpravy jsou v pracovní kopii.
+
+
+Vrácení poslední opravy reportu 17. 10. 2026 na pokyn uživatele:
+odstraněn otevřený přehled historických rizik, výběr check-inu, nové mapování
+barev měření a související změny textů a tři testy. Obnoven stav po původním
+napojení triáže: poslední check-in a sbalená historie. Merge 272581c,
+předchozí propojení triáže i cizí rozpracované změny zachovány; data se neměnila.
+Změněné soubory: web/triage.py, web/patient_report.py, report.html,
+_triage.html, triage.css, tests/test_web_triage.py, tests/test_patient_report.py
+a docs/architecture.md, docs/decisions.md, docs/tasks.md.
+Ověření: uv --cache-dir /tmp/rakathon-uv-cache run --locked --offline pytest -q
+— 583 testů prošlo; Ruff check, formát čtyř dotčených Python souborů a
+git diff --check prošly. Linux, bez sítě; žádný commit ani push. Původní
+problém skrytí historického rizika při neúplném posledním záznamu tím zůstává
+nevyřešený.

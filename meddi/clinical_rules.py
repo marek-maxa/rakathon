@@ -387,11 +387,20 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
     scores, reasons, skipped = {}, [], []
 
     def rule(identifier, severity, message, section, condition):
+        # Only established symptoms with missing treatment/risk context qualify.
+        # Unknown symptoms or a known false AND term must not create an alarm.
+        provisional = (
+            condition.value is None
+            and bool(condition.missing)
+            and set(condition.missing)
+            <= CONTEXT_FLAGS | {"suicide_plan_intent_or_means"}
+            and any(item["kind"] != "context" for item in condition.evidence)
+        )
         scores[identifier] = (
             None
-            if condition.value is None
+            if condition.value is None and not provisional
             else severity
-            if condition.value
+            if condition.value or provisional
             else Severity.GREEN
         )
         if condition.value is None:
@@ -402,16 +411,23 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
                     "evidence": condition.evidence,
                 }
             )
-        elif condition.value:
+        if condition.value or provisional:
             reasons.append(
                 {
                     "rule_id": identifier,
                     "color": severity.name.lower(),
-                    "message": message,
+                    "message": (
+                        f"Nelze vyloučit závažnější variantu: {message} "
+                        f"Ověřte: {', '.join(condition.missing)}."
+                        if provisional
+                        else message
+                    ),
                     "source": f"{RULES_SOURCE}, {section}",
                     "evidence": condition.evidence,
-                    "provisional": False,
-                    "uncertainty_source": None,
+                    "provisional": provisional,
+                    "uncertainty_source": f"{RULES_SOURCE}, §6.4"
+                    if provisional
+                    else None,
                 }
             )
 

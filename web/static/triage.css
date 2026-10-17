@@ -1,0 +1,29 @@
+.triage-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.triage-green { color: #166534; background: #f0fdf4; }
+.triage-yellow { color: #713f12; background: #fef9c3; }
+.triage-orange { color: #9a3412; background: #ffedd5; }
+.triage-red { color: #991b1b; background: #fee2e2; }
+.triage-unknown { color: #475569; background: #f1f5f9; }
+
+.triage-result {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #d9e0e6;
+  border-radius: 8px;
+  line-height: 1.6;
+}
+
+.triage-incomplete { color: #713f12; }
+.triage-findings { padding-left: 22px; }
+.triage-findings li + li { margin-top: 12px; }
+.triage-source { display: block; color: #536371; overflow-wrap: anywhere; }
+.triage-review { margin-top: 12px; }
