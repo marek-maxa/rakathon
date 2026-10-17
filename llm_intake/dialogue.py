@@ -50,7 +50,7 @@ class MasterDialogue:
         self._reason: str | None = None
 
     def start(self, message: MessageEvent) -> dict:
-        if self._messages:
+        if self._messages or self._flows:
             raise ValueError("Kontakt už byl zahájen.")
         self._messages.append(message)
         self._questions_asked = int(message.source == "master_question")
@@ -74,7 +74,9 @@ class MasterDialogue:
                 self._flows[form].add_targets(targets)
             else:
                 self._flows[form] = QuestionnaireFlow(
-                    form, targets=targets, allow_drafts=self._bulk_confirmation
+                    form,
+                    targets=targets,
+                    allow_drafts=self._bulk_confirmation,
                 )
 
     def _reserve_question(self):
@@ -139,20 +141,24 @@ class MasterDialogue:
         self.state = "unresolved" if incomplete or uncovered or no_facts else "complete"
         self._reason = "open_findings" if self.state == "unresolved" else None
 
+    def _validate_event(self, message: MessageEvent) -> None:
+        patient_id = self._messages[0].patient_id
+        if message.patient_id != patient_id or any(
+            m.id == message.id for m in self._messages
+        ):
+            raise ValueError("Událost musí patřit stejnému pacientovi a mít nové ID.")
+        if self._messages and datetime.fromisoformat(
+            message.available_at
+        ) < datetime.fromisoformat(self._messages[-1].available_at):
+            raise ValueError("Událost nesmí předcházet poslední dostupné zprávě.")
+
     def submit(self, message: MessageEvent) -> dict:
         if (
             self.state not in {"needs_answer", "needs_correction"}
             or self.active is None
         ):
             raise ValueError("Kontakt nyní nečeká na slovní odpověď.")
-        if message.patient_id != self._messages[0].patient_id or any(
-            m.id == message.id for m in self._messages
-        ):
-            raise ValueError("Událost musí patřit stejnému pacientovi a mít nové ID.")
-        if datetime.fromisoformat(message.available_at) < datetime.fromisoformat(
-            self._messages[-1].available_at
-        ):
-            raise ValueError("Událost nesmí předcházet poslední dostupné zprávě.")
+        self._validate_event(message)
         if message.question != self.active.next_question:
             raise ValueError("Událost neodpovídá skutečně položené otázce.")
         # Obě extrakce ověříme před přidáním zprávy do kontaktu. Selhání se
@@ -287,6 +293,7 @@ class MasterDialogue:
                 "reason": self._reason,
                 "questions_asked": self._questions_asked,
                 "max_questions": self._max_questions,
+                "mode": "targeted_from_message",
                 "pending_topic_ids": [
                     f"{form}/{q['question_id']}"
                     for form, flow in self._flows.items()

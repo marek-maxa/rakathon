@@ -17,7 +17,14 @@
           <p class="progress">Profil: {{ page.patient_name }}</p>
         {% endif %}
         {% if not page.select_patient and not page.done and not page.review %}
-          <p class="progress">{% if page.master %}Úvodní otázka{% else %}Upřesnění podle vaší odpovědi{% endif %}</p>
+          <p class="progress">{% if page.master %}Úvodní otázka{% else %}Otázky dotazníků podle vaší zprávy{% endif %}</p>
+        {% endif %}
+        {% if page.questionnaire_name %}<p class="progress">{{ page.questionnaire_name }}</p>{% endif %}
+        {% if page.selected_questionnaires %}
+          <details>
+            <summary>Oblasti doplňujících otázek</summary>
+            <ul>{% for name in page.selected_questionnaires %}<li>{{ name }}</li>{% endfor %}</ul>
+          </details>
         {% endif %}
       </header>
       <div id="loading" class="loading" role="status" hidden>
@@ -58,9 +65,12 @@
         {% elif page.review %}
           <h2 id="question-title">Zkontrolujte všechny odpovědi</h2>
           <p>Rozuměli jsme vám správně? Případné chyby opravte a pak potvrďte celý souhrn.</p>
-          <p class="answer-summary">Vaše úvodní zpráva: {{ page.master_text }}</p>
+          <p class="answer-summary">Vaše úvodní zpráva: {{ page.patient_message_text }}</p>
+          {% if not page.selected_questionnaires %}
+            <p class="notice">Podle zprávy jsme nevybrali žádnou navazující otázku. Zpráva se přesto zahrne do vyhodnocení.</p>
+          {% endif %}
           <form method="post">
-            <button type="submit" name="restart" value="1">Změnit úvodní zprávu a začít znovu</button>
+            <button type="submit" name="restart" value="1">Začít znovu</button>
           </form>
           {% if page.gaps %}
             <p class="notice">Pro část sdělení prototyp nemá navazující otázky. Zpráva zůstává zaznamenaná; nejde o posouzení zdravotního stavu.</p>
@@ -98,6 +108,7 @@
           </form>
         {% else %}
           <h2 id="question-title">{{ page.question }}</h2>
+          {% if page.master %}<p>Popište své potíže nebo změny stavu. Podle zprávy se doptáme jen na související podrobnosti a zahrneme ji do vyhodnocení.</p>{% endif %}
           {% if page.instruction %}<p class="instruction">{{ page.instruction }}</p>{% endif %}
           {% if page.options %}
             <details>

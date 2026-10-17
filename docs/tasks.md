@@ -12,21 +12,23 @@ souběžným zápisem do stejného checkoutu.
 
 | Úkol | Vlastník | Stav | Podmínka dokončení |
 | --- | --- | --- | --- |
-| Audit nadměrné eskalace a pokrytí, K7/K9; answer_coverage, triage, testy | Relace web | doing | Vysvětlit aktuální zvýšené výsledky a neúplnost; běžné/mírné odpovědi a větvení skutečně vyhodnotit. Neskrývat texty, neznámá měření či chybějící odpovědi kvůli více zeleným. Ověřit celou časovou sadu i syntetické proti-příklady bez referencí v rozhodování |
+| Audit nadměrné eskalace a pokrytí, K7/K9; answer_coverage, triage, testy | Relace web | doing | Oddělení zobrazovacích barev od triáže je již hotové. Vysvětlit zbývající zvýšené výsledky a neúplnost; běžné/mírné odpovědi a větvení skutečně vyhodnotit. Neskrývat texty, neznámá měření či chybějící odpovědi kvůli více zeleným. Ověřit celou časovou sadu i syntetické proti-příklady bez referencí v rozhodování |
 | Dokončit ověření konkrétního kroku pro každé hodnocení, část K6; disposition, pipeline, web a testy | Relace web | doing | Současná výstupní politika již existuje; ověřit všechny vstupní cesty a uložené výsledky. Úroveň 1–4, krok a kontakt, neúplnost zvlášť, známé 3/4 zachované; neaktivní hypotetická pravidla neeskalují rutinní kontakt |
 
 ## Navazující implementace
 
 Prioritou je MVP podle [omezeného rozsahu M1–M5](meddi-onco-plan.md#aktuální-rozsah-mvp).
 K1 a K2a existují; na K2a nyní nenavazovat obnovou dialogu K2b.
-M1 a M2 jsou hotové; nejbližší funkční rozšíření je M3, povinné situace a zprávy.
+M1 a M2 jsou hotové. Zprávy, rozpory a cílený otázkový tok jsou propojené;
+M3 ale ještě není klinicky ověřené pro všech šest situací. Priority níže
+mají přednost před pořadím širšího backlogu.
 
 | Pořadí MVP | Vlastník | Stav | Podmínka dokončení |
 | --- | --- | --- | --- |
 | M1 · kartička a přehled požadavků | Relace Codex | done | Kartička v reportu a `/team`, důvod/krok/kontakt/čas/zdroj stejného posledního hodnocení; šablonový souhrn a označená simulace předání. Přehled řadí požadavky podle výsledné úrovně; neúplnost zobrazuje zvlášť |
 | UI · vstup Pacient / Lékař | Relace Codex | done | Úvodní volba na `/`, rozhovor na `/patient`, lékařský přehled na `/team`; přepnutí v demo patičce zachová rozhovor. Výběr fiktivního profilu je označený jako ukázka; volba rozhraní není přihlášení/oprávnění |
 | M2 · měření, původ a potřebné trendy | Relace Codex | done | Vybraná ověřená měření v triáži, uložené historii a grafu; MASTER/cílené odpovědi a autor odděleně. Živý web přebírá zdrojované trendy a léčebný kontext stávajícího adaptéru; bez K2b a nového registru léčby |
-| M3 · šest situací a zprávy | Tým | todo | Konkrétní mezery textu/dotazníku, pečujícího a rozporů řešit stejným jádrem a koordinovat s rozpracovaným auditem K7 |
+| M3 · šest situací a zprávy | Tým + mentor | doing | Integrační část hotová; zbývá nezávislý průchod šesti situacemi a negativními případy, kvalita extrakce a doložené klinické mezery. Koordinovat s auditem K7, neopakovat zavedení zpráv |
 | M4 · doporučení a směrování | Tým | todo | Správný krok a kontakt podle běžné pracovní doby, zachované známé riziko; bez obecného přepisu orchestrace a doručovací fronty |
 | M5 · ověření, demo a návrh integrace | Tým | todo | Průchod šesti situacemi a relevantní negativní případy, existující replay, záložní demo a stručný návrh MEDDI/EU provozu |
 
@@ -41,16 +43,46 @@ Lint a SMTP testy nejsou prioritou před fungujícím M1–M5.
 | K2b · trvalý dialog a revize | Tým | todo | Obnovit rozpracovaný kontakt ve stejném bodě bez opakování dokončených LLM volání; zachovat návrhy, potvrzení, opravy, nevyřešené vstupy i konečné/přerušené revize |
 | K2c · měření a export | Tým | todo | Základ dodává M2; dále úplná historie jednotlivých měření uvnitř kontaktu a napojení průběžných revizí K2b. Nahrazené hodnoty nyní zůstávají v intake, ne jako další body grafu |
 | K3 · časový kontext a skutečné podání léčby | Tým | todo | M2 předává živému webu existující trendy bez budoucích dat; zbývá odlišit plán/podání/druh cyklu, doložit poslední chemo a odstup |
-| K4 · aplikační orchestrace a bezpečnostní výstup | Tým | todo | Vyřešit konflikt zobrazení, vyhodnotit známé riziko před dalším cíleným LLM, uložit konečné i přerušené revize; chyba neztratí podklady |
+| K4 · aplikační orchestrace a bezpečnostní výstup | Tým | todo | Vyřešit konflikt zobrazení a vyhodnotit každé nové riziko včetně úvodu před dalším cíleným LLM, uložit konečné i přerušené revize; chyba neztratí podklady |
 | K5 · epizody, otázky a přeměření | Tým | todo | Klíčové/varovné nálezy, zlepšení a uzavření, společný plán kontrol, odpověď/remeasurement, běh v čase, neodpověď a deduplikace; schválené intervaly |
 | K6/K8 · první průchod předání a kartičky | Tým | todo | M1 dodává kartičku a simulovaný přehled; nad rámec MVP zbývá trvalý požadavek se zdroji, prioritou, termínem, pokusy a převzetím |
 | K6 · doporučení, kontakty, předání a souhrn | Tým | todo | Doplnit konkrétní nálezy/plány, vypočtené lhůty, předání/převzetí/opakování, pevnou předlohu souhrnu s LLM pouze pro formulaci a šablonovou zálohu |
-| K7 · zprávy, nejistota a klinické mapování | Tým + mentor | todo | MASTER/importované zprávy stejnou cestou, konflikty/intervaly/nepokryté pojmy, schválené mapování škál; vyřešit O1–O10 backendu, neladit podle referenčních ID |
+| K7 · zprávy, nejistota a klinické mapování | Tým + mentor | todo | Společná cesta MASTER/importovaných zpráv a metadata rozporů existují; doplnit klinické pokrytí intervalů/nepokrytých pojmů a schválené mapování škál; vyřešit O1–O10 backendu, neladit podle referenčních ID |
 | K8 · pacientský a zdravotnický web | Tým | todo | Stručná kartička/detail/LLM stejné revize, kontroly, prioritní požadavky a zásahy týmu; role, volba zastupování a správné oslovení bez změny významu otázek |
 | K9 · průběžný replay, úplný tok a demo | Tým | todo | Od K2 kontrolovat restart, opakované odeslání, opravy, výpadky a časovou izolaci; nakonec všech 171 check-inů a šest povinných situací včetně negativních/mezních případů, záchyt i zbytečné eskalace, srozumitelnost a záložní demo bez LLM |
 | K10 · MEDDI a provoz v EU | Tým + pracoviště | todo | Integrační/provozní kontrakt, data a model v EU, přístupy, obnova, doručení, odpovědnosti a klinické převzetí; skutečné nasazení zvlášť |
-| Lint · `meddi/disposition.py` | Tým | todo | Vyřešit dvě stávající ISC004 u spojovaných textů doporučení beze změny obsahu a ověřit Ruff |
 | Testy · SMTP transport a formulář | Tým | todo | Doplnit chybějící automatické testy bez skutečného odesílání pro konfiguraci, CSRF, validaci adresy a selhání transportu; teprve potom uvést funkční příkaz v notifikačním README |
+
+## Hotové převzaté části — znovu nezadávat
+
+- MASTER vybírá jen relevantní otázky. Již sdělené údaje se využijí bez
+  opakování otázky, chybějící rozlišení se doptá; podmíněné větve, společná
+  kontrola/opravy a původní limit 6 zůstávají. Celé formuláře byly nechtěná
+  změna větve web a nejsou součástí schváleného toku.
+- Úvodní nález při pozdější mírnější volbě nezmizí. Přijetí před LLM,
+  stabilní ID/deduplikace, `/team` a zdrojovaná měření M2 zůstávají zachované.
+- Historické zprávy mají extrakci, cache v pracovní kopii, kontrolu přesné
+  shody zdroje, rozpory/doptání a viditelné selhání. Report je spouští explicitním
+  chráněným POST; CLI má `--with-messages`, výchozí běh zůstává offline.
+- Barva možnosti není klinická úroveň. Nepokryté vstupy zůstávají k review.
+  Dvě chyby ISC004 v disposition jsou opravené.
+- Společné heslo dema, Azure runtime balík a konfigurace datového adresáře
+  existují. Individuální role, vzdálené nasazení a produkční převzetí hotové nejsou.
+
+## Priority do dokončení MVP
+
+| Priorita | Co nyní dokončit | Přijímací podmínka |
+| --- | --- | --- |
+| P0 · bezpečnostní bod K4/M4 | Výslovně uzavřít konflikt skrývání triáže a okamžité instrukce; stejnou ochranu při úvodu, další odpovědi, opravě a chybě LLM/zápisu | Doložené 3/4 nezablokuje další cílené volání ani potvrzování. Cílené využití MASTER může spustit další LLM před návratem k triáži; ochrana pořadí i zobrazení stále chybí |
+| P1 · M3 + audit K7/K9 | Ověřit šest povinných situací přes zprávy i formuláře, pečujícího a negativní/mezní případy; vysvětlit změněné eskalace | Známá tvrdá minima zachovaná, žádné reference ve vstupu; doložené důvody pro nižší/vyšší výsledky, klinické nejasnosti potvrzené mentorem |
+| P2 · M4 | Konkrétní krok/kontakt a termín podle Europe/Prague, včetně mimo pracovní dobu a paliativního kontextu | Srozumitelný krok pro každou úroveň; neúplnost oddělená od priority, známé minimum zachované |
+| P3 · M5 | Pacient → potvrzený výsledek → kartička/přehled, záložní demo bez LLM, návrh MEDDI/EU a odevzdání | Opakovatelné demo se šesti situacemi; ověřit čitelnost, termín/formát a případné sdílené demo v cílovém prostředí |
+
+V M3 sledovat počet relevantních otázek a zbytečné opakování; celé formuláře
+neobnovovat. Výběr otázky neblokuje vyhodnocení faktů mimo katalog. Neobnovovat před MVP K2b ani stavět nový plánovač,
+doručovací frontu, systém individuálních účtů nebo obecný registr léčby.
+Azure balík není povinnost nasadit ani potvrzení vhodnosti cílové oblasti;
+pro soutěžní demo lze zůstat lokálně nad syntetickými daty.
 
 ## Rozhodnutí podle rozsahu
 

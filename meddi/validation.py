@@ -24,6 +24,10 @@ UNITS = {
     "weight_kg": {None, "kg"},
     "pain_nrs": {None, "NRS_0_10"},
     "pulse_bpm": {None, "bpm", "/min", "min-1"},
+    "hours_without_diarrhea": {None, "h", "hours", "hod", "hodin", "hodiny"},
+    "hours_without_urine": {None, "h", "hours", "hod", "hodin", "hodiny"},
+    "nosebleed_minutes": {None, "min", "minutes", "minuty", "minut"},
+    "constipation_days": {None, "days", "den", "dny", "dní", "dni"},
 }
 VITAL_FIELDS = {
     "teplota_c": "temperature_c",

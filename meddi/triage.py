@@ -23,7 +23,7 @@ RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
 PULSE_SOURCE = (
     "https://medlineplus.gov/ency/article/003399.htm (Normal Results, adults)"
 )
-TRIAGE_RULES_VERSION = 4
+TRIAGE_RULES_VERSION = 5
 
 
 def fever_score(temperature, recent_chemotherapy):
@@ -171,8 +171,9 @@ def evaluate_checkin(
     chemotherapy_within_6_weeks, pain_persists_after_rescue_dose, and
     suicide_plan_intent_or_means (bool/None).
     Missing inputs remain in skipped_rules. Established symptoms with unknown
-    treatment context and unassessed colored answers retain a provisional
-    higher level under §6.4; an entirely missing criterion does not escalate.
+    treatment context retain a provisional higher level under §6.4.
+    Questionnaire display colors never determine severity. Unassessed answers
+    need human review; an entirely missing criterion does not escalate.
     Additional treatment flags and symptom observations are documented in
     clinical_rules.py and docs/architecture.md; only explicit facts are used.
     """
@@ -486,16 +487,6 @@ def evaluate_checkin(
                 "Odpověď zatím není pokryta pravidly tohoto kroku.",
                 evidence,
             )
-            if answer.get("color") in {"yellow", "orange", "red"}:
-                record(
-                    f"unassessed_answer:{answer['questionnaire_id']}:{answer['question_id']}",
-                    Severity[answer["color"].upper()],
-                    f"Odpověď „{answer['question']}“ má nezelený signál a její klinické vyhodnocení není pokryté. Do ověření platí předběžná úroveň podle signálu odpovědi.",
-                    evidence,
-                    "§6.4; rakathon_meddi_onco_data/docs/dotazniky_definice.json / "
-                    f"{answer['questionnaire_id']} / {answer['question_id']}",
-                    provisional=True,
-                )
 
     if len({has_fever for has_fever, _ in fever_observations}) > 1:
         issue(

@@ -15,7 +15,7 @@ from triage import evaluate_intake
         ("nezadouci_ucinky", "pocit", 0, "yellow"),
         ("bolest_analgeticka_terapie", "nrs", 5, "yellow"),
         ("bolest_analgeticka_terapie", "nrs", 8, "orange"),
-        ("esas", "unava", 8, "red"),
+        ("esas", "unava", 8, "yellow"),
         ("nezadouci_ucinky", "unava", 0, "yellow"),
     ],
 )

@@ -18,15 +18,19 @@ ACTIONS = {
     "yellow": (
         "kontaktovat_tym",
         "Monitorovací centrum MEDDI Onco v pracovní době Po–Pá 7:00–15:30; mimo ni následující pracovní den.",
-        "Kontaktujte monitorovací centrum MEDDI Onco a požádejte o posouzení. "
-        "Vyřízení má proběhnout nejpozději do konce následujícího pracovního dne. "
-        "Při rychlém zhoršení nečekejte: volejte sloužícího lékaře MOÚ 724 590 848, při akutním ohrožení 155.",
+        (
+            "Kontaktujte monitorovací centrum MEDDI Onco a požádejte o posouzení. "
+            "Vyřízení má proběhnout nejpozději do konce následujícího pracovního dne. "
+            "Při rychlém zhoršení nečekejte: volejte sloužícího lékaře MOÚ 724 590 848, při akutním ohrožení 155."
+        ),
     ),
     "orange": (
         "telekonzultace",
         "V pracovní době lékař MOÚ do 2 hodin; mimo pracovní dobu sloužící lékař MOÚ 724 590 848 ihned.",
-        "V pracovní době Po–Pá 7:00–15:30 kontaktujte monitorovací centrum kvůli telekonzultaci s lékařem do 2 hodin. "
-        "Mimo pracovní dobu volejte ihned sloužícího lékaře MOÚ 724 590 848. Při akutním ohrožení volejte 155.",
+        (
+            "V pracovní době Po–Pá 7:00–15:30 kontaktujte monitorovací centrum kvůli telekonzultaci s lékařem do 2 hodin. "
+            "Mimo pracovní dobu volejte ihned sloužícího lékaře MOÚ 724 590 848. Při akutním ohrožení volejte 155."
+        ),
     ),
     "red": (
         "neodkladna_pomoc",

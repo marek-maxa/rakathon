@@ -50,7 +50,7 @@ návrh, po odmítnutí přijme opravu. `/moznosti` ukáže texty možností bez 
 `/konec` ukončí kontakt. `--debug` zobrazí interní JSON, `--output` u MASTER
 uloží výstup i do souboru. `.scratch/` Git ignoruje.
 
-MASTER má výchozí limit `--max-questions 6`, doptání parametru
+MASTER CLI má výchozí limit `--max-questions 6`, doptání parametru
 `--max-clarifications 2`. Nevyřešené hodnoty se nevynucují. Čas MASTER CLI
 je simulovaný (`--at`), během kontaktu se sám neposouvá; vstupní soubor dodá
 vlastní čas. Nejde o pravidelné sledování pacienta.
@@ -131,3 +131,9 @@ pacienta a klíče; chybějící měření je null, nikoli nula. Celý dialog na
 vyžaduje nezávislou kontrolu správnosti potvrzené možnosti, zbytečných dotazů,
 oprav a nevyřešených kontaktů. Schéma, citace ani pacientovo potvrzení samy
 neprokazují přesnost; syntetická evaluační sada není klinická validace.
+
+Web na main vybírá jen relevantní otázky, využívá sdělené údaje z MASTER
+a doptává chybějící rozlišení. Limit kontaktu je opět 6; celé formuláře
+se automaticky neotevírají. Historické zprávy podporuje
+`meddi.messages`; CLI replay je zapíná explicitně přes `--with-messages`.
+Konfigurace hesla a balení dema je pouze v [architektuře](../docs/architecture.md#heslo-dema-a-balení-pro-azure).

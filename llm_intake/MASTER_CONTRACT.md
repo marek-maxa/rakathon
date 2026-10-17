@@ -59,6 +59,10 @@ Příklad nedokládá 24hodinové okno; backend ho nesmí doplnit odhadem.
 
 ## Extrakce a katalog
 
+Volitelný `clinical_fields` dodává extraktoru názvy vstupů existujících
+pravidel pro přesně sdělené údaje. Nemění schéma faktu ani nepovoluje LLM
+určit triáž; historické zprávy jej používají pro kompatibilní mapování.
+
 `MasterExtractor(client)(message)` vrací seznam faktů.
 `analyze_message(message, extract)` přidá do paketu:
 
@@ -130,6 +134,12 @@ max_questions=6, max_clarifications=2, bulk_confirmation=False)` poskytuje:
 - Výchozí potvrzení `confirm()` / `reject()` pro aktivní otázku.
 - Pro společné potvrzení: `review_sessions`, `revise(index)`, `confirm_all()`;
   oprava zneplatní závislé odpovědi, nepotvrdí nevyřešený návrh.
+
+Web i CLI vybírají přes `targets` konkrétní relevantní otázky a jejich
+podmíněné větve, nikoli celé formuláře. Existující zprávy využívá `seed`;
+úplný údaj jde k potvrzení, chybějící rozlišení k doptání. Výchozí limit je 6.
+`dialogue.mode=targeted_from_message` označuje cílený tok. Nenamapované
+nálezy zůstávají v paketu i bez odpovídající otázky.
 
 Každá slovní odpověď projde obecnou extrakcí; nové kandidáty přidá flow po
 uzavření aktivní relace. Dialog spravuje rozpočet, nikoli naléhavost.

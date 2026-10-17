@@ -11,7 +11,12 @@ Rozvíjet existující Flask, intake, pravidla, export a report po malých kroc�
 Priorita: funkční lokální demonstrace nad syntetickými daty v jednom procesu,
 s minimem nových vrstev a LLM volání. Detailní návrh níže je cílový stav pro
 další rozvoj; jeho úplné splnění není podmínkou MVP. Aktuální pořadí je M1–M5,
-nikoli postupné dokončování K1–K10.
+nikoli postupné dokončování K1–K10. Aktuálně je integrační část M3 hotová:
+zprávy a cílené relevantní otázky používají společné jádro. Zbývá její
+klinické/negativní ověření, nikoli nové zavedení této datové cesty.
+Priorita před dalším rozvojem je P0 bezpečnostní výstup, P1 M3/audit,
+P2 směrování M4, P3 demo M5; přijímací podmínky jsou v
+[otevřených úkolech](tasks.md#priority-do-dokončení-mvp).
 
 Vstupní stránka nabízí Pacient/Lékař: pacient pokračuje do rozhovoru,
 lékař do přehledu a detailů. Oddělení navigace nevyžaduje produkční přihlášení
@@ -21,7 +26,7 @@ a při přepnutí zachovává rozpracovaný kontakt.
 | --- | --- | --- |
 | M1 · kartička a požadavky, část K6/K8 | Rozšířit existující report; požadavky odvodit z uložených hodnocení bez nové fronty; souhrn nejprve šablonou | Zdravotník vidí aktuální úroveň, důvod, krok, kontakt, čas a zdroje stejného hodnocení; simulované předání je označené |
 | M2 · vstupy, část K2c/K3 | Opravit export měření a předat potřebné trendy ze stávajícího adaptéru; zachovat autora a původ | Měření je v triáži, historii i grafu; kontext léčby má zdroj, neznámé podání se přizná; bez nového obecného registru léčby |
-| M3 · povinné situace, část K7 | Propojit text a dotazníky pro šest situací zadání, včetně pečujícího a rozporu | Stejné jádro, správný subjekt a konkrétní opravy prokázaných mezer; není nutné předem vyřešit všechny pojmy a škály |
+| M3 · povinné situace, část K7 | Integrační část textu/dotazníků hotová; ověřit šest situací, pečujícího a rozpory | Stejné jádro, správný subjekt a konkrétní opravy prokázaných mezer; není nutné předem vyřešit všechny pojmy a škály |
 | M4 · další krok, část K4/K6 | Doplnit konkrétní doporučení a směrování podle běžné pracovní doby Europe/Prague | Známé riziko se neztratí při doptání, chyba není zelený úspěch; konflikt okamžité instrukce dořešit bez obecného přepisu orchestrace |
 | M5 · demo, část K9/K10 | Ověřit šest situací a relevantní negativní/mezní případy; využít existující replay | Průchod pacient → výsledek → zdravotník, čitelnost a záložní demo; stručný návrh MEDDI/EU integrace, bez nového replay frameworku |
 
@@ -42,6 +47,12 @@ patří ke správné funkci a hodnocení, nikoli k odložené provozní odolnost
 (S1 s. 6–7 a 10–11; S3 §4/§6; S4 §3).
 
 ## Cílový tok
+
+Implementovaný MVP vybírá z MASTER konkrétní relevantní otázky a využívá
+již sdělené údaje; celé dotazníky nejsou chtěný tok. Podmíněné větve vybraných
+otázek se zachovávají, výchozí limit webu i CLI je 6. Níže uvedené prioritní
+adaptivní dotazování, zastupování a okamžitá bezpečnostní instrukce jsou
+cílové rozšíření, nikoli už dokončené vlastnosti.
 
 1. Pacient otevře svůj profil a dostane širokou MASTER otázku. Pod otázkou
    může uvést, že odpovídá za pacienta. Odpověď má roli `zprava_pacienta`.
@@ -221,7 +232,9 @@ K2b ani celý K3/K4/K5 nejsou podmínkou kartičky a jednoduchého předání.
 | K9 · průběžný replay a demo | Kontroly od K2, celý tok po K4–K8 | Všech 171 check-inů a šest povinných situací, negativní/mezní případy, metriky záchytu i falešných eskalací, srozumitelnost a záložní demo bez API |
 | K10 · MEDDI/AWS | K9; pracoviště a provozní převzetí | Návrh adaptérů, EU cesta dat/LLM, identita, tajemství, audit, obnova, selhání a odpovědný tým; skutečné nasazení je samostatný milník |
 
-M1 a omezené M2 jsou implementované; další postup je M3–M5 podle `docs/tasks.md`.
+M1, omezené M2 a integrační část M3 jsou implementované. Dokončit bezpečnostní
+rozhodnutí K4, ověření M3 a M4–M5 podle `docs/tasks.md`; cache zpráv ani
+formulářový tok znovu nestavět.
 K2c lze upravit bez K2b, potřebné trendy předat bez nového registru a
 požadavky zobrazit bez doručovacího subsystému. Audit K7 zůstává původnímu
 vlastníkovi. Ověřovat konkrétní průchod s každou funkcí; úplný produktový

@@ -15,6 +15,11 @@ relací, mergů a testovacích běhů nahrazuje Git.
 | Role LLM | Extrakce, formulace cílených otázek a odborné zprávy z pevné předlohy | Úroveň, trendy, příjemce, termíny a akce určí kód; zpráva má šablonovou zálohu |
 | Výstup | Oddělit zdrojový signál, minimum, výslednou úroveň a úplnost | Nevyřešený údaj není nula/false; relevantní nevyhodnocené vstupy mají lidskou cestu, známé 3/4 se nesnižuje |
 | MASTER | Odpověď je obdobou `zprava_pacienta`, nikoli jiná klinická politika | Zachovat otázku, autora/časy; zpráva má při rozporu přednost podle pravidel §6.2/§6.4 |
+| Webový sběr | MASTER vybírá konkrétní relevantní otázky; využívá již sdělené údaje, doptá jen chybějící rozlišení; limit kontaktu 6 | Upřesnění týmu: celé dotazníky byly nechtěná změna web větve. Cílené podmíněné větve a společná kontrola zůstávají; úplné formuláře neobnovovat |
+| Zpráva a rozpor | Historický check-in i nový kontakt používají stejný extraktor/jádro; aktuální úvodní nález nezmizí jen pozdější mírnější volbou | Cache je vázaná na přesný originál, nepotvrzená fakta zůstávají nepotvrzená. Explicitní oprava/odeznění potřebuje samostatnou politiku |
+| CLI replay | Síťová extrakce pouze s `--with-messages`; výchozí běh a `--without-messages` zůstávají offline | Záměrná odchylka od web větve, aby běžná kontrola nespouštěla nečekaná API volání |
+| Zdrojová barva | Zobrazovací barva nevyhodnocené odpovědi sama nevytváří předběžné červené/oranžové minimum | Nepokrytý význam zůstává k lidskému review; klinická pravidla a výstupní politika zůstávají autoritou |
+| Sdílené demo | Basic Auth na všech cestách, bez přihlašovacích údajů vracet 503; balík pro Azure bez klíčů/reference/dat working copies | Společné heslo není individuální role. Jeden proces, stabilní secret a trvalý DATA_DIR; vzdálené nasazení není součást této integrace |
 | Potvrzení | Pacient kontroluje slovní návrhy; web používá společné potvrzení a opravy | Potvrzují se vyřešené odpovědi, nikoli automaticky všechny extrahované fakty |
 | Karta | Události a revize zachovávají původ; aktuální karta je odvozený pohled | Oprava ani zlepšení nesmažou historii; nebrat maximum celé historie |
 | Nálezy | Nezelené nálezy sledovat jako epizody; zahrnout relevantní zlepšení a kontext | Aktuální varovné příznaky pro 3/4 jsou podmnožina klíčových, u 1/2 prázdné |
@@ -48,6 +53,9 @@ i pro červenou a pokračování doptávání při známém červeném nálezu. 
 řešení K4 upravit odpovídající regresní očekávání; jejich současný průchod
 není důkaz splnění P07. Ověřit také pořadí obecné extrakce, triáže a cíleného
 LLM: změna samotného vykreslení až po návratu z `MasterDialogue` nestačí.
+Cílený režim opět používá známou MASTER odpověď pro přiřazení konkrétních
+otázek. To může spustit cílenou extrakci před návratem do webové triáže;
+původní integrační mezera K4 proto zůstává otevřená i pro úvod.
 
 ## Úložiště událostí K2a
 

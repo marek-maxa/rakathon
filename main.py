@@ -5,11 +5,14 @@ import sys
 
 from meddi.common_types import Severity
 from meddi.loader import list_patient_ids, load_ground_truth, load_patient
+from meddi.messages import evaluate_message_checkin
 from meddi.patient_inputs import build_triage_inputs
 from meddi.triage import evaluate_checkin
 
 
-def compare_patient(patient: dict, references: list[dict]) -> list[dict]:
+def compare_patient(
+    patient: dict, references: list[dict], *, with_messages=False, extract=None
+) -> list[dict]:
     """Compare rule results with separate references, paired by check-in ID."""
     checkins = patient["checkiny"]
     checkin_ids = [checkin["checkin_id"] for checkin in checkins]
@@ -30,8 +33,18 @@ def compare_patient(patient: dict, references: list[dict]) -> list[dict]:
     for checkin in checkins:
         checkin_id = checkin["checkin_id"]
         # The adapter only sees patient facts available at the current instant.
-        prepared, context, observations = build_triage_inputs(patient, checkin)
-        triage = evaluate_checkin(prepared, context=context, observations=observations)
+        if with_messages:
+            triage = evaluate_message_checkin(
+                patient,
+                checkin,
+                extract=extract,
+                analysis=checkin.get("patient_message_analysis"),
+            )
+        else:
+            prepared, context, observations = build_triage_inputs(patient, checkin)
+            triage = evaluate_checkin(
+                prepared, context=context, observations=observations
+            )
         rules_color = Severity[triage["color"].upper()] if triage["color"] else None
         winning_reasons = [
             reason for reason in triage["reasons"] if reason["color"] == triage["color"]
@@ -60,18 +73,26 @@ def compare_patient(patient: dict, references: list[dict]) -> list[dict]:
                 "reasons": triage["reasons"],
                 "review_issues": triage["review_issues"],
                 "skipped_rules": triage["skipped_rules"],
+                "message_analysis_status": triage.get(
+                    "message_analysis_status", "not_requested"
+                ),
+                "message_analysis_error": triage.get("message_analysis_error"),
+                "message_conflicts": triage.get("message_conflicts", []),
+                "follow_up_questions": triage.get("follow_up_questions", []),
             }
         )
     return results
 
 
-def compare_patients(patient_ids: list[str]) -> list[dict]:
+def compare_patients(patient_ids: list[str], *, with_messages=False) -> list[dict]:
     """Load and compare each requested patient's check-ins."""
     return [
         {
             "patient_id": patient_id,
             "checkins": compare_patient(
-                load_patient(patient_id), load_ground_truth(patient_id)
+                load_patient(patient_id),
+                load_ground_truth(patient_id),
+                with_messages=with_messages,
             ),
         }
         for patient_id in patient_ids
@@ -90,7 +111,7 @@ def print_comparison(
 ) -> None:
     """Print one row per check-in, including unresolved and provisional results."""
     print(
-        f"{'CHECK-IN':<20} {'GROUND TRUTH':<13} {'RULES':<14} {'COMPARISON':<13} REVIEW"
+        f"{'CHECK-IN':<20} {'GROUND TRUTH':<13} {'RULES':<14} {'COMPARISON':<13} {'REVIEW':<7} MESSAGE"
     )
     for patient in patients:
         for checkin in patient["checkins"]:
@@ -102,9 +123,15 @@ def print_comparison(
             review = "yes" if checkin["requires_review"] else "no"
             print(
                 f"{checkin['checkin_id']:<20} {checkin['reference_color']:<13} "
-                f"{rules:<14} {checkin['comparison']:<13} {review}"
+                f"{rules:<14} {checkin['comparison']:<13} {review:<7} {checkin.get('message_analysis_status', 'not_requested')}"
             )
             if details:
+                if checkin.get("message_analysis_status") != "not_requested":
+                    print(f"  Message: {checkin.get('message_analysis_status')}")
+                if checkin.get("message_analysis_error"):
+                    print(f"  Message error: {checkin['message_analysis_error']}")
+                for question in checkin.get("follow_up_questions", []):
+                    print(f"  Follow-up: {question}")
                 print(
                     f"  Ground truth: {checkin['reference_reason'] or '(no reason supplied)'}"
                 )
@@ -138,12 +165,19 @@ def print_comparison(
     print(
         f"Lower: {lower}; higher: {higher}. Missing inputs are skipped and retained for review; treatment context and prior check-ins are time-filtered."
     )
+    states = [c.get("message_analysis_status", "not_requested") for c in checkins]
+    print(
+        f"Messages: complete={states.count('complete')}; failed={states.count('failed')}; "
+        f"not_present={states.count('not_present')}; not_requested={states.count('not_requested')}"
+    )
 
 
 def main():
     # Reference explanations contain symbols that legacy Windows encodings lack.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "patient_id",
@@ -158,13 +192,52 @@ def main():
         choices=("lower", "higher", "match", "undetermined"),
         help="print only this comparison; summary still covers all check-ins",
     )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--with-messages",
+        action="store_true",
+        default=False,
+        help="Extract patient messages via the configured LLM (explicit opt-in)",
+    )
+    mode.add_argument(
+        "--without-messages",
+        dest="with_messages",
+        action="store_false",
+        help="Explicit offline baseline: evaluate structured data without LLM message extraction",
+    )
     args = parser.parse_args()
+    if args.with_messages:
+        from pathlib import Path
+
+        from dotenv import load_dotenv
+
+        load_dotenv(Path(__file__).resolve().parent / "llm_intake/.env")
 
     patient_ids = [args.patient_id] if args.patient_id else list_patient_ids()
+    patients = compare_patients(patient_ids, with_messages=args.with_messages)
     print_comparison(
-        compare_patients(patient_ids), details=args.details, comparison=args.comparison
+        patients,
+        details=args.details,
+        comparison=args.comparison,
     )
+    failed = [
+        c
+        for p in patients
+        for c in p["checkins"]
+        if c.get("message_analysis_status") == "failed"
+    ]
+    if failed:
+        print(
+            f"CHYBA: {len(failed)} zpráv nebylo vyhodnoceno LLM. U těchto řádků je pouze záložní výsledek strukturovaných pravidel.",
+            file=sys.stderr,
+        )
+        if any(c.get("message_analysis_error") == "missing_api_key" for c in failed):
+            print(
+                "Chybí MEDDI_LLM_API_KEY. Nastavte jej v prostředí nebo v llm_intake/.env (nikoli pouze v Azure nebo v .env.example).",
+                file=sys.stderr,
+            )
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -1,16 +1,27 @@
 from __future__ import annotations
 
+import secrets
 from functools import lru_cache
 from html import escape
 
 import plotly.graph_objects as go
-from flask import Blueprint, Response, abort, render_template
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from plotly.offline import get_plotlyjs, get_plotlyjs_version
 
 from meddi.common_types import Severity
 from meddi.loader import list_patient_ids
+from meddi.messages import evaluate_message_checkin
 from meddi.status import MeasurementStatus, build_patient_status
-from web.patient_store import load_patient
+from web.patient_store import load_patient, save_message_analysis
 from web.triage import checkin_assessments
 
 patient_report = Blueprint(
@@ -304,12 +315,27 @@ def plotly_js(version: str):
 
 
 @patient_report.route("/patients/<patient_id>/report")
-def report_patient(patient_id):
+def report_patient(patient_id, message_error=None):
     if patient_id not in list_patient_ids():
         abort(404)
     patient = load_patient(patient_id)
     status = build_patient_status(patient)
     assessments = checkin_assessments(patient)
+    token = session.setdefault("message_analysis_csrf", secrets.token_urlsafe(32))
+    message_rows = [
+        {
+            "id": c["checkin_id"],
+            "text": c["zprava_pacienta"],
+            "processed": bool(c.get("triage_assessment"))
+            or any(
+                a["checkin_id"] == c["checkin_id"]
+                and a.get("message_analysis_status") == "complete"
+                for a in assessments
+            ),
+        }
+        for c in patient.get("checkiny", [])
+        if (c.get("zprava_pacienta") or "").strip()
+    ]
     charts = {
         measurement.measurement_id: _measurement_chart(
             measurement, status.measurement_incidents
@@ -321,6 +347,9 @@ def report_patient(patient_id):
         status=status,
         assessments=assessments,
         clinical_card=_clinical_card(patient, assessments),
+        message_rows=message_rows,
+        message_token=token,
+        message_error=message_error,
         charts=charts,
         plotly_js_version=PLOTLY_JS_VERSION,
         severity_classes=SEVERITY_CLASSES,
@@ -377,3 +406,43 @@ def team_overview():
         )
     )
     return render_template("team.html", cards=cards, other_patients=other_patients)
+
+
+@patient_report.route(
+    "/patients/<patient_id>/checkins/<checkin_id>/analyze-message", methods=["POST"]
+)
+def analyze_patient_message(patient_id, checkin_id):
+    token = session.get("message_analysis_csrf", "")
+    if not token or not secrets.compare_digest(request.form.get("token", ""), token):
+        abort(400)
+    if patient_id not in list_patient_ids():
+        abort(404)
+    patient = load_patient(patient_id)
+    checkin = next(
+        (c for c in patient["checkiny"] if c["checkin_id"] == checkin_id), None
+    )
+    if checkin is None or not (checkin.get("zprava_pacienta") or "").strip():
+        abort(404)
+    # Live MASTER contacts already contain extracted facts and a saved result.
+    if checkin.get("triage_assessment"):
+        return redirect(url_for("patient_report.report_patient", patient_id=patient_id))
+    result = evaluate_message_checkin(
+        patient, checkin, analysis=checkin.get("patient_message_analysis")
+    )
+    if result["message_analysis_status"] == "failed" and checkin.get(
+        "patient_message_analysis"
+    ):
+        result = evaluate_message_checkin(patient, checkin)
+    if result["message_analysis_status"] != "complete":
+        return report_patient(
+            patient_id,
+            message_error="Zprávu se nepodařilo vyhodnotit. Ověřte připojení a nastavení LLM a zkuste to znovu.",
+        ), 502
+    try:
+        save_message_analysis(patient_id, checkin_id, result["message_analysis"])
+    except (OSError, ValueError):
+        return report_patient(
+            patient_id,
+            message_error="Vyhodnocení se nepodařilo uložit. Zkuste to znovu.",
+        ), 503
+    return redirect(url_for("patient_report.report_patient", patient_id=patient_id))

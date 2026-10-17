@@ -3,8 +3,9 @@
 Prototyp podpory onkologického pacienta mezi kontrolami: sběr obtíží,
 vysvětlitelná triáž a další krok pro pacienta i zdravotnický tým.
 
-Funguje MASTER rozhovor s cíleným doptáním, společným potvrzením, uložením
-kontaktu a historickým reportem. Původní zprávy se trvale ukládají před LLM.
+Funguje MASTER vstup, výběr relevantních otázek a cílené doptávání, společné
+potvrzení, uložení kontaktu a historický report s volitelným zpracováním
+původních zpráv. Původní zprávy se trvale ukládají před LLM.
 Aktivní karta, plánované kontroly a přeměření,
 předání týmu a odborné souhrny zbývají propojit. Stav jednotlivých částí je
 v [architektuře](docs/architecture.md#implementovaný-stav).
@@ -23,14 +24,16 @@ uv sync --locked
 ```
 
 Zkopírujte [llm_intake/.env.example](llm_intake/.env.example) do
-`llm_intake/.env` a lokálně nastavte `MEDDI_LLM_API_KEY`. Potom:
+`llm_intake/.env` a lokálně nastavte `MEDDI_LLM_API_KEY`, `MEDDI_BASIC_AUTH_USERNAME` a
+`MEDDI_BASIC_AUTH_PASSWORD`. Bez hesla web vrací 503. Potom:
 
 ```text
 uv run --locked python -m web.app
 ```
 
 Otevřete http://127.0.0.1:5000 a zvolte Pacient nebo Lékař; pacient pak vybere
-syntetický profil. Volba rozhraní nenahrazuje přihlášení. Web načítá `.env`
+syntetický profil. Společné heslo dema nenahrazuje individuální oprávnění
+a volba rozhraní není kontrola role. Web načítá `.env`
 automaticky; původní zprávy ukládá do `data/events.sqlite3`, potvrzené kontakty
 do `data/pacienti/`. Stav rozpracovaného rozhovoru je zatím pouze v paměti;
 uložené zprávy přežijí restart, obnovení rozhovoru K2b je odložené po MVP.

@@ -1,3 +1,4 @@
+import json
 import os
 import secrets
 import sqlite3
@@ -7,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, Response, redirect, render_template, request, session
 from itsdangerous import BadSignature, URLSafeSerializer
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,7 @@ load_dotenv(ROOT / "llm_intake" / ".env")
 sys.path.insert(0, str(ROOT))
 
 from llm_intake.client import APIError, Client
+from llm_intake.core import DEFINITIONS
 from llm_intake.dialogue import MasterDialogue
 from llm_intake.master import MasterExtractor
 from llm_intake.master_contract import MessageEvent
@@ -30,9 +32,44 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(16)
 app.register_blueprint(patient_report)
 app.config["MAX_QUESTIONS"] = 6
-app.config["DATA_DIR"] = ROOT / "data"
+app.config["BASIC_AUTH_USERNAME"] = os.environ.get("MEDDI_BASIC_AUTH_USERNAME", "")
+app.config["BASIC_AUTH_PASSWORD"] = os.environ.get("MEDDI_BASIC_AUTH_PASSWORD", "")
+app.config["DATA_DIR"] = Path(os.environ.get("MEDDI_DATA_DIR") or ROOT / "data")
 MASTER_QUESTION = "Jak se dnes cítíte?"
 sessions = {}
+
+
+@app.before_request
+def require_basic_auth():
+    """Protect every route, including reports and static files; fail closed."""
+    username = app.config["BASIC_AUTH_USERNAME"]
+    password = app.config["BASIC_AUTH_PASSWORD"]
+    if not username or not password or ":" in username:
+        return Response(
+            "Web authentication is not configured.",
+            status=503,
+            headers={"Cache-Control": "no-store"},
+            mimetype="text/plain",
+        )
+    auth = request.authorization
+    if auth is not None and auth.type == "basic":
+        username_matches = secrets.compare_digest(
+            (auth.username or "").encode("utf-8"), username.encode("utf-8")
+        )
+        password_matches = secrets.compare_digest(
+            (auth.password or "").encode("utf-8"), password.encode("utf-8")
+        )
+        if username_matches and password_matches:
+            return None
+    return Response(
+        "Authentication required.",
+        status=401,
+        headers={
+            "WWW-Authenticate": 'Basic realm="MEDDI demo", charset="UTF-8"',
+            "Cache-Control": "no-store",
+        },
+        mimetype="text/plain",
+    )
 
 
 def state():
@@ -73,16 +110,27 @@ def survey_page(data):
     if contact is None:
         return {"master": True, "question": MASTER_QUESTION}
     packet = contact.snapshot()
+    names = {
+        f["id"]: f["nazev"] for f in json.loads(DEFINITIONS.read_text(encoding="utf-8"))
+    }
+    selected = [names[flow["questionnaire_id"]] for flow in packet["dialogue"]["flows"]]
     if contact.state in {"needs_answer", "needs_correction"}:
         return {
             "question": contact.active.next_question,
+            "questionnaire_name": names[contact.active.question.questionnaire_id],
+            "selected_questionnaires": selected,
             "instruction": contact.active.question.instruction,
             "options": contact.active.question.patient_options(),
         }
     return {
         "done": data["done"],
         "review": True,
-        "master_text": packet["message"]["text"],
+        "patient_message_text": "\n".join(
+            event["text"]
+            for event in packet["messages"]
+            if event["source"] in {"master_question", "patient_message"}
+        ),
+        "selected_questionnaires": selected,
         "drafts": contact.review_sessions,
         "gaps": packet["analysis_status"] == "no_facts"
         or bool(packet["unmapped_concepts"])

@@ -98,10 +98,18 @@ Pro parametr se vybere nejnovější známý čas pozorování; současné konfl
 hodnoty zůstanou všechny a pravidla zachovají vyšší doložené riziko.
 Při chybějícím čase vznikne `unknown_observation_time`. Není to maximum celé
 historie. Rozsah možnosti a přesné měření sdílejí parametr, ale neporovnávají
-se jako stejné číselné reprezentace.
+se jako stejné číselné reprezentace. V režimu
+`dialogue.mode=targeted_from_message` se navíc zachovávají aktuální
+fakta úvodní zprávy spolu s novějšími volbami. Pozdější mírnější volba sama
+neprokazuje odeznění úvodního měření; opačné podklady nezmizí z pravidel.
+Dřívější uložené pakety `questionnaires_from_message` se pro kompatibilitu
+čtou stejně; nový dialog je nevytváří.
 
 `time_text` i citace se ověřují proti originálu. Adaptér podporuje omezený
-seznam současných/24hodinových vyjádření. „Od rána“ není automaticky 24 hodin;
+seznam současných/24hodinových vyjádření a výslovné „od včera“.
+Doložená délka (`hours_without_diarrhea`, `hours_without_urine`,
+`nosebleed_minutes`, `constipation_days`) se nepovažuje za historický timestamp.
+Jednotky délky se kontrolují, nedopočítává se neurčené 24hodinové okno. „Od rána“ není automaticky 24 hodin;
 obecné relativní časy a klinická expirace zůstávají otevřené. Bez časového
 výrazu se fakt vztahuje k dostupnosti zdrojové zprávy.
 
@@ -125,8 +133,10 @@ Verzi pravidel určuje `TRIAGE_RULES_VERSION` v `meddi/triage.py`.
 
 `resolve_disposition` ponechá vyšší minimum; relevantní nevyhodnocené vstupy
 předá nejméně jako žluté. Samotné chybění všech hypotetických příznaků není
-poplach. Nepokryté nezelené signály mají předběžné minimum podle zdroje;
-vyhodnocené klinické pravidlo má přednost před barvou možnosti.
+poplach. Barva možnosti sama nezvyšuje klinické minimum. Nepokrytá odpověď zůstává
+ve `review_issues` a `non_green_answers`; výstupní politika ji předá k review
+(typicky yellow), nikoli automaticky red podle zobrazovací škály ESAS.
+Nejde o schválené mapování škál na klinické stupně.
 Doložené příznaky s neznámým rizikovým kontextem mohou mít vyšší možné minimum.
 To není potvrzení domyšleného údaje ani klinicky ověřený převod škál.
 
@@ -151,7 +161,7 @@ výsledků používá jen zmrazené vstupy, nikoli dnešní historii pacienta.
 | O10 | Dehydratovaný případ ONC-011-C09 vyžaduje zdrojované klinické dořešení | S4 §3; nevymýšlet anurii, nemožnost pít ani pravidlo podle referenčního ID |
 
 S3–S5 označují [zdroje zadání](challenge.md#zdroje-a-jejich-platnost).
-Předběžná barva ESAS není NRS ani CTCAE stupeň. Nezavádět práh psychoškály
+Zobrazovací barva ESAS není NRS ani CTCAE stupeň. Nezavádět práh psychoškály
 podle jediného referenčního případu ani plošně mapovat index odpovědi na stupeň.
 Přetrvávání neuropatie, jemná motorika, doba posledního průjmu a účinek SOS
 musí být doložené, nikoli odvozené jen z podobné otázky.
@@ -180,3 +190,28 @@ a [NCI PRO-CTCAE FAQ](https://healthcaredelivery.cancer.gov/pro-ctcae/faqs.html)
 k rozlišení pacientského skóre a klinického stupně. Jde o podklady pro
 kvalifikované ověření, nikoli schválený automatický převod. Odkazy se při
 úklidu dokumentace nově neověřovaly online.
+
+## Zpráva původního check-inu
+
+`meddi.messages.evaluate_message_checkin(patient, checkin, extract=None,
+analysis=None)` používá stejný MasterExtractor a jádro jako nový kontakt.
+Extraktoru předá pouze skutečnou zprávu, autora a otázku; nedostane pacientský
+soubor, budoucí historii ani reference. Volitelný `clinical_fields` v promptu
+pojmenovává vstupy existujících pravidel, neurčuje diagnózu ani úroveň.
+`analysis` uchovává MessageEvent a fakta; musí přesně odpovídat originálu.
+Čas původního check-inu je Europe/Prague. Samotný GET reportu nic neextrahuje.
+
+`evaluate_contact` nově přijímá `prepared_checkin`: validuje pacienta/contact ID,
+připojí hotové odpovědi a vitální funkce, zachová zdroje a chybějící odpovědi.
+Obsah zprávy projde lokální validací; její vynechání symptomu není popření.
+Interval/počet bez okna může doložit přítomnost potíže, ne přesné 24h měření
+nebo nárůst proti normálu. Při průjmu na irinotekanu bez doloženého intervalu
+zůstává výslovně předběžné yellow (§5/§6.4); nevymýšlí se interval <12 h.
+
+Výstup doplňuje `message_analysis_status` (complete/failed/not_present),
+`message_analysis`, `message_conflicts`, `follow_up_questions`. Doptání je
+návrh pro člověka, historické odpovědi na něj se nevyrábějí. Chyba API nebo
+nevalidní extrakce zachová původní text, strukturované minimum a review;
+nevydává se za úspěšnou prázdnou zprávu. Při současném rozporu platí horší
+podložená varianta podle pravidel §6.2–4; metadata rozporu zůstávají dostupná.
+Úplné klinické pokrytí a řešení explicitních oprav v čase zůstávají M3/K7.

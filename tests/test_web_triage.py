@@ -131,7 +131,7 @@ def test_old_abnormal_measurement_is_not_assumed_current_in_live_contact():
     assert not any(item["color"] == "red" for item in result["reasons"])
 
 
-def test_report_preserves_provisional_esas_escalation_and_later_improvement(
+def test_report_does_not_use_esas_display_colors_for_triage(
     monkeypatch,
 ):
     first = checkin()
@@ -146,18 +146,18 @@ def test_report_preserves_provisional_esas_escalation_and_later_improvement(
     monkeypatch.setattr("web.patient_report.load_patient", lambda _: raw)
     html = app.test_client().get("/patients/synthetic/report").get_data(as_text=True)
     latest = html.split('<h3 id="triage-title">', 1)[1].split("<details>", 1)[0]
-    assert 'triage-red">Červená' in latest
+    assert 'triage-yellow">Žlutá' in latest
     assert 'triage-unknown">Neurčeno' not in latest
     assert "Předběžný nález" in latest
     assert "Posouzení je neúplné" in latest
-    assert "dotazniky_definice.json" in latest
+    assert "klinické vyhodnocení není pokryté" not in latest
 
     next_checkin = deepcopy(first)
     next_checkin.update(checkin_id="C2", datum="2026-10-02")
     next_checkin["dotazniky"][0]["odpovedi"][0]["odpoved"] = 1
     raw["checkiny"].append(next_checkin)
     earlier, current = checkin_assessments(raw)
-    assert earlier["color"] == "red"
+    assert earlier["color"] == "yellow"
     assert current["color"] == "yellow"
     assert not any(item["color"] == "red" for item in current["reasons"])
 
@@ -165,14 +165,15 @@ def test_report_preserves_provisional_esas_escalation_and_later_improvement(
 @pytest.mark.parametrize(
     "finding,value,expected",
     [
-        ("esas", 8, "red"),
+        ("esas", 8, "yellow"),
         ("pain", 8, "orange"),
         ("temperature", 38.2, "red"),
         ("skin", 2, "yellow"),
     ],
 )
+@pytest.mark.parametrize("saved_version", [None, 4])
 def test_old_saved_assessment_is_recalculated_from_frozen_inputs(
-    finding, value, expected
+    finding, value, expected, saved_version
 ):
     contact = packet()
     contact["facts"] = []
@@ -210,7 +211,10 @@ def test_old_saved_assessment_is_recalculated_from_frozen_inputs(
         contact, patient(), datetime.fromisoformat("2026-10-01T10:00:00+02:00")
     )
     # Reproduce an assessment produced before this fix.
-    saved.pop("rules_version")
+    if saved_version is None:
+        saved.pop("rules_version")
+    else:
+        saved["rules_version"] = saved_version
     saved.update(color=None, minimum_color="green", reasons=[])
     raw = patient({**checkin("WEB-message-1"), "triage_assessment": saved})
     # Future or later treatment must not be used to resolve the frozen context.
@@ -218,7 +222,9 @@ def test_old_saved_assessment_is_recalculated_from_frozen_inputs(
     before = deepcopy(raw)
     result = checkin_assessments(raw)[0]
     assert result["color"] == expected
-    assert result["minimum_color"] == (None if finding == "skin" else expected)
+    assert result["minimum_color"] == (
+        None if finding in {"skin", "esas"} else expected
+    )
     assert result["assessment_status"] == "incomplete"
     assert result["requires_review"]
     assert all(item["provisional"] for item in result["reasons"])

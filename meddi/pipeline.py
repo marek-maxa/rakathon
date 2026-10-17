@@ -6,6 +6,7 @@ The caller supplies a CURRENT snapshot, not the patient's unrestricted history.
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from copy import deepcopy
@@ -16,7 +17,7 @@ from .clinical_rules import CONTEXT_FLAGS, OBSERVATION_FLAGS, OBSERVATION_NUMBER
 from .disposition import resolve_disposition
 from .form import QUESTIONNAIRE_DEFINITIONS, prepare_checkin
 from .triage import evaluate_checkin
-from .validation import VITAL_FIELDS, number
+from .validation import VITAL_FIELDS, number, prepared_inputs
 
 NUMERIC_FACTS = {
     "temperature": "temperature_c",
@@ -42,6 +43,13 @@ ANSWER_FIELDS = {
     ("nezadouci_ucinky", "prujem"): "diarrhea",
 }
 CURRENT_TEXT = {"dnes", "nyní", "nyni", "teď", "ted", "today", "now"}
+ONGOING_ONSET = {
+    "od včera",
+    "od vcera",
+    "od včerejška",
+    "od vcerejska",
+    "since yesterday",
+}
 DAY_WINDOW = {
     "za posledních 24 hodin",
     "za poslednich 24 hodin",
@@ -53,6 +61,20 @@ DAY_WINDOW = {
     "24h",
     "last 24 hours",
 }
+DURATION_UNITS = {
+    "hours_without_diarrhea": r"h|hod|hodin[ay]?|hours?",
+    "hours_without_urine": r"h|hod|hodin[ay]?|hours?",
+    "nosebleed_minutes": r"min|minut[ay]?|minutes?",
+    "constipation_days": r"den|dny|dní|dni|days?",
+}
+
+
+def _duration_text_matches(fact, text):
+    unit = DURATION_UNITS.get(fact.get("concept"))
+    if not unit or type(fact.get("value")) not in {int, float}:
+        return False
+    match = re.fullmatch(r"(\d+(?:[.,]\d+)?)\s*(?:" + unit + ")", text)
+    return bool(match) and float(match[1].replace(",", ".")) == fact["value"]
 
 
 def _instant(value):
@@ -122,12 +144,21 @@ def _answer_candidate(item, index, root):
     )
 
 
-def _select_current(candidates, issue):
+def _select_current(candidates, issue, *, primary_message_id=None):
     selected = []
     for field, entries in sorted(candidates.items()):
         if all(row["at"] is not None for row in entries):
             latest = max(row["at"] for row in entries)
-            entries = [row for row in entries if row["at"] == latest]
+            entries = [
+                row
+                for row in entries
+                if row["at"] == latest
+                or (
+                    primary_message_id is not None
+                    and row["source"].get("kind") == "fact"
+                    and row["source"].get("source_message_id") == primary_message_id
+                )
+            ]
         else:
             issue("unknown_observation_time", {"field": field})
         # A choice index is not a measurement: temperature choice 1 and 38.2 C
@@ -227,7 +258,9 @@ def _prepare_inputs(root, treatment_sources, selected):
     return prepared, dict(observations)
 
 
-def evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None):
+def evaluate_contact(
+    packet, patient_snapshot=None, *, context=None, now=None, prepared_checkin=None
+):
     """Evaluate a packet from build_pipeline_packet/MasterDialogue, without mutation.
 
     patient_snapshot: {patient_id, as_of, context, observations}. Snapshot records
@@ -386,6 +419,43 @@ def evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None):
             else:
                 raise ValueError(f"Unknown clinical input: {field}")
 
+    if prepared_checkin is not None:
+        prepared_inputs(prepared_checkin)
+        if prepared_checkin.get("patient_id") != root.get("patient_id"):
+            raise ValueError("Prepared check-in belongs to another patient")
+        if prepared_checkin.get("checkin_id") != root.get("id"):
+            raise ValueError("Prepared check-in belongs to another contact")
+        for answer in prepared_checkin["answers"]:
+            ref = (answer["questionnaire_id"], answer["question_id"])
+            if answer["value"] is None and answer["option_indices"] is None:
+                continue
+            field = ANSWER_FIELDS.get(ref, f"question:{ref[0]}/{ref[1]}")
+            add(
+                field,
+                answer["option_indices"]
+                if answer["option_indices"] is not None
+                else answer["value"],
+                {"kind": "answer", "origin": "recorded_checkin", "question": ref},
+                root["available_at"],
+                answer=deepcopy(answer),
+            )
+        for raw, measurement in (prepared_checkin.get("vital_signs") or {}).items():
+            if (
+                raw in VITAL_FIELDS
+                and measurement
+                and measurement.get("hodnota") is not None
+            ):
+                add(
+                    VITAL_FIELDS[raw],
+                    measurement["hodnota"],
+                    {
+                        "kind": "measurement",
+                        "field": raw,
+                        "record": deepcopy(measurement),
+                    },
+                    root["available_at"],
+                )
+
     for index, item in enumerate(packet.get("question_answers", [])):
         if not item.get("confirmed"):
             if item.get("state") not in {"skipped"}:
@@ -444,7 +514,8 @@ def evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None):
         text = (fact.get("time_text") or "").strip().casefold().rstrip(".")
         if (
             text
-            and text not in CURRENT_TEXT | DAY_WINDOW
+            and text not in CURRENT_TEXT | DAY_WINDOW | ONGOING_ONSET
+            and not _duration_text_matches(fact, text)
             and not fact.get("observed_at")
         ):
             unused.append({"reason": "unresolved_observation_time", "source": source})
@@ -456,6 +527,29 @@ def evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None):
             )
             continue
         field = NUMERIC_FACTS.get(concept)
+        if concept in {
+            "diarrhea.episodes",
+            "diarrhea.increase_over_baseline",
+            "vomiting.episodes",
+        }:
+            value = fact.get("value")
+            positive = (type(value) in {int, float} and value > 0) or (
+                isinstance(value, dict)
+                and value.get("lower") is not None
+                and (
+                    value["lower"] > 0
+                    or (value["lower"] == 0 and not value.get("lower_inclusive", True))
+                )
+            )
+            if positive and presence == "present":
+                # The count proves a symptom, never a 24 h window or a baseline.
+                add(
+                    "vomiting" if concept == "vomiting.episodes" else "diarrhea",
+                    True,
+                    source,
+                    available,
+                    fact.get("observed_at"),
+                )
         if concept in {"vomiting.episodes", "diarrhea.increase_over_baseline"}:
             question = message.get("question") or ""
             if text in DAY_WINDOW or (
@@ -493,8 +587,35 @@ def evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None):
         number(field, fact["value"], fact.get("unit"))
         add(field, fact["value"], source, available, fact.get("observed_at"))
 
-    selected = _select_current(candidates, issue)
+    # In a message-first contact, a later choice is not proof
+    # that an explicit opening finding resolved. Keep both accounts for the
+    # shared rules; this does not carry old findings into another contact.
+    dialogue = packet.get("dialogue") or {}
+    selected = _select_current(
+        candidates,
+        issue,
+        primary_message_id=root.get("id")
+        if dialogue.get("mode")
+        in {"targeted_from_message", "questionnaires_from_message"}
+        else None,
+    )
     prepared, observations = _prepare_inputs(root, treatment_sources, selected)
+    if prepared_checkin is not None:
+        prepared["answers"].extend(
+            deepcopy(a)
+            for a in prepared_checkin["answers"]
+            if a["value"] is None and a["option_indices"] is None
+        )
+        for name, value in prepared_checkin.items():
+            if name not in {
+                "answers",
+                "non_green_answers",
+                "vital_signs",
+                "context_sources",
+            }:
+                prepared[name] = deepcopy(value)
+        for raw, measurement in (prepared_checkin.get("vital_signs") or {}).items():
+            prepared["vital_signs"].setdefault(raw, deepcopy(measurement))
     result = evaluate_checkin(prepared, treatment, dict(observations))
     dialog_state = (packet.get("dialogue") or {}).get("state")
     if dialog_state and dialog_state != "complete":

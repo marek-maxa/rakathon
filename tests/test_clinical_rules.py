@@ -282,20 +282,37 @@ def test_loperamide_use_alone_does_not_prove_adherence_or_failure():
     ]
 
 
-def test_diarrhea_reported_over_24_hours_does_not_prove_less_than_12_hours_without_it():
+def test_diarrhea_with_unknown_timing_keeps_provisional_irinotecan_rule():
     data = prepared(
         questionnaire(
             "nezadouci_ucinky", answer("prujem", "Do tří navíc za posledních 24 h", 0)
         )
     )
     result = evaluate_checkin(data, {"irinotecan_treatment": True})
-    assert not any(
-        r["rule_id"] == "irinotecan_diarrhea_not_resolved" for r in result["reasons"]
-    )
+    assert result["color"] == "yellow"
+    assert reason(result, "irinotecan_diarrhea_not_resolved")["provisional"]
     assert (
         "hours_without_diarrhea"
         in skipped(result, "irinotecan_diarrhea_not_resolved")["missing_fields"]
     )
+
+
+@pytest.mark.parametrize("hours", [12, 24])
+def test_known_symptom_free_interval_does_not_activate_uncertain_timing(hours):
+    result = evaluate(
+        {"diarrhea": True, "hours_without_diarrhea": hours},
+        {"irinotecan_treatment": True, "immunotherapy": False},
+    )
+    assert not any(
+        item["rule_id"] == "irinotecan_diarrhea_not_resolved"
+        for item in result["reasons"]
+    )
+
+
+def test_missing_diarrhea_timing_alone_does_not_escalate():
+    result = evaluate({}, {"irinotecan_treatment": True})
+    assert result["color"] == "green"
+    assert not result["reasons"]
 
 
 def test_neuropathy_question_does_not_prove_fine_motor_impairment():
@@ -484,7 +501,7 @@ def test_composite_urinary_answer_does_not_invent_blood_in_urine():
     data = prepared(questionnaire("nezadouci_ucinky", answer("moceni", "Ano", 1)))
     result = evaluate_checkin(data)
     assert result["color"] == "yellow"
-    assert reason(result, "unassessed_answer:nezadouci_ucinky:moceni")["provisional"]
+    assert reason(result, "clinical_review_required")["provisional"]
     assert not any(item["rule_id"] == "critical_bleeding" for item in result["reasons"])
 
 

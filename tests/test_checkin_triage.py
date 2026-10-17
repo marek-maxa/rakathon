@@ -226,16 +226,17 @@ def test_highest_rule_wins_but_all_escalation_reasons_are_preserved():
     }
 
 
-def test_unassessed_esas_signal_sets_only_a_provisional_level():
+def test_unassessed_esas_color_does_not_determine_triage():
     data = prepared(*neutral_forms(), questionnaire("esas", answer("bolest", 6)))
     assert data["non_green_answers"][0]["color"] == "red"
     result = evaluate_checkin(data)
-    assert result["color"] == "red"
-    why = reason(result, "unassessed_answer:esas:bolest")
+    assert result["color"] == "yellow"
+    why = reason(result, "clinical_review_required")
     assert why["provisional"]
     assert "§6.4" in why["uncertainty_source"]
-    assert "dotazniky_definice.json" in why["source"]
-    assert why["evidence"][0]["value"] == 6
+    assert not any(
+        item["rule_id"].startswith("unassessed_answer:") for item in result["reasons"]
+    )
     assert result["scores"]["pain"] == 1  # ESAS was not converted to NRS.
     assert result["requires_review"]
     assert result["non_green_answers"] == data["non_green_answers"]
@@ -248,21 +249,43 @@ def test_unassessed_esas_signal_sets_only_a_provisional_level():
         (3, "yellow"),
         (4, "yellow"),
         (5, "yellow"),
-        (6, "red"),
-        (10, "red"),
+        (6, "yellow"),
+        (10, "yellow"),
     ],
 )
-def test_unassessed_esas_preserves_definition_boundaries(value, color):
+def test_unassessed_esas_keeps_review_without_using_display_boundaries(value, color):
     data = prepared(*neutral_forms(), questionnaire("esas", answer("unava", value)))
     before = deepcopy(data)
     result = evaluate_checkin(data)
     assert result["color"] == color
     assert data == before
-    if value >= 4:
-        assert reason(result, "unassessed_answer:esas:unava")["provisional"]
-        assert result["requires_review"]
-    else:
-        assert reason(result, "clinical_review_required")["provisional"]
+    assert reason(result, "clinical_review_required")["provisional"]
+    assert result["requires_review"]
+
+
+@pytest.mark.parametrize("display_color", [None, "green", "yellow", "orange", "red"])
+@pytest.mark.parametrize("finding", ["neutral", "feeling", "pain", "esas"])
+def test_display_colors_cannot_change_rule_results(display_color, finding):
+    forms = neutral_forms()
+    if finding == "feeling":
+        forms[0] = questionnaire("nezadouci_ucinky", answer("pocit", "5", 4))
+    elif finding == "pain":
+        forms[1] = questionnaire("bolest_analgeticka_terapie", answer("nrs", 8))
+    elif finding == "esas":
+        forms.append(questionnaire("esas", answer("unava", 8)))
+    data = prepared(*forms)
+    expected = evaluate_checkin(data)
+    for item in data["answers"]:
+        item["color"] = display_color
+        for option in item.get("selected_options", []):
+            option["color"] = display_color
+    data["non_green_answers"] = []
+    actual = evaluate_checkin(data)
+    for field in ("color", "minimum_color", "scores", "requires_review", "uroven"):
+        assert actual[field] == expected[field]
+    assert [(r["rule_id"], r["provisional"]) for r in actual["reasons"]] == [
+        (r["rule_id"], r["provisional"]) for r in expected["reasons"]
+    ]
 
 
 @pytest.mark.parametrize(
@@ -437,10 +460,8 @@ def test_answers_without_required_rule_details_remain_for_review(question, index
         ),
     )
     result = evaluate_checkin(data)
-    assert result["color"] == "red"
-    assert reason(result, f"unassessed_answer:nezadouci_ucinky:{question}")[
-        "provisional"
-    ]
+    assert result["color"] == "yellow"
+    assert reason(result, "clinical_review_required")["provisional"]
     assert result["requires_review"]
     assert result["non_green_answers"]
     assert any(item["code"] == "unassessed_answer" for item in result["review_issues"])

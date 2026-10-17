@@ -73,6 +73,23 @@
         {% endif %}
       </section>
 
+      <section class="report-section" aria-labelledby="patient-messages-title">
+        <h3 id="patient-messages-title">Zprávy pacienta</h3>
+        {% if message_error %}<p role="alert">{{ message_error }}</p>{% endif %}
+        {% for row in message_rows %}
+          <article>
+            <h4>{{ row.id }}</h4>
+            <p>{{ row.text }}</p>
+            {% if row.processed %}<p>Zpráva již byla zpracována.</p>{% else %}
+              <form method="post" action="{{ url_for('patient_report.analyze_patient_message', patient_id=status.patient_id, checkin_id=row.id) }}">
+                <input type="hidden" name="token" value="{{ message_token }}">
+                <button type="submit">Vyhodnotit zprávu</button>
+              </form>
+            {% endif %}
+          </article>
+        {% else %}<p>Bez zpráv pacienta.</p>{% endfor %}
+      </section>
+
       <section class="report-section" aria-labelledby="measurement-alerts-title">
         <h3 id="measurement-alerts-title">Varovné nálezy měření</h3>
         {% if status.measurement_incidents %}

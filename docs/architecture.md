@@ -9,15 +9,15 @@ závislosti. Požadované budoucí chování popisuje [plán](meddi-onco-plan.md
 
 | Část | Co existuje | Co chybí pro cílový tok |
 | --- | --- | --- |
-| `llm_intake/` | Obecná extrakce, katalog 49 otázek, cílené větvení, potvrzení/opravy, omezený MASTER dialog | Výběr priorit podle rizika, bezpečnostní bod před dalším cíleným voláním, trvalé obnovení |
+| `llm_intake/` | Obecná extrakce, katalog 49 otázek, MASTER s výběrem relevantních otázek, společné potvrzení/opravy | Výběr priorit podle rizika, bezpečnostní bod před dalším cíleným voláním, trvalé obnovení |
 | `meddi/` | Sdílená deterministická pravidla, normalizace, validace, zdrojované důvody a výstupní politika | Úplné vstupy a klinické mapování, obecná nejistota/trendy, karta a orchestrace |
 | `web/export.py`, `web/triage.py` | Export vybraných ověřených měření s původem, živé trendy stávajícího adaptéru a zdrojovaný kontext léčby | Úplný registr měření/epizod a skutečného podání léčby |
-| `web/app.py` | Vstup Pacient/Lékař, pacientský výběr profilu, MASTER, cílené doptání, společná kontrola, opravy a potvrzení | Přihlášení/oprávnění, volba zastupování, personalizace a bezpečnostní výstup během sběru |
-| `web/patient_store.py` | Pracovní kopie pacienta a atomické přidání potvrzeného check-inu | Sjednocení projekce s událostmi, průběžné revize a podpora více procesů |
+| `web/app.py` | Společné heslo dema, vstup Pacient/Lékař, výběr profilu, MASTER a cílené otázky, kontrola a opravy | Individuální oprávnění, volba zastupování, personalizace a bezpečnostní výstup během sběru |
+| `web/patient_store.py` | Pracovní kopie pacienta, atomické přidání potvrzeného check-inu a zdrojově vázaná uložená extrakce historické zprávy | Sjednocení projekce s událostmi, průběžné revize a podpora více procesů |
 | `web/event_store.py` | SQLite deník původních zpráv před LLM, stabilní ID, dohledatelné opravy a deduplikace | Trvalé výsledky zpracování a obnova dialogu K2b; úplná historie měření/revizí K2c |
 | `web/patient_report.py`, `meddi/status.py` | Poslední/historická triáž, stručná kartička, přehled `/team`, historie odpovědí a měření, nezelené incidenty a grafy | Aktivní epizody, souhrn vývoje, plán kontrol a skutečné předání/převzetí |
 | `notifications/` | Samostatný formulář pro pevný testovací e-mail a SMTP transport | Napojení na triáž, adresáti/priorita, spolehlivé předání a převzetí |
-| `main.py` | Chronologicky omezené strukturované vstupy a oddělené porovnání s referencemi | Replay celého toku včetně zpráv, kontrol, intervencí a souhrnů |
+| `main.py`, `meddi/messages.py` | Strukturovaný replay, volitelná extrakce historických zpráv, konflikty a návrhy doptání, reference oddělené | Úplné klinické pokrytí šesti situací, reakce na odpovědi, intervence a souhrny |
 
 Plánovač, samostatný formulář měření/přeměření, úplný odborný souhrn vývoje
 a skutečné předání monitorovacímu centru nejsou implementované.
@@ -30,7 +30,8 @@ a skutečné předání monitorovacímu centru nejsou implementované.
 | `llm_intake.core`, `flow`, `dialogue` | Jedna odpověď, větvení a MASTER kontakt; [kontrakt](../llm_intake/MASTER_CONTRACT.md) |
 | `meddi.form` | `prepare_checkin`: původní formát → normalizované odpovědi a zdrojové barvy |
 | `meddi.patient_inputs` | `build_triage_inputs(patient, checkin)` → prepared/context/observations dostupné k check-inu |
-| `meddi.pipeline` | `evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None)` |
+| `meddi.pipeline` | `evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None, prepared_checkin=None)` |
+| `meddi.messages` | `evaluate_message_checkin(patient, checkin, *, extract=None, analysis=None)`: zpráva a původní check-in přes stejné jádro; bez vymyšlených odpovědí |
 | `meddi.triage`, `clinical_rules`, `answer_coverage` | Sdílený výpočet pravidel, pokrytí a nevyřešených vstupů |
 | `meddi.disposition` | `resolve_disposition`: výsledná úroveň, krok, kontaktní instrukce a doporučení |
 | `meddi.validation` | Domény, typy a jednotky; neplatný vstup není negativní nález |
@@ -59,8 +60,14 @@ Historický check-in:
 build_triage_inputs → evaluate_checkin → resolve_disposition
 ```
 
-Tato cesta interpretuje strukturované údaje; neextrahuje obsah původní
-`zprava_pacienta`. Úplná rovnocennost nových a importovaných zpráv je úkol K7.
+Strukturovaná cesta zůstává offline. `evaluate_message_checkin` připojí
+jednu extrakci původní zprávy, nebo ověří a znovu použije `analysis` shodnou
+s originálem. Spojí připravené odpovědi, měření, časově dostupný kontext
+a zprávu přes `evaluate_contact(..., prepared_checkin=prepared)`.
+Prázdná zpráva nevolá API; chyba zachová strukturované minimum a viditelný
+stav selhání. Konflikty vracejí `follow_up_questions`, nikoli domyšlené odpovědi.
+Report provede LLM jen po explicitním POST s tokenem; GET používá uložená fakta.
+Klinická úplnost šesti situací zůstává M3.
 Podrobnosti triáže jsou pouze v [backendu](backend.md).
 
 ### Měření a trendy M2
@@ -115,6 +122,7 @@ Trend a kontext: [pravidla triáže §4–6](../rakathon_meddi_onco_data/docs/pr
 | `/patient` | Pacientský výběr profilu a MASTER kontakt, GET i POST |
 | `/patients/<patient_id>/report` | Report profilu z pracovní kopie nebo původních dat |
 | `/team` | Demonstrační přehled požadavků z posledního hodnocení každého pacienta |
+| `/patients/<patient_id>/checkins/<checkin_id>/analyze-message` | Explicitní POST pro extrakci historické zprávy, kontrola session tokenu a zdroje |
 | `/assets/plotly-<version>.min.js` | Lokálně poskytovaný Plotly skript |
 | `/static/<path:filename>` | Styly a skripty webu |
 
@@ -123,7 +131,8 @@ navigace neodkazuje přímo do zdravotnického reportu, lékařský přehled ved
 do detailů. Nenápadný odkaz „Změnit rozhraní“ v patičce označené Demo
 vrací na úvod bez zrušení rozpracovaného
 rozhovoru. Jde o oddělení navigace dema, nikoli kontrolu přístupu;
-lékařské URL zůstávají přímo dostupné. Přihlašování není součástí této změny.
+všechny cesty nyní chrání společné heslo dema (Basic Auth). Individuální
+role a vazba účtu na pacienta implementované nejsou.
 
 Výběr „Ukázkový pacient“ je výslovně označený výběr syntetického profilu
 pro demonstraci, nikoli autentizace. V cílovém pacientském vstupu má profil
@@ -133,7 +142,21 @@ Výchozí MASTER zní „Jak se dnes cítíte?“.
 Web používá `bulk_confirmation=True`: návrhy se kontrolují společně,
 `revise(index)` otevře opravu a zneplatní závislé odpovědi, `confirm_all()`
 potvrdí jen vyřešené návrhy. Fakta z obecné extrakce tím nejsou samostatně
-potvrzená. Výchozí `MAX_QUESTIONS=6` omezuje počet položených otázek včetně MASTER.
+potvrzená. Web má `MAX_QUESTIONS=6` a používá cílený režim:
+MASTER vybírá konkrétní relevantní otázky, nikoli celé dotazníky. Již sdělené
+údaje se využijí přes `Intake.seed`; úplná odpověď jde do společné kontroly,
+chybějící rozlišení vyvolá doptání. Zachovají se původní otázky a zdroje,
+nejde o domyšlené pacientské odpovědi.
+
+`QuestionnaireFlow(targets=...)` zahrne jen vybrané otázky a jejich podmíněné
+potomky. Rodiče mimo rozsah nevyplňuje. Nové téma může přidat další relevantní
+otázku, ne celý formulář. Rozpočet kontaktu je 6, limit doptání parametru 2;
+nevyřešené údaje a kandidáti zůstávají v paketu. Oblasti v UI jen seskupují
+otázky ze zdrojových dotazníků, neznamenají jejich úplný průchod.
+
+`dialogue.mode=targeted_from_message` zachovává úvodní aktuální nález i při
+pozdější mírnější volbě; pravidla dostanou oba podklady téhož kontaktu.
+Explicitní oprava/odeznění a úplný bezpečnostní bod jsou dále K4/K7.
 
 M1 používá `_clinical_card(patient, assessments)` jako společný pohled nad
 posledním výsledkem `checkin_assessments`. Kartička nahoře v reportu a na
@@ -209,7 +232,7 @@ Budoucí změny schématu nebo projekce musí mít explicitní migraci. Uložen�
 události a potvrzeného JSON exportu zatím není jedna společná transakce.
 
 Potvrzení přidá check-in do `data/pacienti/<patient_id>.json`. Flask konfigurace
-`DATA_DIR` mění kořen výstupu; `data/` ignoruje Git. První zápis vytvoří pracovní
+`DATA_DIR` (z prostředí `MEDDI_DATA_DIR`) mění kořen výstupu; `data/` ignoruje Git. První zápis vytvoří pracovní
 kopii z původního syntetického profilu, další přidávají historii. Pacientské ID
 pochází z vybraného profilu. Opakované `checkin_id` se podruhé nepřidá.
 
@@ -229,10 +252,10 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
   barvy. Některá upozornění možností se zobrazují při kontrole souhrnu;
   nejsou úplnou bezpečnostní reakcí. Konflikt s okamžitým kritickým krokem
   je v [rozhodnutích](decisions.md#otevřený-konflikt-bezpečnostního-výstupu).
-- `MasterDialogue.start/submit` může po obecné extrakci spustit cílené LLM
-  dříve, než se řízení vrátí do `assess_contact`. Chyba cíleného volání tak
-  může zabránit vyhodnocení již vytěženého rizika. K4 potřebuje bezpečnostní
-  bod uvnitř tohoto pořadí, nikoli jen další výpočet po návratu do webu.
+- Cílený `MasterDialogue.start/submit` může při využití známých zpráv spustit
+  další cílenou extrakci před návratem do `assess_contact`. K4 potřebuje
+  bezpečnostní bod také uvnitř tohoto pořadí; samotný výpočet po návratu
+  nechrání před selháním předchozího cíleného volání.
 - K2a ukládá originál před LLM, ale výsledky extrakce a stav dialogu zůstávají
   v paměti. Restart tedy neztratí přijatý vstup, avšak neobnoví rozhovor ani
   průběžnou revizi; to je K2b. Testy `test_web_events.py` rozlišují zachování
@@ -277,7 +300,11 @@ uv run --locked python -m llm_intake --list
 git diff --check
 ```
 
-`main.py` srovnává pouze strukturovanou cestu s referencemi, nikoli celý produkt.
+`main.py` má výchozí offline strukturovanou cestu; `--with-messages` zapne
+LLM extrakci. `--without-messages` je explicitní offline varianta.
+Chyby zpráv jsou v řádku i souhrnu; při selhání LLM vrací proces 1
+a barevný výsledek označuje jako záložní. Reference nikdy nevstupují do modelu.
+Ani jedna cesta nenahrazuje evaluaci celého produktu.
 Vyšší výsledek není automaticky zbytečná eskalace a `requires_review` zahrnuje
 i chybějící podmínky hypotetických pravidel. Prošlé testy současného skrývání
 červené triáže neprokazují splnění P07.
@@ -293,3 +320,28 @@ Testy `tests/test_event_store.py` a `tests/test_web_events.py` ověřují K2a:
 příjem před LLM, chybu extrakce, odmítnutí starého/cizího formuláře a opravy.
 Používají dočasnou databázi a syntetické zprávy bez sítě. Neověřují obsluhu
 živého LLM, klinickou správnost, obnovení dialogu K2b ani provoz ve Windows.
+
+## Heslo dema a balení pro Azure
+
+Web před každým požadavkem včetně `/team`, reportů a statiky vyžaduje
+`MEDDI_BASIC_AUTH_USERNAME` a `MEDDI_BASIC_AUTH_PASSWORD` v prostředí nebo
+`llm_intake/.env`. Prázdná konfigurace vrátí 503, chybějící/chybné přihlášení
+401; není automatická výjimka pro localhost. Heslo je společné pro syntetické
+demo, nikoli individuální oprávnění. Mimo localhost používat HTTPS.
+Skutečné přihlašovací údaje se do Gitu nezapisují.
+
+```text
+uv run --locked python scripts/package_azure.py
+uv run --locked gunicorn --bind 0.0.0.0:8000 --workers 1 --timeout 600 web.app:app
+```
+
+Gunicorn je pouze pro Linux, Windows používá lokální `python -m web.app`.
+ZIP `dist/meddi-azure.zip` obsahuje runtime, šablony/statiku, syntetické
+profily a definice; vynechává `.env`, data working copies, SQLite a reference.
+Na serveru nastavit stabilní `FLASK_SECRET_KEY`, obě Basic Auth hodnoty,
+`MEDDI_LLM_*` a `MEDDI_DATA_DIR` na trvalé úložiště mimo balík. Jeden worker
+je nutný kvůli paměťovému dialogu a zámku JSON zápisu; nejde o víceprocesový
+backend. Restart dialog neobnoví, ale SQLite/working copies na trvalém disku
+zůstanou. Tato změna připravuje balík a lokální startup; nic nenasazuje ani
+neověřuje vzdálený build, tajemství nebo umístění dat v EU. Ověření cílového
+prostředí patří do M5/K10, požadavky provozu do zadání P24.
