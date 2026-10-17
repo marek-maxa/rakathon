@@ -12,6 +12,10 @@ všechny souběžně. Dřívější odklad webu není cílovým omezením novéh
 
 | Úkol / rozsah souborů | Vlastník | Stav | Hotovo, když |
 | --- | --- | --- | --- |
+| Jeden zvolený webový dotazník a nepovinná zpráva na konci; llm_intake/dialogue.py, web/app.py, export.py, templates/index.html, testy a docs/ | Aktuální relace / web | done | Výběr všech čtyř definovaných formulářů, výchozí Nežádoucí účinky; kompletní větvení bez limitu 6, zpráva nebo přeskočení před souhrnem, stejná extrakce a pravidla; 751 testů a Ruff prošly. Nasazení čeká na aktualizaci Azure |
+| Zapnout zprávy ve výchozím main.py a odhalit neprovedené LLM vyhodnocení; main.py, meddi/messages.py, testy a docs/ | Aktuální relace / web | done | Běžný CLI běh zahrnuje zprávy, offline režim výslovný, stav v tabulce i bez details, při chybě návratový kód 1 a vysvětlení. 740 testů a živý ONC-018: 8 complete / 0 failed / 5 bez zprávy |
+| Zprávy pacienta přes existující LLM → fakta → společná pravidla; meddi/messages.py, pipeline/validation, llm_intake/master*, main.py, web report/store/templates, testy, pyproject/uv.lock a docs/ | Aktuální relace / web | done | Explicitní rozpory a doptání se zdroji, zachovaná horší varianta, žádné barvy od LLM, opakovaný report bez API, čas a reference oddělené; 736 testů a balíček ověřeny. Živý LLM neověřen: místní klíč chybí; bez nasazení |
+| Odstranit určování triáže barvou možnosti a zachovat konkrétní konzervativní výsledek; meddi/triage.py, clinical_rules.py, testy a docs/ | Aktuální relace / web | done | Žádné převzetí zobrazovací barvy; konkrétní výsledek 1–4, nejistota navázaná na pravidlo, rules_version=5, 708 testů a 171 strukturovaných check-inů ověřeno; bez nasazení |
 | Vyřešit konflikty při merge origin/main do web; web/app.py, docs/architecture.md, docs/tasks.md, balicí skript a testovací podpora | Aktuální relace / web | done | Zachované Basic Auth i MASTER relace a nové podklady; 681 testů, Ruff a kontrola rozbaleného Azure ZIPu prošly. Merge připravený k ručnímu commitu; bez nasazení |
 | Připravit a nasadit současný Flask demo web na Azure; scripts/package_azure.py, pyproject.toml, uv.lock, docs/ | Aktuální relace / main | done | ZIP bez tajemství a referencí, lokální testy, nastavený Gunicorn, úspěšný Azure build a ověřené vzdálené přihlášení, formulář, statika i report |
 | Doplnit MEDDI_LLM_API_KEY v Azure a ověřit syntetickou odpověď | Tým | todo | Klíč nastavený přes Azure Portal bez sdílení v chatu; potvrzený průchod LLM formulářem. Klíč při nasazení nebyl lokálně ani v Azure dostupný |
@@ -771,3 +775,91 @@ závorky kvůli Ruff ISC004 beze změny obsahu. 681 testů prošlo s pracovní
 Ruff celého projektu a format --check pěti upravených Python souborů prošly.
 Rozbalený ZIP ověřil import aplikace, 401 bez hesla a 200 pro formulář,
 statiku i report se syntetickým heslem. Bez LLM volání, commitu či nasazení.
+
+Triáž pouze podle pravidel 17. 10. 2026: odstraněn fallback přebírající
+answer.color do závažnosti, zachované zobrazovací non_green_answers.
+Nejistota konkrétních klinických pravidel a žluté předání nepokrytých
+aktuálních údajů zůstávají; žádný návrat k neurčeno. U doloženého průjmu
+při irinotekanu se neznámá doba bez průjmu označí jako předběžná žlutá,
+nikoli jako potvrzené trvání <12 h. Zdroj: pravidla_triaze.md §5 a §6.4;
+klinické lidské ověření není tímto nahrazené. Zvýšení rules_version 4→5
+vynutí přepočet uložených webových hodnocení ze zmrazených vstupů.
+Windows/Python 3.12: 708 pytest testů prošlo (--basetemp v .scratch),
+včetně 20 variant změny/vypnutí barevných metadat, časové nejistoty,
+hranice 12/24 h a přepočtu starých hodnocení. Ruff celého projektu,
+formát šesti změněných Python souborů a git diff --check prošly.
+Strukturovaný replay bez referencí a LLM: 171 check-inů, všechny mají barvu;
+42 green, 113 yellow, 11 orange, 5 red. Žádný důvod unassessed_answer:*
+a žádné neurčeno. Nejde o klinickou validaci nebo měření shody s referencí.
+Azure ZIP znovu vytvořen a rozbalený ověřen (import, přihlášení, formulář,
+statika, report). Bez commitu, pushe a nasazení; lokální .env.example beze změny.
+
+Zprávy pacienta 17. 10. 2026: nová meddi/messages.py spojuje stávající
+MasterExtractor a API klient s aktuálním check-inem, léčbou a stejným jádrem
+pravidel. LLM vrací pouze fakta s citacemi a subjektem; nekalkuluje barvu.
+Python detekuje explicitní popření proti příznaku i nesoulad přesných počtů
+s volbou rozmezí, zachová horší variantu a vrací otázky k upřesnění. Nepřítomná
+položka dotazníku není popřením. Samotný počet stolic neznamená počet nad
+normál/24 h. Trvající „od vcera“ zachová příznak, nikoli vymyšlenou délku;
+časové údaje mimo podporované okno zůstávají nevyhodnocené. Kód nerozšiřuje
+klinické prahy. Zdroje: pravidla_triaze.md §3–6, zejména §6.2–4; README §6.
+Historický report má explicitní POST pro extrakci s Basic Auth a tokenem;
+ukládá původ a fakta do pracovní kopie, originály nemění. Opakované GET/POST
+použijí uložená fakta bez dalšího volání, změněný zdroj se odmítne a lze
+zpracovat znovu. Živé MASTER kontakty se uloženým výsledkem se neextrahují
+duplicitně. Doptání se zobrazí, odpovědi z budoucnosti ani z referencí nevznikají.
+CLI --with-messages zapíná extrakci, výchozí porovnání zůstává bez sítě.
+Přes uv přidáno tzdata (pyproject.toml i uv.lock) pro Europe/Prague.
+Ověření Windows / Python 3.12: 736 pytest testů prošlo (28 nových pro zprávy),
+Ruff check . a formát 9 dotčených Python souborů prošly, git diff --check
+prošel. API nahrazené falešným extraktorem, včetně ONC-018-C03; ověřen payload
+stejného klienta a striktní schéma. Živý model se nevolal: místní LLM klíč
+není nastaven. Kontrolní replay s prázdnou falešnou extrakcí: 96 neprázdných
+a 75 prázdných zpráv, neztratilo se žádné známé strukturované klinické minimum.
+Nejde o ověření kvality modelu či shody s referencí. Azure ZIP má 56 souborů,
+rozbalený prošel importem, přihlášením, formulářem, statikou a reportem.
+Bez commitu, pushe a nasazení. Přetrvání DATA_DIR na Azure a úplné klinické
+pokrytí textu zůstávají otevřené; cizí změny v .env.example zachované.
+
+Oprava výchozího CLI a diagnostiky zpráv 17. 10. 2026: reprodukováno
+ONC-018 --with-messages bez místního klíče: 0 complete / 8 failed / 5 bez
+zprávy, původní barevné výsledky zůstávaly jako záložní výpočet. Chyběla
+místní llm_intake/.env a proměnná MEDDI_LLM_API_KEY; v Azure klíč nastavený byl.
+main.py nyní zahrnuje zprávy automaticky, --with-messages je kompatibilní
+alias a --without-messages výslovná offline baseline. Stav zprávy je v každém
+řádku a souhrnu bez --details. Při selhání výpis označuje záložní výsledek,
+uvádí chybějící konfiguraci a proces vrací 1; při úspěchu 0.
+Stávající Azure LLM konfigurace byla bezpečně doplněna do llm_intake/.env,
+před zápisem ověřeno ignorování Gitem, existující soubor by se nepřepisoval.
+Žádná tajná hodnota nebyla vypsaná ani přidána do sledovaných souborů.
+Jedno živé ověření ONC-018-C03 získalo diarrhea.episodes=6 (approximate,
+od vcera) a weakness; výsledná žlutá je již založená na pravidle irinotekanu,
+nikoli jen na nezpracované zprávě. Baseline a přesné okno 24 h se nevymýšlely.
+Následně skutečný běžný běh main.py ONC-018 s 8 API extrakcemi dokončen
+s kódem 0: complete=8, failed=0, not_present=5. C02 a C07 se změnily ze
+žluté na zelenou; C03 zůstává předběžně žlutá s konkrétním klinickým důvodem.
+Reference zůstaly jen v porovnání, model dostával pouze zdrojové zprávy.
+Windows/Python 3.12: 740 testů prošlo (4 nové kontroly výchozího běhu,
+změny barvy, explicitní offline varianty a chyby klíče), Ruff celého projektu,
+formát čtyř změněných Python souborů a git diff --check prošly.
+Úspěch 8 extrakcí není úplná klinická validace. Bez commitu, pushe a nasazení.
+
+Webový průchod po upřesnění uživatele 17. 10. 2026: pacient nejprve vybere
+jeden ze čtyř dotazníků (výchozí Nežádoucí účinky), projde celý formulář podle
+pořadí a podmínek a teprve pak může napsat závěrečnou zprávu nebo ji přeskočit.
+Změny: llm_intake/dialogue.py, web/app.py, web/export.py, index.html,
+tests/test_questionnaire_web.py, aktualizované test_web.py/test_survey_recovery.py
+a týmová dokumentace. Dřívější webový MASTER vstup a limit šesti otázek
+nahrazeny; MASTER CLI zůstává kompatibilní. Zpráva se extrahuje stejným API,
+fakta vyhodnocuje stejné jádro pravidel, neotevírá se další formulář.
+Prázdná zpráva ani přeskočení nevolají API; odpovědi se neslepují do zprávy.
+Zdroj pořadí a větvení: dotazniky_definice.json, pole otazky/podminka.
+Ověření Windows/Python 3.12: všech 751 pytest testů prošlo, včetně 11 nových
+kontrol všech čtyř úplných formulářů, více než šesti otázek, podmíněných větví,
+přeskočení zprávy, jejího vlivu na triáž, chyby API a opravy rodiče po zprávě.
+Extrakce v těchto testech nahrazená syntetickým klientem, živý model nevolán.
+Ruff check ., formát dotčených Python souborů a git diff --check prošly.
+Azure ZIP znovu vytvořen (56 souborů) a po rozbalení ověřen import,
+401 bez hesla, 200 s heslem pro formulář, statiku i report.
+Bez nových závislostí, commitu, pushe a nasazení; trvalé úložiště Azure
+zůstává dříve otevřeným bodem.

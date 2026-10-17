@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import datetime
 
 from meddi.disposition import resolve_disposition
+from meddi.messages import evaluate_message_checkin
 from meddi.patient_inputs import build_triage_inputs
 from meddi.pipeline import evaluate_contact
 from meddi.triage import TRIAGE_RULES_VERSION, evaluate_checkin
@@ -80,8 +81,13 @@ def checkin_assessments(patient: dict) -> list[dict]:
             # The shared adapter expects the organizer's complete check-in
             # shape; empty histories/measurements are valid for web profiles.
             raw = {"dotazniky": [], **checkin}
-            prepared, context, observations = build_triage_inputs(patient, raw)
-            result = evaluate_checkin(prepared, context, observations)
+            if raw.get("patient_message_analysis"):
+                result = evaluate_message_checkin(
+                    patient, raw, analysis=raw["patient_message_analysis"]
+                )
+            else:
+                prepared, context, observations = build_triage_inputs(patient, raw)
+                result = evaluate_checkin(prepared, context, observations)
         assessments.append(
             {
                 **result,

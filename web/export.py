@@ -88,7 +88,10 @@ def meddi_record(packet, completed_at: datetime, *, include_drafts=False):
                 "dotazniky": forms,
                 "vitalni_funkce": {},
                 "zprava_pacienta": "\n".join(
-                    message["text"] for message in packet["messages"]
+                    message["text"]
+                    for message in packet["messages"]
+                    if not (packet.get("dialogue") or {}).get("questionnaire_id")
+                    or message["source"] == "patient_message"
                 ),
                 "prilohy": [],
             }

@@ -16,6 +16,12 @@ subjekt a časový kontext. Nevracej žádná metadata zdroje nebo stav potvrzen
 ty připojí aplikace. Nevypisuj zdůvodnění ani procenta jistoty.
 
 - concept: používej stabilní pojmy z topic_catalog.concepts, pokud význam sedí.
+  Je-li dodán clinical_fields, používej jeho názvy pro přesně sdělené klinické
+  údaje. Je to slovník vstupních polí pravidel, nikoli diagnózy nebo pokyn
+  přiřadit závažnost. Např. výslovná nová bolest na hrudi → new_chest_pain;
+  výslovná dušnost v klidu → breathlessness_at_rest. Neodvozuj tyto okolnosti
+  ze samotné obecné bolesti nebo dušnosti. Obecné „Dobre.“ bez konkrétního
+  údaje o stavu může vrátit facts: []; nepopírá tím všechny příznaky.
   Např. vomiting, vomiting.episodes, diarrhea.episodes, fatigue, temperature,
   breathlessness a bleeding. Tečka označuje konkrétní údaj tématu.
   Pro další sdělené potíže vytvoř stručný anglický pojem ve snake_case,

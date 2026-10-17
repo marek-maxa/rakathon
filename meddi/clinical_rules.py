@@ -387,9 +387,22 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
     scores, reasons, skipped = {}, [], []
 
     def rule(identifier, severity, message, section, condition):
+        # A reported diarrhea episode during irinotecan treatment does not prove
+        # twelve symptom-free hours. Keep the rule's yellow level provisionally
+        # until timing is supplied; missing unrelated symptoms cannot trigger it.
+        uncertain_diarrhea_timing = (
+            identifier == "irinotecan_diarrhea_not_resolved"
+            and condition.value is None
+            and test("irinotecan_treatment").value is True
+            and test("diarrhea").value is True
+            and not facts.get("hours_without_diarrhea")
+            and set(condition.missing) <= {"diarrhea_current", "hours_without_diarrhea"}
+        )
+        if uncertain_diarrhea_timing:
+            condition.evidence.extend(test("diarrhea").evidence)
         # Only established symptoms with missing treatment/risk context qualify.
         # Unknown symptoms or a known false AND term must not create an alarm.
-        provisional = (
+        provisional = uncertain_diarrhea_timing or (
             condition.value is None
             and bool(condition.missing)
             and set(condition.missing)

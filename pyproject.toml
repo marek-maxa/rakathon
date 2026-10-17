@@ -8,6 +8,7 @@ dependencies = [
     "gunicorn>=26.2.0 ; sys_platform != 'win32'",
     "plotly>=6.3.0",
     "python-dotenv>=1.2.4",
+    "tzdata>=2026.5",
 ]
 
 [tool.uv]

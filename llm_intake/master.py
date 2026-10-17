@@ -79,8 +79,9 @@ def validate_facts(result: dict, message: MessageEvent) -> list[Fact]:
 class MasterExtractor:
     """Tentýž API klient jako Intake, samostatný prompt a výstupní schéma."""
 
-    def __init__(self, client: Client):
+    def __init__(self, client: Client, clinical_fields=None):
         self.client = client
+        self.clinical_fields = clinical_fields
 
     def payload(self, message: MessageEvent) -> dict:
         topics = load_topic_catalog()
@@ -144,6 +145,11 @@ class MasterExtractor:
                         "topic_catalog": guide,
                         "questionnaire_context": contexts,
                         "message": _model_message(message),
+                        **(
+                            {"clinical_fields": self.clinical_fields}
+                            if self.clinical_fields
+                            else {}
+                        ),
                     }
                 ),
             }

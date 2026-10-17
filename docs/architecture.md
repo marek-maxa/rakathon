@@ -1,5 +1,37 @@
 # Technické řešení
 
+## Aktuální webový průchod dotazníkem (17. 10. 2026)
+
+Po výběru profilu následuje výběr jednoho ze čtyř dotazníků, výchozí jsou
+Nežádoucí účinky. Následují otázky vybraného formuláře podle seznamu `otazky`
+a větvení `podminka` v `rakathon_meddi_onco_data/docs/dotazniky_definice.json`.
+Po nich web nabídne nepovinnou zprávu pacienta, kterou lze přeskočit,
+a společný souhrn s opravami a potvrzením. Tato verze nahrazuje dřívější
+webový vstup MASTER zprávou a směrování na témata; samostatné MASTER CLI
+zachovává původní adaptivní průchod.
+
+`MasterDialogue.start_questionnaire(questionnaire_id, patient_id)` otevře celý
+formulář v režimu hromadného potvrzení bez smyšlené úvodní zprávy. První
+skutečná odpověď je identifikátorem kontaktu v obálce; události mají stále
+skutečné otázky, časy a zdroj `targeted_answer`. Při dokončení je stav
+`needs_message`; `finish_message(event)` zpracuje závěrečnou `patient_message`
+stejným MASTER extraktorem a klientem, `finish_message()` výslovně přeskočí
+zprávu bez API. Extrahovaná fakta se předají stejným deterministickým pravidlům,
+neotevírají další formuláře a nenahrazují potvrzené dotazníkové odpovědi.
+LLM dál interpretuje slovní odpovědi; pořadí a větvení určuje kód.
+
+Web používá `MAX_QUESTIONS=None`, tedy neukončí kompletní dotazník po šesti
+dotazech. Limit dvou upřesnění jedné otázky zůstává; nevyřešený rodič neotevře
+podmíněné děti. MASTER CLI má nadále výchozí celkový limit 6; případný explicitní
+webový limit lze nastavit v konfiguraci. Přeskočení zprávy je v paketu jako
+`dialogue.patient_message_status=skipped`, při vyplnění `submitted`.
+
+Export `zprava_pacienta` nového webového průchodu obsahuje pouze závěrečnou
+zprávu, při přeskočení prázdný text. Odpovědi a jejich původ zůstávají v
+dotaznících a plném `triage_assessment.intake`. Původní MASTER export zůstává
+kompatibilní. Potvrzení a atomické uložení nadále probíhají až v souhrnu;
+selhání extrakce závěrečné zprávy zachová odpovědi i text pro opakování.
+
 Základ: Python 3.12 + uv, Linux / Windows PowerShell. Vývojové nástroje: pytest a Ruff.
 Implementované jsou `llm_intake/`, společné výpočetní jádro `meddi/` bez vlastních
 runtime závislostí a ve větvi web formulář Flask s reportem Plotly. Kořenový
@@ -46,6 +78,77 @@ chybějícím adaptéru, neexistujících testech či neplatné validaci nepřeb
 jako dnešní stav. Klinické výjimky a nejasnosti shrnuje §10 aktuálního plánu.
 
 ## Společný backend — stav 17. 10. 2026
+
+### Zpráva u uloženého check-inu
+
+`meddi.messages.evaluate_message_checkin(patient, checkin, *, extract=None,
+analysis=None)` propojuje existující `MasterExtractor(Client.from_env())`
+s dotazníkem, měřeními a společnými pravidly. Model dostává jen původní zprávu,
+autora, slovník témat a vstupních klinických polí; nedostává celý pacientský
+soubor, ID pacienta, reference, budoucí check-iny ani barvy odpovědí.
+API, deployment a proměnné `MEDDI_LLM_*` zůstávají stejné. LLM extrahuje fakta
+s doslovnou citací, subjektem a časovým vyjádřením; barvu vybírá Python.
+
+Každá neprázdná zpráva vytvoří `MessageEvent(source=patient_message)` s časem
+check-inu v `Europe/Prague` (pro Windows přidané `tzdata`). Neznámý čas dne
+zůstává konzervativně 00:00; časová politika zdroje není tímto dořešena.
+Přesný počet stolic se bez doloženého okna 24 h a baseline nepřevádí na počet
+nad normál. „Od včera“ může doložit trvající potíž, ne přesných 24 hodin.
+Přesné „12 hodin bez průjmu“ je délka, ne čas staré události. Rozsahy zůstávají
+rozsahy; chybějící rozhodující údaje vyvolají doptání, nikoli vymyšlenou hodnotu.
+
+Explicitní popření v dotazníku proti příznaku ve zprávě a nesoulad přesného
+počtu s vybraným rozmezím se zachovají v `message_conflicts`; otázky jsou ve
+`follow_up_questions`. Vynechaná položka sama není popření. Oba podklady
+zůstávají pro pravidla a platí horší doložená varianta, včetně situace, kdy je
+rizikovější dotazník. Zdroj: pravidla triáže §6.2–4; počty a časová okna §3–5.
+Otázky se v této etapě zobrazují; historické odpovědi se na ně nevymýšlejí.
+
+V reportu je u nezpracované historické zprávy tlačítko „Vyhodnotit zprávu“.
+Chrání jej Basic Auth a token formuláře. Jeden POST provede extrakci a atomicky
+ji uloží jako `patient_message_analysis` do stávající pracovní kopie pacienta.
+Další načtení reportu znovu spustí pouze pravidla, bez API volání. Při změně
+zdrojové zprávy se uložená extrakce nepoužije a lze ji znovu získat. Živé MASTER
+kontakty se uloženou triáží se touto cestou znovu do LLM neposílají.
+Při chybě API/schématu výsledek hlásí `message_analysis_status=failed`, známé
+klinické minimum zůstává zachované a chyba se nevydává za úspěšné zpracování.
+Nepokryté koncepty a nejisté časy zůstávají viditelné k posouzení.
+
+CLI pro syntetický replay používá zprávy automaticky už při běžném spuštění
+`main.py` (provádí API volání pro zprávy bez uložené extrakce). Původní
+`--with-messages` zůstává kompatibilní; offline baseline je nutné zvolit výslovně:
+
+```text
+uv run --locked python main.py ONC-018 --details
+uv run --locked python main.py ONC-018 --without-messages
+```
+
+Reference čte až oddělené porovnání; do extrakce ani rozhodování nevstupují.
+CLI automaticky načte ignorovaný `llm_intake/.env`, ale nepřepisuje prostředí.
+Tabulka vždy obsahuje sloupec `MESSAGE` a souhrn `complete/failed/not_present`.
+Při selhání extrakce vrací proces kód 1 a výslovně označí záložní strukturovaný
+výsledek; při chybějícím klíči vypíše pokyn k nastavení `MEDDI_LLM_API_KEY`.
+Proměnné nastavené pouze v Azure se do lokálního procesu samy nepřenášejí.
+Ukládání reportu používá stávající `DATA_DIR`; trvalé úložiště Azure zůstává
+otevřené. Úplná interpretace všech textů a klinické lidské ověření nejsou
+tímto integračním krokem prohlášeny za dokončené.
+
+Aktuální pravidla `rules_version=5` po upřesnění týmu: zobrazovací barvy
+možností dotazníku nikdy neurčují výslednou triáž. Nahrazuje to dřívější
+předběžné přebírání nezelených signálů popsané v historických záznamech níže.
+Dotazník dodává hodnoty a význam odpovědí pro klinická pravidla; metadata
+`non_green_answers` zůstávají pouze doplňkovým pohledem. Nepokrytá aktuální
+odpověď vede k posouzení týmem (žlutá), ne k převzetí její barvy ani k „nevím“.
+Známé pravidlo pro oranžovou/červenou se tím nesnižuje.
+
+Při chybějícím rozhodujícím údaji zůstává vyšší varianta konkrétního pravidla
+předběžná: např. horečka s neznámým kontextem chemoterapie nebo účinek SOS
+u silné bolesti. U doloženého průjmu při irinotekanu neznámá doba od poslední
+průjmovité stolice zachová předběžnou žlutou dle §5 a §6.4 pravidel;
+nesmyšlí počet hodin. Známých 12 i 24 hodin bez průjmu samo nesplňuje
+podmínku „méně než 12 h“. Samotná chybějící hodnota bez doloženého průjmu
+toto pravidlo neaktivuje. Historické uložené výsledky verze 4 a starší web
+přepočítá ze zmrazených vstupů; reference ani budoucí data nepoužívá.
 
 `meddi.pipeline.evaluate_contact(packet, patient_snapshot=None, *, context=None,
 now=None)` propojuje skutečný LLM paket s širším jádrem pravidel. Převádí potvrzené

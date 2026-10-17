@@ -1,3 +1,4 @@
+import json
 import os
 import secrets
 import sys
@@ -13,6 +14,7 @@ load_dotenv(ROOT / "llm_intake" / ".env")
 sys.path.insert(0, str(ROOT))
 
 from llm_intake.client import APIError, Client
+from llm_intake.core import DEFINITIONS
 from llm_intake.dialogue import MasterDialogue
 from llm_intake.master import MasterExtractor
 from llm_intake.master_contract import MessageEvent
@@ -28,9 +30,9 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(16)
 app.config["BASIC_AUTH_USERNAME"] = os.environ.get("MEDDI_BASIC_AUTH_USERNAME", "")
 app.config["BASIC_AUTH_PASSWORD"] = os.environ.get("MEDDI_BASIC_AUTH_PASSWORD", "")
 app.register_blueprint(patient_report)
-app.config["MAX_QUESTIONS"] = 6
+app.config["MAX_QUESTIONS"] = None
 app.config["DATA_DIR"] = ROOT / "data"
-MASTER_QUESTION = "Jak se dnes cítíte?"
+PATIENT_MESSAGE_QUESTION = "Chcete ještě něco doplnit o svém stavu?"
 sessions = {}
 
 
@@ -85,6 +87,13 @@ def patient_choices():
     ]
 
 
+def questionnaire_choices():
+    return [
+        {"id": form["id"], "name": form["nazev"]}
+        for form in json.loads(DEFINITIONS.read_text(encoding="utf-8"))
+    ]
+
+
 def page_for(data):
     if data["patient_id"] is None:
         return {"select_patient": True, "patients": patient_choices()}
@@ -92,6 +101,7 @@ def page_for(data):
         **survey_page(data),
         "patient_id": data["patient_id"],
         "patient_name": data["patient_name"],
+        "questionnaire_name": data.get("questionnaire_name"),
         "assessment": data.get("assessment"),
     }
 
@@ -99,21 +109,30 @@ def page_for(data):
 def survey_page(data):
     contact = data["contact"]
     if contact is None:
-        return {"master": True, "question": MASTER_QUESTION}
-    packet = contact.snapshot()
+        return {
+            "select_questionnaire": True,
+            "questionnaires": questionnaire_choices(),
+        }
     if contact.state in {"needs_answer", "needs_correction"}:
         return {
             "question": contact.active.next_question,
             "instruction": contact.active.question.instruction,
             "options": contact.active.question.patient_options(),
         }
+    if contact.state == "needs_message":
+        return {"patient_message": True, "question": PATIENT_MESSAGE_QUESTION}
+    packet = contact.snapshot()
+    patient_messages = [
+        event["text"]
+        for event in packet["messages"]
+        if event["source"] == "patient_message"
+    ]
     return {
         "done": data["done"],
         "review": True,
-        "master_text": packet["message"]["text"],
+        "patient_message_text": "\n".join(patient_messages),
         "drafts": contact.review_sessions,
-        "gaps": packet["analysis_status"] == "no_facts"
-        or bool(packet["unmapped_concepts"])
+        "gaps": bool(packet["unmapped_concepts"])
         or bool(packet["unknown_subject_fact_indices"]),
         "blocked": any(
             q["state"] == "blocked"
@@ -167,6 +186,7 @@ def index():
                 data.pop("packet", None)
                 data.pop("output_file", None)
                 data.pop("assessment", None)
+                data.pop("questionnaire_name", None)
                 sessions[key] = data
                 return redirect("/")
             if data["done"]:
@@ -183,7 +203,51 @@ def index():
                 sessions[key] = data
                 return redirect("/")
             contact = data["contact"]
-            if "confirm" in request.form:
+            if "questionnaire_id" in request.form:
+                if contact is not None:
+                    raise ValueError("Nejprve začněte nový dotazník.")
+                selected_id = request.form["questionnaire_id"]
+                selected = next(
+                    (
+                        form
+                        for form in questionnaire_choices()
+                        if form["id"] == selected_id
+                    ),
+                    None,
+                )
+                if selected is None:
+                    raise ValueError("Vyberte platný dotazník.")
+                client = Client.from_env()
+                contact = MasterDialogue(
+                    MasterExtractor(client),
+                    client,
+                    extract_with_events=client.extract_events,
+                    max_questions=app.config["MAX_QUESTIONS"],
+                    bulk_confirmation=True,
+                )
+                contact.start_questionnaire(selected_id, data["patient_id"])
+                data["contact"] = contact
+                data["questionnaire_name"] = selected["name"]
+            elif "patient_message" in request.form or "skip_message" in request.form:
+                if contact is None:
+                    raise ValueError("Nejprve dokončete dotazník.")
+                text = request.form.get("patient_message", "").strip()
+                contact.finish_message(
+                    message(
+                        data["patient_id"],
+                        text,
+                        PATIENT_MESSAGE_QUESTION,
+                        "patient_message",
+                    )
+                    if text and "skip_message" not in request.form
+                    else None
+                )
+                data["assessment"] = assess_contact(
+                    contact.snapshot(),
+                    load_working_patient(data["patient_id"]),
+                    datetime.now().astimezone(),
+                )
+            elif "confirm" in request.form:
                 if contact is None:
                     raise ValueError("Nejprve dokončete všechny otázky.")
                 data["packet"] = contact.confirm_all()
@@ -206,31 +270,17 @@ def index():
                 if not text:
                     raise ValueError("Odpověď nesmí být prázdná.")
                 if contact is None:
-                    client = Client.from_env()
-                    contact = MasterDialogue(
-                        MasterExtractor(client),
-                        client,
-                        extract_with_events=client.extract_events,
-                        max_questions=app.config["MAX_QUESTIONS"],
-                        bulk_confirmation=True,
+                    raise ValueError("Nejprve vyberte dotazník.")
+                if contact.state not in {"needs_answer", "needs_correction"}:
+                    raise ValueError("Nyní doplňte zprávu nebo zkontrolujte souhrn.")
+                contact.submit(
+                    message(
+                        data["patient_id"],
+                        text,
+                        contact.active.next_question,
+                        "targeted_answer",
                     )
-                    contact.start(
-                        message(
-                            data["patient_id"], text, MASTER_QUESTION, "master_question"
-                        )
-                    )
-                    data["contact"] = contact
-                else:
-                    if contact.state not in {"needs_answer", "needs_correction"}:
-                        raise ValueError("Nyní zkontrolujte souhrn odpovědí.")
-                    contact.submit(
-                        message(
-                            data["patient_id"],
-                            text,
-                            contact.active.next_question,
-                            "targeted_answer",
-                        )
-                    )
+                )
                 data["assessment"] = assess_contact(
                     contact.snapshot(),
                     load_working_patient(data["patient_id"]),

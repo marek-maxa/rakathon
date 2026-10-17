@@ -2,6 +2,7 @@
 
 import json
 from copy import deepcopy
+from dataclasses import asdict
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Lock
@@ -9,8 +10,34 @@ from threading import Lock
 from flask import current_app
 
 from meddi.loader import load_patient as load_source_patient
+from meddi.messages import message_event
 
 _write_lock = Lock()
+
+
+def save_message_analysis(patient_id, checkin_id, analysis):
+    """Save extraction only if its exact source still matches the working copy."""
+    with _write_lock:
+        patient = deepcopy(load_patient(patient_id))
+        checkin = next(
+            (c for c in patient["checkiny"] if c["checkin_id"] == checkin_id), None
+        )
+        if checkin is None or analysis["message"] != asdict(
+            message_event({"patient_id": patient_id, **checkin})
+        ):
+            raise ValueError("Zpráva se změnila; zopakujte vyhodnocení.")
+        checkin["patient_message_analysis"] = deepcopy(analysis)
+        destination = patient_path(patient_id)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(dir=destination.parent) as temporary:
+            path = Path(temporary) / "patient.json"
+            path.write_text(
+                json.dumps(patient, ensure_ascii=False, allow_nan=False, indent=2)
+                + "\n",
+                encoding="utf-8",
+            )
+            path.replace(destination)
+    return destination
 
 
 def patient_path(patient_id: str) -> Path:

@@ -1,5 +1,14 @@
 # Rozhodnutí
 
+Webový dotazník (17. 10. 2026, aktuální upřesnění uživatele): pacient vybere
+jeden celý dotazník, výchozí jsou Nežádoucí účinky. Zpráva pacienta je až po
+jeho otázkách, nepovinná a přeskočitelná. Nahrazuje to předchozí webový
+MASTER vstup s adaptivním výběrem témat. Pořadí a větvení vycházejí z dodaných
+definic, nikoli z výběru LLM; zpráva se nadále extrahuje stejným API a její
+fakta vstupují do společné triáže. Nedochází k automatickému otevírání dalších
+dotazníků. Celkový webový limit šesti otázek se ruší, limit upřesnění jedné
+odpovědi zůstává. Samostatné MASTER CLI zachovává dosavadní chování.
+
 Revize požadavků a cíl webu (17. 10. 2026): aktuální
 [plán K0–K10](meddi-onco-plan.md) vychází z opětovného přečtení všech
 dostupných podkladů MEDDI a komentářů týmu. Původní revize byla omezena
@@ -92,3 +101,6 @@ tvrdém pravidle. Důvody a zdroje jsou v návrhu.
 | 2026-10-17 | Společné HTTP Basic Auth pro všechny Flask požadavky, údaje z prostředí, při chybějící konfiguraci odmítnout přístup | Výslovný požadavek týmu na heslo před nasazením dema; bez nové závislosti a vlastního Nginxu, Azure musí vynucovat HTTPS. Nejde o individuální účty pro klinický provoz |
 | 2026-10-17 | Nasadit současný formulář a reporty na existující Azure App Service, jeden Gunicorn worker | Pokračování nasazení na pokyn týmu; ZIP zahrnuje pouze potřebný runtime a syntetické vstupy, reference a tajemství zůstávají mimo. Nové nezapojené MasterDialogue moduly neaktivujeme. Existující HTTPS Only neměníme |
 | 2026-10-17 | Při merge main do web zachovat Basic Auth i nový MASTER formulář | Konflikt byl mezi dvěma potřebnými funkcemi; balení nyní zahrnuje MASTER runtime a prompty. Historie nasazení popisuje starší demo, nový merge zatím nenasazen |
+| 2026-10-17 | Výsledná triáž nesmí přebírat barvy možností dotazníku; rules_version=5 | Výslovné upřesnění týmu. Zachované klinické prahy a vyšší varianta při relevantní nejistotě (§6.4); nepokrytá aktuální odpověď vede k posouzení týmem, vždy konkrétní úroveň. U doloženého průjmu při irinotekanu neznámý symptom-free interval zachová předběžnou žlutou podle §5; samotná absence údaje bez příznaku neeskaluje |
+| 2026-10-17 | Zprávy check-inů zpracovat existujícím MasterExtractor/API klientem; rozhoduje společné Python jádro | Na pokyn týmu po schválení návrhu: explicitní rozpor zachová oba podklady a horší variantu (§6.2–4), vynechání není popření. Historická extrakce se spustí explicitně a uloží do pracovní kopie; report ji znovu nevolá. CLI má --with-messages, reference zůstávají mimo vstupy. tzdata zajišťuje Europe/Prague ve Windows i Azure |
+| 2026-10-17 | main.py má zprávy zapnuté ve výchozím běhu, offline baseline vyžaduje --without-messages | Upřesnění týmu po neviditelném selhání. MESSAGE sloupec a souhrn jsou vždy viditelné, selhání vrací kód 1 a vysvětluje záložní výsledek. Lokální konfigurace je v ignorovaném .env; proměnné Azure se samy do místního procesu nepřenášejí |

@@ -223,7 +223,10 @@ def test_cli_lower_filter_still_reports_the_full_summary(monkeypatch, capsys):
     refs = references()
     refs[1]["uroven"] = 3
     monkeypatch.setattr(app, "load_ground_truth", lambda patient_id: refs)
-    monkeypatch.setattr("sys.argv", ["main.py", "synthetic", "--comparison", "lower"])
+    monkeypatch.setattr(
+        "sys.argv",
+        ["main.py", "synthetic", "--without-messages", "--comparison", "lower"],
+    )
     app.main()
     output = capsys.readouterr().out
     assert "synthetic-C01" in output
@@ -317,7 +320,10 @@ def test_cli_prints_every_checkin_and_optional_reasons(monkeypatch, capsys, deta
     monkeypatch.setattr(app, "list_patient_ids", lambda: ["synthetic"])
     monkeypatch.setattr(app, "load_patient", lambda patient_id: patient_with_checkins())
     monkeypatch.setattr(app, "load_ground_truth", lambda patient_id: references())
-    monkeypatch.setattr("sys.argv", ["main.py", *(["--details"] if details else [])])
+    monkeypatch.setattr(
+        "sys.argv",
+        ["main.py", "--without-messages", *(["--details"] if details else [])],
+    )
     app.main()
     output = capsys.readouterr().out
     assert "GROUND TRUTH" in output
@@ -339,7 +345,7 @@ def test_cli_patient_filter(monkeypatch, capsys):
         lambda patient_id: requested.append(patient_id) or patient_with_checkins(),
     )
     monkeypatch.setattr(app, "load_ground_truth", lambda patient_id: references())
-    monkeypatch.setattr("sys.argv", ["main.py", "synthetic"])
+    monkeypatch.setattr("sys.argv", ["main.py", "synthetic", "--without-messages"])
     app.main()
     assert requested == ["synthetic"]
     assert "synthetic-C01" in capsys.readouterr().out
@@ -350,7 +356,9 @@ def test_cli_details_handles_unicode_in_windows_output(monkeypatch):
     refs[1]["zduvodneni"] = "Příznak ≥ 3 dny."
     monkeypatch.setattr(app, "load_patient", lambda patient_id: patient_with_checkins())
     monkeypatch.setattr(app, "load_ground_truth", lambda patient_id: refs)
-    monkeypatch.setattr("sys.argv", ["main.py", "synthetic", "--details"])
+    monkeypatch.setattr(
+        "sys.argv", ["main.py", "synthetic", "--without-messages", "--details"]
+    )
     buffer = io.BytesIO()
     stream = io.TextIOWrapper(buffer, encoding="cp1250")
     monkeypatch.setattr("sys.stdout", stream)
