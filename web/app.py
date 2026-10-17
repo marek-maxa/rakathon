@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, Response, redirect, render_template, request, session
 
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / "llm_intake" / ".env")
@@ -17,12 +17,47 @@ from web.patient_report import patient_report
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(16)
+app.config["BASIC_AUTH_USERNAME"] = os.environ.get("MEDDI_BASIC_AUTH_USERNAME", "")
+app.config["BASIC_AUTH_PASSWORD"] = os.environ.get("MEDDI_BASIC_AUTH_PASSWORD", "")
 app.register_blueprint(patient_report)
 questions = [
     load_question("nezadouci_ucinky", name)
     for name in ("pocit", "sobestacnost", "ucinky")
 ]
 sessions = {}
+
+
+@app.before_request
+def require_basic_auth():
+    """Protect every route, including reports and static files; fail closed."""
+    username = app.config["BASIC_AUTH_USERNAME"]
+    password = app.config["BASIC_AUTH_PASSWORD"]
+    if not username or not password or ":" in username:
+        return Response(
+            "Web authentication is not configured.",
+            status=503,
+            headers={"Cache-Control": "no-store"},
+            mimetype="text/plain",
+        )
+    auth = request.authorization
+    if auth is not None and auth.type == "basic":
+        username_matches = secrets.compare_digest(
+            (auth.username or "").encode("utf-8"), username.encode("utf-8")
+        )
+        password_matches = secrets.compare_digest(
+            (auth.password or "").encode("utf-8"), password.encode("utf-8")
+        )
+        if username_matches and password_matches:
+            return None
+    return Response(
+        "Authentication required.",
+        status=401,
+        headers={
+            "WWW-Authenticate": 'Basic realm="MEDDI demo", charset="UTF-8"',
+            "Cache-Control": "no-store",
+        },
+        mimetype="text/plain",
+    )
 
 
 def patient_choices():

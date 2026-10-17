@@ -6,6 +6,35 @@ pytest a Ruff jsou vývojové nástroje. Web je jednoduchý formulář nad
 
 ## Web
 
+### Heslo pro demo
+
+Všechny Flask požadavky (včetně reportů, statických souborů a POST) vyžadují
+HTTP Basic Auth. Nastavte `MEDDI_BASIC_AUTH_USERNAME` a `MEDDI_BASIC_AUTH_PASSWORD`
+v prostředí nebo v ignorovaném `llm_intake/.env`, který web načítá při startu.
+Jméno nesmí obsahovat dvojtečku; heslo ji obsahovat může. Po změně web restartujte.
+Bez obou neprázdných hodnot web vrací 503; chybějící nebo nesprávné přihlášení
+vrací 401 s přihlašovací výzvou prohlížeče. Neexistuje přepínač vypnutí ochrany.
+Porovnání údajů používá `secrets.compare_digest` nad UTF-8 bajty.
+
+Pro `meddi-team51-demo` nastavte obě hodnoty v Azure Portalu v nastavení
+proměnných prostředí App Service; skutečné heslo nepatří do dokumentace ani Gitu.
+HTTPS Only lze zapnout tímto příkazem (Linux i PowerShell); automaticky jej
+neměníme. Při kontrole 17. 10. 2026 bylo na cílové aplikaci již zapnuté:
+
+```text
+az webapp update --resource-group rg-team51 --name meddi-team51-demo --https-only true --output none
+```
+
+Změna kódu sama nenastavuje vzdálenou aplikaci. Basic Auth je společné heslo
+pro syntetické demo, bez individuálních účtů a bez omezení počtu pokusů.
+Používejte jej přes HTTPS; lokální HTTP slouží pouze pro localhost.
+Azure nastavení „SCM Basic Auth Publishing Credentials“ není přihlášení
+uživatelů tohoto webu a pro tuto ochranu se nezapíná.
+Rozhraní: [Flask before_request](https://flask.palletsprojects.com/en/stable/api/#flask.Flask.before_request),
+[Azure HTTPS Only](https://learn.microsoft.com/en-us/cli/azure/webapp#az-webapp-update).
+
+### Spuštění a formulář
+
 Spusťte z kořene `uv run python web/app.py`. Web při startu automaticky načte
 `llm_intake/.env`; existující proměnné prostředí mají přednost.
 Po výběru profilu se zobrazí tři pevné otázky. LLM navrhne odpověď; pacient ji
@@ -15,6 +44,41 @@ profilu je dostupný na `/patients/<patient_id>/report` a zpracovává jej
 samostatný `patient_report` blueprint. Report není výsledkem nového intake ani
 úplná klinická triáž. Chyby odeslání formuláře se zobrazují jako samostatná
 upozornění.
+
+### Nasazení na Azure App Service
+
+Současný formulář a reporty: Linux / Python 3.12, resource group `rg-team51`,
+Web App `meddi-team51-demo` v předplatném `rakaton`. Gunicorn je runtime
+závislost pouze mimo Windows. Startup command z kořene projektu:
+
+```text
+gunicorn --bind 0.0.0.0:8000 --workers 1 --timeout 600 web.app:app
+```
+
+Jeden worker a jedna instance zachovávají dostupnost rozpracovaného rozhovoru
+v paměti; restart jej smaže. Nastavte stabilní náhodný `FLASK_SECRET_KEY`,
+obě `MEDDI_BASIC_AUTH_*` a `MEDDI_LLM_*` podle `llm_intake/.env.example`
+v Azure App settings. Lokální `.env` se do ZIPu nebalí.
+Build vyžaduje `SCM_DO_BUILD_DURING_DEPLOYMENT=true`.
+Azure instaluje závislosti z `pyproject.toml` a `uv.lock`.
+
+```text
+uv run --locked python scripts/package_azure.py
+az webapp config set --resource-group rg-team51 --name meddi-team51-demo --startup-file "gunicorn --bind 0.0.0.0:8000 --workers 1 --timeout 600 web.app:app" --output none
+az webapp deploy --resource-group rg-team51 --name meddi-team51-demo --src-path dist/meddi-azure.zip --type zip
+```
+
+Balíček obsahuje explicitně vybraný runtime, šablony, statické soubory,
+fiktivní pacienty a definice dotazníků. Neobsahuje klíče, `.git`, vývojové
+prostředí ani `ground_truth`. Nové nezapojené moduly MasterDialogue se nebalí;
+jejich navazující moduly a prompty nejsou kompletní a nejsou součástí tohoto webu.
+Zdroj: [Azure Python build a startup](https://learn.microsoft.com/en-us/azure/app-service/configure-language-python).
+
+Nasazeno 17. 10. 2026 na
+`https://meddi-team51-demo-heb2e4dahpejafht.westus3-01.azurewebsites.net`.
+Nastavený build, startup, stabilní Flask secret a neklíčová konfigurace LLM;
+existující Basic Auth údaje a HTTPS Only zachovány. `MEDDI_LLM_API_KEY` stále
+chybí: doplnit v Azure Portalu a následně ověřit syntetický LLM průchod.
 
 ## Minimální propojení intake → triáž
 

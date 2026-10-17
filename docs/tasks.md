@@ -5,6 +5,9 @@ Implementační kroky zahajujeme po společné domluvě, postupně.
 
 | Úkol / rozsah souborů | Vlastník | Stav | Hotovo, když |
 | --- | --- | --- | --- |
+| Připravit a nasadit současný Flask demo web na Azure; scripts/package_azure.py, pyproject.toml, uv.lock, docs/ | Aktuální relace / main | done | ZIP bez tajemství a referencí, lokální testy, nastavený Gunicorn, úspěšný Azure build a ověřené vzdálené přihlášení, formulář, statika i report |
+| Doplnit MEDDI_LLM_API_KEY v Azure a ověřit syntetickou odpověď | Tým | todo | Klíč nastavený přes Azure Portal bez sdílení v chatu; potvrzený průchod LLM formulářem. Klíč při nasazení nebyl lokálně ani v Azure dostupný |
+| Ochrana webu HTTP Basic Auth; web/app.py, tests/test_web_auth.py, llm_intake/.env.example, docs/ | Aktuální relace / main | done | Všechny cesty chráněné, chybějící konfigurace odmítne přístup, ověřené chybné i správné údaje; zdokumentované Azure proměnné a HTTPS. Vzdálené nastavení a nasazení ještě neprovedeno |
 | Nový začátek pro MEDDI; README.md, AGENTS.md, docs/, documents/, pyproject.toml, uv.lock a lokální cache | Aktuální relace / main | done | Zdrojované zadání, plán a archiv; odstraněné duplicity, cache a nepotřebné závislosti; ověřené odkazy, integrita podkladů a prostředí |
 | Zhodnotit představu týmu a zpřesnit návrh; docs/architecture.md, docs/decisions.md, docs/tasks.md, docs/challenge.md, README.md, documents/README.md | Aktuální relace / main | done | Zapsaný CLI proof of concept, karta a role LLM; doporučení odlišená od rozhodnutí; tým potvrdil simulovaný čas, zaznamenané odpovědi a dodaná data |
 | Dohledat MEDDI JSON, pravidla a popis výstupu; docs/challenge.md, documents/README.md | Aktuální relace / main | done | Otevřená ukázka; lokálně 14 pacientů / 171 check-inů, přečtené README a pravidla; výstup se páruje přes checkin_id |
@@ -126,3 +129,29 @@ Alternativní `MasterDialogue` odkazoval na moduly, které v tomto checkoutu
 neexistují, proto tento tok nelze bezpečně sloučit bez přidání jeho implementace.
 `uv run --locked pytest -q` — 81 testů prošlo; Ruff, `git diff --check` a kontrola
 konfliktních značek prošly. Žádný commit vytvořen.
+
+Ochrana webu heslem 17. 10. 2026: HTTP Basic Auth před všemi Flask cestami,
+včetně blueprintu reportů, statických souborů a POST. Chybějící konfigurace
+vrací 503, chybné či chybějící údaje 401; UTF-8 porovnání používá
+secrets.compare_digest. Bez nových závislostí. Doplněn příklad prostředí,
+architektura a rozhodnutí. Na Windows / Python 3.12.12 prošlo
+`uv run --cache-dir .scratch/uv-cache --offline --locked pytest -q -p no:cacheprovider`
+(94 testů, z toho 27 pro autentizaci), Ruff check celého projektu,
+Ruff format --check obou změněných Python souborů a git diff --check.
+Závislosti byly nejprve doplněny přes uv sync --locked s pracovní cache.
+Bez živého LLM, commitu či nasazení. V Azure zbývá nastavit obě proměnné,
+zapnout HTTPS Only a nasadit kód; skutečné přihlašovací údaje nebyly vytvořeny.
+
+Azure demo 17. 10. 2026: přes uv doplněn Gunicorn pouze mimo Windows,
+pyproject.toml a uv.lock aktualizovány společně. scripts/package_azure.py
+vytváří dist/meddi-azure.zip (35 souborů) bez .env, ground_truth a vývojových
+souborů. ZIP integrita i vyloučení ověřeny; rozbalený balíček prošel kontrolou
+formuláře, statiky, reportu a autentizace. 94 pytest testů, Ruff check celého
+projektu, format --check balicího skriptu a git diff --check prošly na Windows.
+Azure OneDeploy c6cc9134-5dc5-4fab-beb1-1cb70dbb4f05: build úspěšný (status 4).
+Na veřejné HTTPS adrese ověřeno bez hesla 401, se správnými údaji 200 pro
+/, /static/style.css a /patients/ONC-004/report. Nebylo voláno LLM.
+Nastaveny build, startup, stabilní Flask secret a neklíčové LLM proměnné.
+Existující Basic Auth údaje i HTTPS Only zůstaly zachované. Zbývá týmové
+zadání MEDDI_LLM_API_KEY do Azure Portalu a ověření LLM formuláře.
+Nové nezapojené moduly od týmu byly zachovány beze změn. Bez commitu/pushe.
