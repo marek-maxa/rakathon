@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 import secrets
+from datetime import datetime
 from functools import lru_cache
 from html import escape
 
@@ -9,6 +11,7 @@ from flask import (
     Blueprint,
     Response,
     abort,
+    flash,
     redirect,
     render_template,
     request,
@@ -21,8 +24,10 @@ from meddi.common_types import Severity
 from meddi.loader import list_patient_ids
 from meddi.messages import evaluate_message_checkin
 from meddi.status import MeasurementStatus, build_patient_status
+from web.clinical_view import doctor_view
 from web.patient_mail import email_token
-from web.patient_store import load_patient, save_message_analysis
+from web.patient_store import load_patient, record_team_action, save_message_analysis
+from web.portal import PRAGUE
 from web.triage import checkin_assessments
 
 patient_report = Blueprint(
@@ -286,7 +291,7 @@ def _measurement_chart(measurement: MeasurementStatus, incidents) -> str:
         plot_bgcolor="#ffffff",
         paper_bgcolor="#ffffff",
     )
-    return figure.to_html(
+    chart = figure.to_html(
         full_html=False,
         include_plotlyjs=False,
         default_width="100%",
@@ -296,6 +301,21 @@ def _measurement_chart(measurement: MeasurementStatus, incidents) -> str:
             "displaylogo": False,
             "modeBarButtonsToRemove": ["lasso2d", "select2d"],
         },
+    )
+    # First paint of the summary needs no large plotting library.
+    return re.sub(
+        r"(<script\b[^>]*>)(.*?)(</script>)",
+        lambda match: (
+            match[1]
+            + "window.meddiCharts = window.meddiCharts || []; "
+            + "window.meddiCharts.push(function () {"
+            + match[2]
+            + "});"
+            + match[3]
+        ),
+        chart,
+        count=1,
+        flags=re.DOTALL,
     )
 
 
@@ -365,7 +385,7 @@ def report_patient(patient_id, message_error=None):
     )
 
 
-def _clinical_card(patient, assessments):
+def _clinical_card(patient, assessments, now=None):
     """A short view of the same latest assessment used by the detailed report."""
     if not assessments:
         return None
@@ -377,6 +397,7 @@ def _clinical_card(patient, assessments):
     )
     findings = list(dict.fromkeys(reason["message"] for reason in reasons))
     action = ACTION_LABELS.get(latest.get("doporuceny_krok"), "K posouzení týmem")
+    view = doctor_view(patient, assessments, now or datetime.now(PRAGUE))
     return {
         "patient_id": patient["patient_id"],
         "name": (patient.get("demografie") or {}).get("jmeno_fiktivni")
@@ -389,16 +410,18 @@ def _clinical_card(patient, assessments):
         + (findings[0] if findings else "Bez doloženého důvodu ke zvýšení úrovně."),
         "findings": findings[:3],
         "needs_team": bool(latest.get("upozornit_tym")),
+        **view,
     }
 
 
 @patient_report.route("/team")
 def team_overview():
     cards, other_patients = [], []
+    now = datetime.now(PRAGUE)
     for patient_id in list_patient_ids():
         patient = load_patient(patient_id)
-        card = _clinical_card(patient, checkin_assessments(patient))
-        if card and card["needs_team"]:
+        card = _clinical_card(patient, checkin_assessments(patient), now)
+        if card and (card["needs_team"] or card["overdue_count"]):
             cards.append(card)
         else:
             other_patients.append({"patient_id": patient_id, "card": card})
@@ -410,13 +433,87 @@ def team_overview():
             card["patient_id"],
         )
     )
+    all_cards = [*cards, *(p["card"] for p in other_patients if p["card"])]
+    counts = {
+        "total": len(cards) + len(other_patients),
+        "urgent": sum(c["assessment"]["color"] in {"orange", "red"} for c in cards),
+        "overdue": sum(bool(c["overdue_count"]) for c in cards),
+        "review": sum(bool(c["assessment"].get("requires_review")) for c in all_cards),
+    }
+    query = request.args.get("q", "").strip()
+    mode = request.args.get("view", "all")
+    if mode not in {"all", "urgent", "overdue", "review"}:
+        mode = "all"
+    if mode == "review" or query:
+        cards = all_cards
+    cards = [
+        c
+        for c in cards
+        if (
+            not query
+            or query.casefold() in (c["name"] + " " + c["patient_id"]).casefold()
+        )
+        and (
+            mode == "all"
+            or mode == "urgent"
+            and c["assessment"]["color"] in {"orange", "red"}
+            or mode == "overdue"
+            and c["overdue_count"]
+            or mode == "review"
+            and c["assessment"].get("requires_review")
+        )
+    ]
     return render_template(
         "team.html",
         cards=cards,
         other_patients=other_patients,
+        counts=counts,
+        query=query,
+        view_mode=mode,
         email_tokens={
             card["patient_id"]: email_token(card["patient_id"]) for card in cards
         },
+    )
+
+
+@patient_report.post("/patients/<patient_id>/team-action")
+def team_action(patient_id):
+    if patient_id not in list_patient_ids():
+        abort(404)
+    token = session.get("message_analysis_csrf", "")
+    if not token or not secrets.compare_digest(token, request.form.get("token", "")):
+        abort(400)
+    try:
+        action = request.form.get("action")
+        if action not in {"plan", "contact"}:
+            raise ValueError("Vyberte záznam kontaktu nebo plán kontroly.")
+        if action == "plan" and not request.form.get("control_id"):
+            raise ValueError("Vyberte kontrolu k naplánování.")
+        record_team_action(
+            patient_id,
+            now=datetime.now(PRAGUE),
+            note=request.form.get("note"),
+            control_id=request.form.get("control_id") if action == "plan" else None,
+            due_at=request.form.get("due_at"),
+            repeat_hours=request.form.get("repeat_hours"),
+        )
+        flash(
+            "Plán kontroly je uložený a zobrazí se pacientovi."
+            if action == "plan"
+            else "Záznam kontaktu týmu je uložený.",
+            "team-success",
+        )
+    except (ValueError, OSError):
+        flash(
+            "Záznam se nepodařilo uložit. Zkontrolujte vybranou kontrolu, termín a interval.",
+            "team-error",
+        )
+    return redirect(
+        url_for(
+            "patient_report.report_patient",
+            patient_id=patient_id,
+            _anchor="followup-title",
+        )
     )
 
 

@@ -1,5 +1,5 @@
 {% for category, message in get_flashed_messages(with_categories=true) %}
-  {% if category.startswith('patient-email-') %}
-    <p class="email-feedback {{ category }}" role="{{ 'alert' if category == 'patient-email-error' else 'status' }}">{{ message }}</p>
+  {% if category.startswith('patient-email-') or category.startswith('team-') %}
+    <p class="email-feedback {{ category }}" role="{{ 'alert' if category.endswith('error') else 'status' }}">{{ message }}</p>
   {% endif %}
 {% endfor %}

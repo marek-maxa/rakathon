@@ -8,6 +8,87 @@ Rozvíjet existující Flask, intake, pravidla, export a report po malých kroc�
 
 ## Aktuální rozsah MVP
 
+Aktuální pokyn uživatele: dokončit **funkce a viditelnou hodnotu dema**.
+Pacientský vzhled zachovat a ověřit jeho funkční návaznosti; hlavní vizuální
+práce je nyní v rozhraní lékaře. Produkční a technické rozšiřování backendu
+je odložené. Pořadí nové práce určuje D1–D4 v
+[úkolových prioritách](tasks.md#priority-do-dokončení-mvp); M1–M5 níže
+popisují dosavadní rozsah. Aktuální mezery shrnuje následující kontrola.
+
+### Funkční kontrola proti zadání
+
+Stav zahrnuje implementaci D1/D2, automatické testy a lokální prohlížečový
+nácvik se syntetickým pacientem, náhradou LLM a blokovaným SMTP.
+Desktop 1440 px a mobil 390 px jsou vizuálně zkontrolované.
+Neproběhla nová živá LLM evaluace ani klinické převzetí.
+
+| Požadavek pořadatele | Co již demo umí | Co je neúplné a má nyní význam | Zdroj |
+| --- | --- | --- | --- |
+| Zjistit symptomy, intenzitu a vývoj | MASTER, konkrétní otázky, měření, potvrzení; obecné „dobře“ upřesní škálou a „špatně → 4“ doplní popisem | Převzít skutečný průchod bez nadbytečných otázek; zachovat fungující kladnou odpověď | S1 s. 5 a 12; S4 §6.2–4 |
+| Pravidelné sledování mezi kontrolami | Konkrétní kontroly včetně nálezů pouze ze zprávy; tým zadá termín/volitelný interval v UI, odpověď obnoví explicitní plán a neodpověď vidí obě rozhraní | Průchod času sám nevyvolá novou klinickou triáž. Intervaly se medicínsky neodhadují, obecný registr epizod zůstává mimo demo | S1 s. 4–5; S4 §4 / Nevyplněné check-iny a §6.1; S6 / Domácí fungování |
+| Kontext léčby a zdravotních údajů | Zdrojované vstupy pravidel; lékařský blok režimu, záznamu D1, souběžných léků/komorbidit, dostupných laboratoří a časové osy zásahů | Laboratoře, vyšetření a týmové poznámky nejsou obecně klinicky vyhodnocované. D1 není úplná evidence skutečného podání | S1 s. 5 a 8; S4 §5; S7 / Léčba a laboratoř |
+| Rizikové trendy a souvislosti | Odvozená změna hmotnosti za 3 dny/měsíc, opakovaný tlak, změna soběstačnosti; aktuální symptom s léčbou mění výsledek | Graf historie není automatické rozpoznání vývoje. Chybí obecné spojení průběhu příznaků v několika zprávách a zhoršení/zlepšení po zásahu do jednoho srozumitelného příběhu | S1 s. 9 a 12; S4 §5 a §6.1/3 |
+| Jasný krok pro pacienta | Čtyři úrovně, konkrétní kontakt a lhůta; naléhavá instrukce P0 | Převzít ve vybraných situacích a zachovat při novém doplnění; celý pacientský portál se znovu nepřestavuje | S1 s. 6–7 a 12; S4 §1–3 |
+| Upozornit tým a koordinovat péči | Kompaktní prioritní `/team` s hledáním, filtry naléhavosti/neodpovědi/neúplnosti, změnou od minula a termínem; ruční plán/záznam kontaktu | Předání je simulované; skutečné doručení/převzetí zůstává mimo demo | S1 s. 5 a 7; S2 slidy 2–3 a 5; S6 / Monitorovací centrum |
+| Stručný souhrn vývoje do 30 sekund | Nahoře důvod/krok/kontakt/termín, citace s autorem, léčebný kontext, až tři doložené trendy a časová osa; bez dalšího LLM | Nejde o obecnou klinickou syntézu všech dokumentů. Srozumitelnost a klinický výklad musí převzít mentor | S1 s. 5 a 12; S7 / Zásady a ukázky |
+| Přehledné pacientské a lékařské UI | Nové lékařské karty, souhrn a vizuální hierarchie; úplné podklady v rozbalení, grafy se načítají na vyžádání. Vizuálně ověřeno 1440/390 px | Pacientský vzhled zachován; živé nasazení a závěrečné lidské převzetí nejsou touto kontrolou ověřené | S1 s. 10–12; S2 slidy 2–3 a 5 |
+| Šest povinných situací | Integrační případy a negativní protějšky, připravená přijímací sada a označený offline export | Převzít celý viditelný průchod, zejména více dnů a dopad kontextu. Existence scénářů ani mocků nedokazuje splnění živým produktem | S1 s. 9–10 |
+| Integrace MEDDI | Oddělený adaptér a připravený návrh v demo podkladu | Pro toto demo stačí hotový návrh; skutečné API pořadatel neposkytuje | S1 s. 12; S6 / Technická integrace |
+
+Implementační podklady pro toto zhodnocení: `web/portal.py`
+(`new_controls`, `update_controls`, `build_portal`), `web/triage.py`
+(`assess_contact`), `meddi/patient_inputs.py`, `web/clinical_view.py`, `web/patient_report.py`
+(`_clinical_card`, `team_overview`) a šablony `team.html`, `report.html`,
+`_clinical_card.html`. `notifications.scheduler` umí samostatnou ruční
+pozvánku/připomínku; není propojením klinických kontrol a opakovaného
+hodnocení v čase. To jsou odlišné funkce.
+
+### Nejmenší úplný průchod dema
+
+Jedna konkrétní potíž → relevantní léčba a předchozí údaj → aktuální
+vyhodnocení → co/kdy zkontrolovat → odpověď nebo viditelná neodpověď →
+nové vyhodnocení → přehled lékaře s dalším krokem. Navázat na existující
+kontroly a uložená hodnocení. Nový obecný registr epizod ani samostatná
+plánovací služba nejsou pro tento průchod potřeba.
+
+Termín musí pocházet z pravidla, doloženého plánu nebo výslovně označeného
+demo plánu. Převzetí kontroly, její splnění a odeznění potíže jsou různé
+události. `completed_checkin_id` znamená novou odpověď; sám neprokazuje
+zlepšení. Další termín vzniká jen při zadaném `repeat_hours`, od času uložené
+odpovědi. Neodpověď je v obou rozhraních vidět;
+barvu mění pouze příslušná pravidla a dostupné nálezy (S4 §4 a §6).
+
+Pro ověření času a souvislostí použít zhoršování průjmu na imunoterapii,
+přírůstek hmotnosti s novou ortopnoí a splatnou nezodpovězenou kontrolu.
+Ostatní povinné situace z S1 s. 9 ověřit v navazujícím převzetí. V demo
+přípravě lze čas řízeně posunout s viditelným označením; budoucí záznam se
+nikdy nesmí stát vstupem staršího hodnocení (S1 s. 10).
+
+### Směr lékařského rozhraní
+
+- **Pracovní přehled:** kompaktní součty priorit, filtr a hledání, jedna
+  stručná řádka/karta na pacienta: proč teď, změna od minula, poslední
+  kontakt, termín a další krok. Neúplnost má vlastní štítek. Klinická barva
+  zůstává společná s pacientským hodnocením.
+- **Detail:** nahoře „Proč nyní / co posoudit“, kontext léčby a relevantní
+  souběžné léky; pod tím dva až tři doložené trendy a krátká časová osa
+  zpráva → změna → zásah → aktuální stav. U tvrzení datum a otevření zdroje.
+- **Sledování:** na stejném místě ukázat co/kdy čeká, co je po termínu,
+  poslední odpověď a navazující krok týmu. Pro demo stačí malý záznam
+  kontaktu/následné kontroly v současné kartě; není to skutečné doručení.
+- **Vizuální zpracování:** sjednotit typografii, mezery a navigaci
+  s pacientským portálem; grafy soustředit na důležitý vývoj. Úplné tabulky,
+  verze pravidel, technické podklady a podrobnosti dema jsou druhá úroveň
+  detailu. Souhrn nejdříve deterministicky z hotových dat; LLM formulace
+  podle kapacity. Tato podoba je implementovaná a vizuálně zkontrolovaná;
+  kvalifikované klinické převzetí zůstává samostatným krokem.
+
+Zdroj struktury a stručnosti: S1 s. 5, 11–12; S2 slidy 2–3 a 5;
+[vzorové souhrny](../rakathon_meddi_onco_data/docs/vzorove_souhrny_pro_lekare.md),
+oddíl Zásady. Efektní vzhled má zvýraznit doloženou změnu a očekávaný krok.
+
+### Rozsah dosavadního MVP
+
 Priorita: funkční lokální demonstrace nad syntetickými daty v jednom procesu,
 s minimem nových vrstev a LLM volání. Detailní návrh níže je cílový stav pro
 další rozvoj; jeho úplné splnění není podmínkou MVP. Aktuální rozsah je M1–M5
@@ -16,9 +97,11 @@ nikoli postupné dokončování K1–K10. Technický rozsah M3 je implementovan�
 běžný tok, pečující a šest situací mají integrační/negativní průchody.
 Zbývá nezávislé klinické převzetí mentorem a původní audit K7/K9.
 P0 i směrování M4 jsou implementované. Funkční rozsah MUST HAVE portálu
-je implementovaný, zbývá vizuální převzetí. Následuje příprava a funkční
-ověření M5; jeho [demo podklad, offline export a integrační návrh](demo.md)
-jsou připravené, převzetí/nácvik a organizační podmínky zůstávají otevřené.
+je implementovaný včetně D1 a vizuální kontroly 1440/390 px. Pro M5 jsou
+[demo podklad, offline export a integrační návrh](demo.md)
+připravené a offline záloha obnovena. Nácvik plán → neodpověď → odpověď →
+nový termín prošel v prohlížeči bez JS chyb s náhradou LLM a blokovaným
+SMTP; klinické převzetí a organizační podmínky zůstávají otevřené.
 MUST HAVE optimalizace LLM je až poslední implementační krok;
 zahrnuje následné ověření a finální nácvik. Přijímací podmínky jsou v
 [otevřených úkolech](tasks.md#priority-do-dokončení-mvp).
@@ -57,7 +140,7 @@ patří ke správné funkci a hodnocení, nikoli k odložené provozní odolnost
 ### MUST HAVE: pacientský portál
 
 Výslovné doplnění rozsahu uživatelem; funkční rozsah implementovaný,
-vizuální převzetí na mobilu/desktopu zbývá. Navazuje na
+vizuálně ověřený na mobilu/desktopu. Navazuje na
 sledování a srozumitelnost ze zadání (S1 s. 5 a 12), nikoli na požadavek
 produkčního přihlašování. Použít stávající Flask/Jinja, uložená hodnocení,
 měření a cílené otázky; nevytvářet druhý reporting ani nové klinické prahy.
@@ -233,8 +316,8 @@ Při rozporu s dotazníkem se systém doptá a do vyřešení počítá s horš�
 podloženou variantou (S4 §6.2/§6.4). Ani příloha není automatická diagnóza;
 nevyhodnotitelný podklad zůstává k posouzení.
 
-Pod otázkou zobrazit přístupný nenápadný checkbox, např.
-„Odpovídám za [jméno pacienta]“. Volitelně doplnit jméno/vztah pečující osoby.
+Pod otázkou již existuje nenápadné textové přepnutí na odpovídání za
+pacienta a návrat k odpovídání za sebe. Volitelně doplnit jméno/vztah pečující osoby.
 Zvolený pacient zůstává viditelný. Autor se uloží u každé události a správně
 do `vyplnil`; změna během kontaktu nepřepíše starší autory. Pro původní data
 použít jejich `vyplnil`. Volba zastupování není oprávnění k cizí kartě.

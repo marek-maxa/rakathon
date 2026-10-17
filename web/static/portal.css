@@ -90,3 +90,6 @@ a:focus-visible, summary:focus-visible { outline: 3px solid #25837b; outline-off
   .login-card { padding: 24px; }
   .demo-tools { gap: 10px; flex-wrap: wrap; }
 }
+:root { --tracking-due: #a17420; }
+.tracking-item.tracking-overdue { border-left: 3px solid #d9b65a; padding-left: 12px; }
+.tracking-due { color: var(--tracking-due); font-size: 12px; font-weight: 600; }

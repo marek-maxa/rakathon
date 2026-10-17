@@ -166,13 +166,43 @@ výsledků používá jen zmrazené vstupy, nikoli dnešní historii pacienta.
 | O7 | Skutečné podání, D1, vícedávkové/orální režimy a dostupnost dat bez času | S3 §5, S4 §3/§5; úplnost léčby, dostupnost laboratoře versus čas odběru |
 | O8 | Intervaly kontrol/přeměření, expirace a postup při neodpovědi nejsou úplné | S4 §2–6; termíny určí schválená politika nebo tým |
 | O9 | Provozní kalendář, hranice pracovní doby, zvláštní žluté lhůty a reálné paliativní kontakty | S4 §2/§4–5; potvrdit s pracovištěm |
-| O10 | Dehydratovaný případ ONC-011-C09 vyžaduje zdrojované klinické dořešení | S4 §3; nevymýšlet anurii, nemožnost pít ani pravidlo podle referenčního ID |
+| O10 | Klinický výklad upřesnil mentor; implementace a regrese zůstávají otevřené | [Upřesnění O10](#upřesnění-mentora-k-o10): selhání příjmu nebo udržení tekutin z libovolné příčiny + známky dehydratace znamená 4. Pro C09 mentor potvrzuje návaznost na předchozí den; nevymýšlet anurii ani pravidlo podle ID |
 
 S3–S5 označují [zdroje zadání](challenge.md#zdroje-a-jejich-platnost).
 Zobrazovací barva ESAS není NRS ani CTCAE stupeň. Nezavádět práh psychoškály
 podle jediného referenčního případu ani plošně mapovat index odpovědi na stupeň.
 Přetrvávání neuropatie, jemná motorika, doba posledního průjmu a účinek SOS
 musí být doložené, nikoli odvozené jen z podobné otázky.
+
+### Upřesnění mentora k O10
+
+Zdroj: komentář mentora k ONC-011-C09, doslovně předaný uživatelem v této
+konverzaci 17. 10. 2026. Jde o doplnění původního S4 §3 / Červená / Zvracení
+a Příjem a tekutiny; původní organizátorský soubor zůstává zachovaný.
+
+> Máte pravdu, že pravidlo bylo nešťastně zařazené jen pod zvracení. Červená je tu postavená na této kombinaci:
+>
+> pacient nepřijme nebo neudrží tekutiny (z jakéhokoli důvodu: zvracení, bolestivé polykání, mukozitida), tady to bylo doložené už předchozí den,
+> a zároveň má známky dehydratace: málo močí, závrať, tep nad 100.
+> Taková kombinace je 4 vždy, a na cisplatině nebo jiné nefrotoxické léčbě o to víc (riziko akutního selhání ledvin). Samotné „málo močím a točí se mi hlava“ bez doloženého selhání příjmu tekutin zůstává podle pravidla 3.
+
+Pro ověření případu jsou vstupní důkazy dostupné již v čase C09:
+`pacienti/ONC-011.json`, C08 (16. 9. 08:00): „Nepolknu skoro nic, ani vodu moc ne,
+sliny vyplivuju.“; C09 (17. 9. 06:50): „Včera jsem vypil možná půl litru.
+Točí se mi hlava, málo močím.“ a tep 112/min. Týmová hospitalizace z 17. 9.
+12:00 do tohoto hodnocení nevstupuje. Jde o zdrojované posouzení konkrétní
+epizody, nikoli o domyšlenou anurii nebo automatické převzetí každého staršího
+nálezu. Mentor tímto neurčil obecnou dobu platnosti historického příznaku.
+
+Současný `fluid_intolerance_with_dehydration` vyžaduje `cannot_keep_fluids`;
+odlišné selhání příjmu při polykání a propojení s dostupným předchozím
+záznamem nejsou tímto komentářem automaticky implementované.
+`reduced_intake_with_circulatory_signs` nyní poskytuje oranžovou.
+Navazující oprava auditu K7/K9 má použít obecné doložené podmínky bez ID
+pacienta a testovat selhání příjmu při zvracení/polykání/mukozitidě,
+časovou návaznost, zlepšení po zásahu a negativní protějšek bez selhání
+příjmu. Z mentorova příkladu se neodvozuje samostatné pravidlo
+„tep nad 100 = dehydratace“ ani „snížený příjem = nemožnost přijímat tekutiny“.
 
 ## Původ mapování léčiv
 

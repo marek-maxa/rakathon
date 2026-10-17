@@ -7,19 +7,28 @@ závislosti. Požadované budoucí chování popisuje [plán](meddi-onco-plan.md
 
 ## Implementovaný stav
 
+Aktuální funkční kontrola proti oficiálním zdrojům a zamýšlené doplnění
+dema jsou v [plánu](meddi-onco-plan.md#funkční-kontrola-proti-zadání),
+pořadí práce D1–D4 v [úlohách](tasks.md#priority-do-dokončení-mvp).
+Demo má společné kontroly pacienta a týmu s ručním termínem a volitelným
+opakováním, viditelnou neodpovědí a aktualizací po potvrzené odpovědi.
+Lékařský přehled a stručný souhrn doplňují léčbu, doložené trendy a časovou
+osu. Průchod času sám nespouští novou klinickou triáž; samostatné SMTP
+připomenutí není klinické vyhodnocení neodpovědi.
+
 | Část | Co existuje | Co chybí pro cílový tok |
 | --- | --- | --- |
 | `llm_intake/` | Obecná extrakce, katalog 49 otázek, cílený MASTER, společné potvrzení/opravy a volitelný checkpoint před cílenou extrakcí | Výběr priorit podle rizika, trvalé obnovení |
 | `meddi/` | Sdílená deterministická pravidla, normalizace, validace, zdrojované důvody a výstupní politika | Úplné vstupy a klinické mapování, obecná nejistota/trendy, karta a orchestrace |
 | `web/export.py`, `web/triage.py` | Export vybraných ověřených měření s původem, živé trendy stávajícího adaptéru a zdrojovaný kontext léčby | Úplný registr měření/epizod a skutečného podání léčby |
-| `web/app.py`, `web/portal.py` | Společné heslo dema, simulované přihlášení kódem, pacientský portál, autor pacient/pečující, MASTER i přímé cílené kontroly/měření, potvrzení a naléhavá instrukce | Vizuální převzetí portálu, individuální oprávnění, obecný plán kontrol |
+| `web/app.py`, `web/portal.py` | Pacientský portál, autor pacient/pečující, MASTER i přímé kontroly/měření/nálezy ze zprávy, opakování dle ručního plánu, potvrzení a naléhavá instrukce | Individuální oprávnění, obecný klinický plánovač |
 | `web/patient_store.py` | Pracovní kopie pacienta, atomické přidání potvrzeného check-inu a zdrojově vázaná uložená extrakce historické zprávy | Sjednocení projekce s událostmi, průběžné revize a podpora více procesů |
 | `web/event_store.py` | SQLite deník původních zpráv před LLM, stabilní ID, dohledatelné opravy a deduplikace | Trvalé výsledky zpracování a obnova dialogu K2b; úplná historie měření/revizí K2c |
-| `web/patient_report.py`, `meddi/status.py` | Poslední/historická triáž, stručná kartička, přehled `/team`, historie odpovědí a měření, nezelené incidenty a grafy | Aktivní epizody, souhrn vývoje, plán kontrol a skutečné předání/převzetí |
+| `web/patient_report.py`, `web/clinical_view.py`, `meddi/status.py` | Prioritní přehled s filtry, souhrn/context/trendy/časová osa, ruční plán a záznam kontaktu; úplná historie a grafy ve druhé úrovni | Obecné epizody, klinicky převzatý souhrn, skutečné předání/převzetí |
 | `notifications/` | Samostatný formulář pro pevný testovací e-mail a SMTP transport | Napojení na triáž, adresáti/priorita, spolehlivé předání a převzetí |
 | `main.py`, `meddi/messages.py` | Strukturovaný replay, volitelná extrakce historických zpráv, konflikty a návrhy doptání, reference oddělené | Úplné klinické pokrytí šesti situací, reakce na odpovědi, intervence a souhrny |
 
-Obecný klinický plánovač, samostatný strukturovaný formulář měření/přeměření, úplný odborný souhrn vývoje
+Obecný klinický plánovač, samostatný strukturovaný formulář měření/přeměření
 a skutečné předání monitorovacímu centru nejsou implementované.
 
 ## Moduly a datové cesty
@@ -173,6 +182,7 @@ skutečného předání nebo převzetí; fronta a doručování zůstávají mim
 | `/patient/logout` | POST odhlásí demo profil a zneplatní jeho paměťový rozhovor a odesílací tokeny |
 | `/patients/<patient_id>/report` | Report profilu z pracovní kopie nebo původních dat |
 | `/team` | Demonstrační přehled požadavků z posledního hodnocení každého pacienta |
+| `/patients/<patient_id>/team-action` | POST s session tokenem: ruční plán existující kontroly nebo záznam kontaktu do pracovní kopie |
 | `/patients/<patient_id>/checkins/<checkin_id>/analyze-message` | Explicitní POST pro extrakci historické zprávy, kontrola session tokenu a zdroje |
 | `/assets/plotly-<version>.min.js` | Lokálně poskytovaný Plotly skript |
 | `/static/<path:filename>` | Styly a skripty webu |
@@ -210,16 +220,38 @@ zelený výsledek. Historický stav je výslovně označený, rozpracovaný bě�
 výsledek se nezveřejňuje před potvrzením a P0 má přednost před starým stavem.
 
 `portal_controls` v pracovní kopii pacienta obsahuje nejvýše šest položek
-pro nové sledování: `id`, `kind` (`question`/`measurement`), `label`,
+pro nové sledování: `id`, `kind` (`question`/`measurement`/`finding`), `label`,
 `source_checkin_id`, `created_at`, `completed_checkin_id` a případně doložené
 `due_at`. Výchozí návrh vychází z nejnovějšího dostupného check-inu:
-nejvýše tři nezelené odpovědi a tři podporovaná měření. Zdrojová barva zde
-vybírá položku ke sledování, neurčuje klinickou úroveň. První tři položky
-jsou viditelné, ostatní rozbalitelné. Bez plánu se interval nevymýšlí.
+nejvýše tři nezelené odpovědi, pozitivní pacientské nálezy uložené extrakce
+a až tři podporovaná měření do společného limitu šest. Nález bez mapování
+na otázku se doptá doslovným popisem; nevytváří smyšlenou volbu dotazníku.
+Zdrojová barva zde vybírá položku ke sledování, neurčuje klinickou úroveň.
+První tři položky jsou viditelné, ostatní rozbalitelné. Bez plánu se interval nevymýšlí.
 Při potvrzeném appendu se evidence atomicky uloží spolu s check-inem;
 aktualizovaná je jen položka s novou uloženou odpovědí či měřením z doby
 od vzniku kontroly. „Aktualizováno“ neznamená odeznění klinického problému.
 Neznámá/rozporná hodnota kontrolu nesplní. Obecný plánovač se tím nezavádí.
+
+Lékař zadává `due_at` v Europe/Prague a volitelně `repeat_hours`, poznámku
+pro pacienta a existující `control_id`. `record_team_action` ukládá plán
+atomicky; `requested_at` odděluje starou odpověď od nově požadované.
+Potvrzená odpovídající odpověď/měření obnoví termín jen při explicitním
+intervalu: čas odpovědi + interval. Bez něj je kontrola jednorázová.
+`schedule_history` uchovává časově dostupné verze plánu a splnění pro
+historické zobrazení; budoucí změna neovlivní dřívější pohled.
+Splatná neodpověď se ukáže v obou rozhraních a filtru týmu „Po termínu“.
+Sama nezmění klinickou barvu. `demo_team_events` uchovává ruční plány
+a záznamy kontaktu; nejde o klinické odeznění ani odeslanou notifikaci.
+
+`web.clinical_view.doctor_view` sestavuje souhrn bez LLM nad stejným
+hodnocením: změna naléhavosti, citace a autor, režim/D1 s označením
+„podle záznamu cyklu“, souběžné léky, dostupné laboratoře, až tři trendy
+a krátká časová osa. Číselné minigrafy používají skutečné hodnoty; slovní
+odpovědi zůstávají slovní. Kontext je k času hodnocení, ruční plán k času
+otevření. Zdrojové ID/datum zůstává dostupné. `/team?view=urgent|overdue|review`
+a `q` filtrují stávající pohled; nevytvářejí novou klinickou klasifikaci.
+Úplná historie je rozbalovací; Plotly se načte až při jejím otevření.
 
 POST `follow_up=<id>` validuje vlastní sledovanou položku a otevře přímo
 její otázku nebo dotaz na nové měření s jednotkou. Nedovolí nahradit
@@ -232,8 +264,12 @@ odpověď na něj může dokončit sběr i bez obecných faktů; nejde o výjimk
 prázdnou MASTER zprávu. Nevyřešené další vstupy a známá minima zůstávají.
 U měření se údaj a jednotka extrahují ze skutečné odpovědi, ne z historie.
 
-Funkční průchody ověřuje `tests/test_patient_portal.py`; vizuální převzetí
-responzivního zobrazení v prohlížeči zatím zbývá.
+Funkční průchody ověřují `tests/test_patient_portal.py`,
+`tests/test_doctor_followup.py` a `tests/test_mvp_scenarios.py`.
+Responzivita byla zkontrolovaná v Chrome při šířce 1440 a 390 px bez
+vodorovného přetečení. Prohlížečový nácvik prošel plán → neodpověď → pacient
+→ potvrzení → další explicitní termín → přehled týmu; také odložené grafy,
+bez JS chyb. LLM byl nahrazený a SMTP blokované.
 Samostatně je povinné [zrychlení LLM](meddi-onco-plan.md#must-have-rychlost-llm-pro-prezentaci),
 podle změněné priority až poslední implementační krok po funkcích a přípravě M5.
 Současný klient vybírá deployment přes `MEDDI_LLM_MODEL` a poskytuje
@@ -287,6 +323,27 @@ jedinou původní otázku `pocit` (1–5). Po skutečné potvrzené cílené odp
 ve stejném kontaktu pipeline eviduje původní slovní fakt v `clarified_facts`
 s vazbou na zdroj odpovědi. Originál zůstává v intake. Nejistota, neznámý
 subjekt, jiné potíže a přesné rozporné hodnoty se takto neodstraňují.
+
+U obecného „špatně/blbě/nic moc“ se také nabídne původní škála bez odhadu
+čísla. Po skóre 3/4 bez konkrétních potíží následuje otevřená žádost o popis,
+nikoli okamžité uzavření sběru. „Dobře“ a jeho běžná parafráze s následným
+skóre 1/2 nepotřebují tuto další otázku; skóre 5 zachovává původní cestu
+k naléhavé pomoci podle pravidel §3 / Oranžová / Celkový stav.
+
+`dialogue.message_specificity` zaznamenává `needs_details`, důvod, počet
+pokusů a ID zpráv s doplněním. Je to indikátor dostatečnosti popisu pro
+dialog, nikoli odhad klinické závažnosti. Ve stavu `needs_description` je
+`active=None` a otázku poskytuje `MasterDialogue.next_question`. Odpověď
+projde běžnou obecnou extrakcí a checkpointem před případným cíleným LLM;
+nová témata se vrátí do existujících flow. Není to uměle vyplněná otázka
+dotazníku. Originál, autor a skutečná otázka zůstávají ve zdrojových událostech
+a doplnění je viditelné ve společné kontrole.
+
+Doptání respektuje rozpočet 6 a `max_clarifications` (výchozí 2). Pokud
+pacient potíže neupřesní, skončí sběr jako `unresolved/insufficient_detail`
+nebo `limited/question_budget`; stávající pipeline zachová neúplnost
+k lidskému posouzení. Samotné skóre 4 nezavádí novou klinickou barvu.
+Zdrojem doptání jsou pravidla triáže §6.4 a zadání PDF s. 5 a 7.
 
 Nález bez otázky není automaticky nevyhodnocený: pipeline porovná původní
 `unmapped_concepts` s validovanými vybranými vstupy jádra a vykáže zbývající
@@ -527,6 +584,28 @@ Testy `tests/test_event_store.py` a `tests/test_web_events.py` ověřují K2a:
 příjem před LLM, chybu extrakce, odmítnutí starého/cizího formuláře a opravy.
 Používají dočasnou databázi a syntetické zprávy bez sítě. Neověřují obsluhu
 živého LLM, klinickou správnost, obnovení dialogu K2b ani provoz ve Windows.
+
+## Nezávislá přijímací sada podle zdrojů
+
+[tests/acceptance_meddi](../tests/acceptance_meddi/README.md) uchovává
+syntetické vstupy oddělené od očekávání a zdrojů. Katalog a mapa pokrytí
+odkazují na konkrétní části pravidel, strany PDF a slidy PPTX; šest
+povinných situací vychází z `documents/MEDDI – MEDDI Onco.pdf`, s. 9.
+Nejde o další implementaci triáže ani o již prošlé aplikační testy.
+
+```text
+uv run --locked python -X utf8 tests/acceptance_meddi/run.py validate
+uv run --locked python -X utf8 tests/acceptance_meddi/run.py self-check
+uv run --locked python -X utf8 tests/acceptance_meddi/run.py list --tag required-six
+```
+
+Pro hodnocení aplikace musí navazující agent dodat adaptér `module:function`
+podle README sady. Adaptér dostává pouze vstup bez ID případu, nesmí číst
+reference a před extrakcí filtruje časovou dostupnost. Výchozí běh blokuje
+standardní síťové transporty a SMTP; živé LLM vyžaduje explicitní volbu.
+Nejasná klinická politika a textové/UI podmínky vracejí lidské review,
+nikoli automatický úspěch. Samostatné soubory se záměrně neúčastní běžného
+pytestu, dokud není napojen skutečný tok aplikace.
 
 ## Heslo dema a balení pro Azure
 

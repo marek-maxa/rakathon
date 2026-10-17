@@ -14,6 +14,12 @@ Přijímací sada v `tests/acceptance_meddi/` má kontrolu zdrojů přenositelno
 mezi LF/CRLF checkouty. Její validace není ověřením splnění aplikací;
 napojení skutečného adaptéru a vyhodnocení zůstává součástí auditu K7/K9.
 
+Aktuální zaměření podle posledního pokynu uživatele: **funkce dema,
+sledování v čase a souvislostech, přehledné a působivé rozhraní lékaře**.
+Pacientský vzhled zachovat. Rozhodující je pořadí D1–D4 níže; technické
+zpevňování backendu a produkční bezpečnost nejsou nyní prioritou.
+[Kontrola proti oficiálnímu zadání a konkrétní mezery](meddi-onco-plan.md#funkční-kontrola-proti-zadání).
+
 ## Rozpracovaná práce
 
 Tyto dvě práce zachovávají původní vlastnictví relace web; nepřebírat je
@@ -24,6 +30,21 @@ souběžným zápisem do stejného checkoutu.
 | Audit nadměrné eskalace a pokrytí, K7/K9; answer_coverage, triage, testy | Relace web | doing | Oddělení zobrazovacích barev od triáže je již hotové. Vysvětlit zbývající zvýšené výsledky a neúplnost; běžné/mírné odpovědi a větvení skutečně vyhodnotit. Neskrývat texty, neznámá měření či chybějící odpovědi kvůli více zeleným. Ověřit celou časovou sadu i syntetické proti-příklady bez referencí v rozhodování |
 | Dokončit ověření konkrétního kroku pro každé hodnocení, část K6; disposition, pipeline, web a testy | Relace web | doing | Současná výstupní politika již existuje; ověřit všechny vstupní cesty a uložené výsledky. Úroveň 1–4, krok a kontakt, neúplnost zvlášť, známé 3/4 zachované; neaktivní hypotetická pravidla neeskalují rutinní kontakt |
 
+Pro audit K7/K9 je nyní doložené [mentorovo upřesnění O10](backend.md#upřesnění-mentora-k-o10),
+předané uživatelem 17. 10. 2026: nemožnost přijmout/udržet tekutiny
+z libovolné příčiny + známky dehydratace znamená 4; u ONC-011-C09 navazuje
+na doložené selhání příjmu předchozího dne. Klinický výklad je upřesněný,
+obecná implementace a pozitivní/negativní časové regrese zbývají.
+Původní vlastnictví auditu zůstává zachované; samotné závratě a málo moči
+bez doloženého selhání příjmu se podle mentora nepovyšují na 4.
+
+## Zdrojové přijímací scénáře
+
+| Úkol | Vlastník | Stav | Podmínka dokončení |
+| --- | --- | --- | --- |
+| Připravit nezávislé testy pravidel a prezentací | Aktuální relace Codex | done | [Sada](../tests/acceptance_meddi/README.md): 502 syntetických scénářů / 140 požadavků, oddělené vstupy a očekávání, zdroj u každého případu, pokrytí šesti situací z PDF s. 9, hranic, negací a časové dostupnosti. Kontrola sady a hodnoticí nástroj existují; splnění aplikací se netvrdí |
+| Napojit a splnit zdrojovou přijímací sadu | Navazující agent + mentor | todo | Tenký adaptér skutečné aplikace, doložené výsledky zvlášť pro offline a živé LLM; opravy aplikace bez opisování očekávání. Klinické/textové review předat člověku; zachovat vlastnictví probíhajícího auditu K7/K9 a K6 |
+
 ## Navazující implementace
 
 Prioritou je MVP podle [omezeného rozsahu M1–M5](meddi-onco-plan.md#aktuální-rozsah-mvp).
@@ -31,7 +52,7 @@ K1 a K2a existují; na K2a nyní nenavazovat obnovou dialogu K2b.
 M1 a M2 jsou hotové. M3 má implementovaný běžný tok, pečujícího i technické
 průchody šesti situacemi s negativními případy; zbývá klinické převzetí
 mentorem. P0 a M4 jsou hotové. Původní audit K7/K9 zůstává otevřený.
-P3 má implementovaný funkční pacientský portál; zbývá vizuální převzetí
+P3 má implementovaný funkční pacientský portál včetně vizuální kontroly
 na mobilu a desktopu. M5 má připravený demo podklad, samostatnou offline
 zálohu, základní souhrn ověření a integrační návrh; zbývá převzetí/nácvik
 a potvrzení zbývajících organizačních údajů. Živě byly ověřené formulářové
@@ -47,11 +68,11 @@ implementační krok, po ustálení funkcí a prezentačních podkladů.
 | M2 · měření, původ a potřebné trendy | Relace Codex | done | Vybraná ověřená měření v triáži, uložené historii a grafu; MASTER/cílené odpovědi a autor odděleně. Živý web přebírá zdrojované trendy a léčebný kontext stávajícího adaptéru; bez K2b a nového registru léčby |
 | M3 · šest situací a zprávy | Tým + mentor | doing | Technická implementace a průchody šesti situací/mezí hotové, včetně „dobrý“, pečujícího a paliativního kontextu; živá syntetická kontrola extrakce provedena. Pro úplné uzavření zbývá nezávislé kvalifikované klinické převzetí, nikoli další zavedení integrační cesty |
 | M4 · doporučení a směrování | Aktuální relace Codex | done | Kontakty a lhůty podle Europe/Prague, hranic 7:00/15:30, víkendů a doložené paliativní péče; červená vždy 155, zvláštní lhůty zachované. P0, výsledek a kartička používají stejné hodnocení. 880 testů včetně 34 směrovacích scénářů prošlo; Ruff a Azure ZIP ověřeny. Svátky/výjimky pracoviště a skutečné doručování zůstávají mimo MVP |
-| MUST HAVE · pacientský portál | Aktuální relace Codex | doing | Funkční demo kód, oddělené ukázkové účty/odhlášení, MASTER, uložený stav/krok/čas, vlastní údaje a historie. Konkrétní otázky/měření se vracejí do stejné triáže; kontroly se ukládají s potvrzeným check-inem, bez odhadu intervalu. Automatické průchody a HTML všech 14 profilů ověřeny. Zbývá vizuální převzetí na mobilu/desktopu: v této relaci není dostupný prohlížeč. [Rozsah a průchod](meddi-onco-plan.md#must-have-pacientský-portál) |
-| M5 · ověření, demo a návrh integrace | Aktuální relace Codex | doing | [Demo podklad a návrh integrace](demo.md) a offline export jsou připravené. Živé formulářové handlery ověřily běžný stav, aktuální teplotu, označený demo termín, naléhavou instrukci před potvrzením a kartičku týmu; rozsah oddělených průchodů je v podkladu. Opraveny konkrétní chyby toku, model beze změny. Zbývá vizuální/prohlížečový nácvik, klinické převzetí a původní audit, formát/místo odevzdání a případná veřejná URL |
+| MUST HAVE · pacientský portál | Aktuální relace Codex | done | Demo kód, oddělené účty/odhlášení, MASTER, uložený stav/krok/čas, vlastní údaje a historie. Konkrétní otázky/měření/nálezy ze zprávy se vracejí do stejné triáže; společné kontroly s explicitním plánem. Automatické průchody a HTML 14 profilů ověřeny, vizuální kontrola 390/1440 px i prohlížečový cyklus odpovědi hotové. [Rozsah a průchod](meddi-onco-plan.md#must-have-pacientský-portál) |
+| M5 · ověření, demo a návrh integrace | Aktuální relace Codex | doing | [Demo podklad a návrh integrace](demo.md), obnovený offline export šesti situací, automatické průchody a vizuální/prohlížečová kontrola hotové. Plán → neodpověď → pacientská odpověď → další termín prošel bez JS chyb, s náhradou LLM a blokovaným SMTP. Zbývá klinické převzetí a původní audit, závěrečný nácvik s živou konfigurací, formát/místo odevzdání a případná veřejná URL |
 | MUST HAVE · rychlost LLM · poslední krok | Tým | todo | Až po funkcích a přípravě M5 změřit celý krok i počet/dobu volání; porovnat dostupný menší/rychlejší model, podporované nižší uvažování a odstranit zbytečná volání. Zapsat srovnání rychlosti i správnosti, po změně zopakovat relevantní ověření a finální nácvik. [Podmínky](meddi-onco-plan.md#must-have-rychlost-llm-pro-prezentaci) |
 
-Následuje úplný backlog K1–K10, nikoli pořadí MVP. K2b, obecný K5,
+Následuje úplný backlog K1–K10, nikoli aktuální pořadí D1–D4. K2b, obecný K5,
 spolehlivé doručování/převzetí a produkční K8/K10 jsou odložené; stav `todo`
 zde neznamená podmínku dokončení MVP. K2a je uzavřená podpůrná část.
 Lint a SMTP testy nejsou prioritou před fungujícím M1–M5.
@@ -93,45 +114,43 @@ Lint a SMTP testy nejsou prioritou před fungujícím M1–M5.
 
 ## Priority do dokončení MVP
 
-| Priorita | Co nyní dokončit | Přijímací podmínka |
+Pořadí pro zbývající čas je funkční návaznost → lékařský přehled a souhrn →
+převzetí situací → finální ladění. P0, základ M1/M2/M4 a pacientský portál
+existují a při doplňování se zachovají. D1/D2 jsou implementované a ověřené;
+D3/D4 zachovávají níže uvedené zbývající podmínky. Zdrojové posouzení je v
+[plánu](meddi-onco-plan.md#funkční-kontrola-proti-zadání).
+
+| Priorita / stav | Co nyní dokončit | Přijímací podmínka |
 | --- | --- | --- |
-| P0 · bezpečnostní bod K4/M4 · done | Relace Codex: uživatel schválil okamžitou naléhavou instrukci; checkpoint po obecné extrakci úvodu/odpovědi/opravy, před cíleným LLM; instrukce přežije chybu LLM/zápisu | Rozpoznané minimum 3/4 se zobrazí bez potvrzení/uložení; další doplnění až po výslovném pokračování, bez opakované obecné extrakce. Běžný konečný výsledek zůstává po potvrzení |
-| P1 · M3 + audit K7/K9 | Technický rozsah M3 hotový; převzít klinické scénáře mentorem a pokračovat v původním auditu nižších/vyšších výsledků. Neopakovat implementaci „dobrý“ ani zastupování | Běžná upřesněná odpověď bez dalšího rizika nevyvolá kontakt lékaře jen kvůli sběru; šest situací má automatické průchody. Klinické převzetí a vysvětlení celé časové sady ještě nejsou hotové |
-| P2 · M4 · done | Konkrétní krok/kontakt a termín podle Europe/Prague, včetně mimo pracovní dobu a doložené paliativní péče | Běžný týdenní kalendář, historický čas zachovaný, minimum/úplnost beze změny; kalendář svátků a výjimek pracoviště před provozem potvrdit |
-| P3 · MUST HAVE portál · doing | Funkční rozsah implementovaný, dokončit vizuální převzetí mobilu/desktopu | Demo vstup → MASTER → potvrzení → stav → cílená kontrola/měření → report ověřen automaticky; vizuální kontrola v prohlížeči dosud neprovedena |
-| P4 · M5 · doing | Podklad, offline HTML, návrh MEDDI/EU a živé technické průchody hotové; dokončit prohlížečové/klinické převzetí a zbývající podmínky odevzdání | [Přesný průchod a omezení](demo.md), šest situací se zdroji a skutečný replay; formulářový nácvik není vizuální ani klinické převzetí |
-| P5 · MUST HAVE rychlost LLM · poslední | Teprve po ustálení funkcí a podkladů M5 změřit a optimalizovat odezvu; uzavřít finálním nácvikem | Srovnání před/po na stejné syntetické sadě, zachované potřebné extrakce/triáž, relevantní kontrola po změně a opakovaný celý prezentační průchod |
+| D1 · funkční sledování v čase · done | Aktuální relace Codex: kontroly zahrnují nálezy pouze ze zprávy; ruční termín/interval/pokyn v lékařském UI, společná neodpověď a navazující termín po uložené odpovědi | Časová historie plánu a splnění nepropouští budoucnost. Bez intervalu je kontrola jednorázová; neodpověď nemění klinickou barvu. Regrese i prohlížečový cyklus prošly; existující vícedenní scénáře průjmu a hmotnosti/ortopnoe zůstávají zelené. S1 s. 5/9/12; S4 §4–6 |
+| D2 · lékařský přehled, souhrn a vzhled · done | Aktuální relace Codex: kompaktní /team, priority/termíny, hledání/filtry, změna naléhavosti; souhrn s citací/autorem, léčbou, doloženými trendy, časovou osou a plánem/kontaktem | Zkontrolováno v Chrome 1440/390 px bez vodorovného přetečení. Klinická úroveň používá stávající hodnocení; úplné podklady v rozbalení, Plotly až na vyžádání bez JS chyb. S1 s. 5/11/12; S2 slidy 2–3/5; S7 |
+| D3 · převzetí klíčových funkcí dema · doing | Aktuální relace Codex + mentor: automatické průchody šesti situací/běžného/nejasného stavu/rozporu i nového následného doplnění prošly; zůstává kvalifikované klinické převzetí a původní audit K7/K9 a K6 | Celá aktuální pytest sada 985 passed. Prohlížečový průchod včetně další kontroly je doložen lokálně s náhradou LLM a blokovaným SMTP; neprokazuje novou živou extrakci ani splnění 502 přijímacích scénářů aplikací. S1 s. 9–10 |
+| D4 · závěrečné ladění a nácvik · doing | Aktuální relace Codex + tým: grafy odložené mimo první načtení souhrnu; vzhled a cyklus pacient → sledování → lékař zkontrolované; offline záloha šesti situací obnovena | Zbývá porovnání rychlosti/správnosti skutečně dostupných LLM konfigurací a finální živý nácvik; model se touto změnou neměnil. Organizační údaje odevzdání zůstávají k potvrzení. Základ M5 už existuje v [demo.md](demo.md) |
 
-### Nejbližší postup po auditu plánu
+### Nejbližší postup po funkční kontrole
 
-1. Dokončit vizuální převzetí P3, jakmile je dostupný prohlížeč. Označený
-   demo termín a jeho aktualizace byly ověřené v izolovaném technickém
-   průchodu. Portál čte `due_at`, interval sám nenavrhuje a nemá editor
-   plánů. Automatický klinický plánovač není podmínkou MVP.
-2. P4/M5 má připravený [demo podklad](demo.md) a export `dist/demo/index.html`
-   přes `uv run --locked python -m scripts.build_demo`. Nejbližší krok je
-   vizuální otevření a celý živý nácvik podle podkladu v dostupném prohlížeči.
-   Připravená extrakce v offline ukázce je vždy výslovně označená.
-3. V M5 shrnout technické ověření šesti situací a výstupy existujícího
-   replay/auditu, odlišit offline, simulované a živě ověřené části. P1
-   a obě rozpracované práce výše zachovávají vlastníky; klinické převzetí
-   ani audit celé sady nenahrazuje počet prošlých testů.
-4. Návrh MEDDI/EU je v demo podkladu; termín a délku prezentace upřesnil
-   uživatel výše. Zbývá formát/místo odevzdání a případná veřejná URL. Bez
-   dostupného MEDDI API jde o návrh (S1, `documents/MEDDI – MEDDI Onco.pdf`,
-   s. 12), nikoli nové napojení nebo povinné vzdálené nasazení.
-5. Nakonec P5: měření a optimalizace LLM, ověření po změně a finální nácvik.
-   Do té doby neměnit model ani přidávat samostatný výkonnostní projekt.
+1. D1: určit na dvou konkrétních příbězích, co a kdy se má znovu získat,
+   jak se pozná nová odpověď a co uvidí tým při neodpovědi. Doplnit jen
+   mezery tohoto průchodu. Samostatný SMTP plánovač není klinické sledování.
+2. D2: nad stejnými příběhy sestavit stručný lékařský souhrn a navrhnout
+   přehled/detail. U každé změny ukázat minulý → současný údaj, datum,
+   kontext a očekávaný krok. Pacientské UI projít, rozsáhle nepřekreslovat.
+3. D3: projet zbývající situace z PDF s. 9 a běžný/nejasný stav; opravovat
+   konkrétní chyby viditelného toku. Zachovat odpovědnost rozpracovaných
+   auditů; klinické převzetí ani celkový audit se neoznačují za hotové.
+4. D4: až poté rychlost LLM, kosmetické detaily a finální nácvik. Offline
+   export vytvoří `uv run --locked python -m scripts.build_demo`; návrh
+   integrace už je v podkladu. Nové MEDDI API nebo nasazení není nynější úkol.
 
 V M3 sledovat počet relevantních otázek a zbytečné opakování; celé formuláře
-neobnovovat. Výběr otázky neblokuje vyhodnocení faktů mimo katalog. Neobnovovat před MVP K2b ani stavět nový plánovač,
-doručovací frontu, systém skutečných individuálních účtů nebo obecný registr léčby.
-Simulovaný demo vstup a jednoduché uložené kontroly/připomenutí v portálu
-jsou výslovnou výjimkou v rozsahu výše; obecný plánovač a externí notifikace ne.
+neobnovovat. Výběr otázky neblokuje vyhodnocení faktů mimo katalog. Neobnovovat
+před MVP K2b ani stavět nový plánovač, doručovací frontu, systém skutečných
+individuálních účtů nebo obecný registr léčby. Simulovaný demo vstup a
+jednoduché uložené kontroly/připomenutí v portálu zůstávají v rozsahu D1.
 Azure balík není povinnost nasadit ani potvrzení vhodnosti cílové oblasti;
 pro soutěžní demo lze zůstat lokálně nad syntetickými daty.
 
-### Kladná odpověď na MASTER
+### Obecná odpověď na MASTER
 
 Implementace v `llm_intake/master.py`, `dialogue.py` a `meddi/pipeline.py`;
 webové průchody v `tests/test_mvp_scenarios.py`. Platí:
@@ -153,6 +172,14 @@ stav). „Dobrý, ale…“ s rizikovým nálezem zachová vyšší minimum; pr�
 odpověď, „nevím“, neznámý subjekt a selhání modelu se neprohlásí za zelené.
 Používá se existující jádro a celý webový průchod s náhradou LLM.
 Globální výjimka `no_facts → green` ani nové klinické prahy se nezavedly.
+
+`done` · Doplnění obecného nepříznivého stavu: „blbě/špatně → 4“ nabídne
+žádost o konkrétní popis potíží a jeho normální extrakci, nové otázky a P0.
+Indikátor `message_specificity` uchová důvod a pokusy; nejasnost po limitu
+zůstane k review. „Dobře → 1/2“ včetně parafráze nezíská další obecný dotaz,
+skóre 5 zachovává původní naléhavou cestu. Webové/CLI syntetické regrese
+jsou v `test_mvp_scenarios.py` a `test_master_dialogue.py`; živý LLM tím
+ověřen není. Zdroje: pravidla §6.4; PDF s. 5 a 7.
 
 ### Přijímací průchod šesti situacemi P1
 

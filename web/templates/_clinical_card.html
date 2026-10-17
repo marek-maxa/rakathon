@@ -2,12 +2,18 @@
 {% from '_patient_email.html' import patient_email %}
 {% macro clinical_card(card, detail_link=true, email_token=none) -%}
   {% set assessment = card.assessment %}
-  <article class="clinical-card" aria-label="Stručná kartička pacienta {{ card.name }}">
+  <article class="clinical-card" data-tone="{{ assessment.color }}" aria-label="Stručná kartička pacienta {{ card.name }}">
     <header class="section-heading">
       <h3>{{ card.name }} <small>{{ card.patient_id }}</small></h3>
       {{ triage_badge(assessment.color) }}
     </header>
+    {% if card.change %}<p class="doctor-card-meta">{{ card.change }} <span>·</span> {{ card.as_of }}{% if card.age_label %}<span>·</span>{{ card.age_label }}{% endif %}</p>{% endif %}
     <p class="clinical-summary">{{ card.summary }}</p>
+    <div class="doctor-card-next"><div><span class="doctor-label">Další krok</span><strong>{{ card.action }}</strong></div><div><span class="doctor-label">Kontakt / termín</span><strong>{{ assessment.routing.response_due_label if assessment.routing and assessment.routing.response_due_label else 'Podle doporučení' }}</strong></div>{% if card.overdue_count %}<span class="doctor-due-badge">{{ card.overdue_count }} kontrola/y po termínu</span>{% endif %}</div>
+    {% if card.trends %}<div class="doctor-trend-chips">{% for trend in card.trends %}<span>{{ trend.label }} <strong>{{ trend.first }} → {{ trend.last }} {{ trend.unit }}</strong></span>{% endfor %}</div>{% endif %}
+    {% if detail_link %}<a class="doctor-primary-link" href="{{ url_for('patient_report.report_patient', patient_id=card.patient_id, _anchor='summary-title') }}">Otevřít souhrn pacienta <span aria-hidden="true">↗</span></a>{% endif %}
+    {% if assessment.requires_review %}<p class="triage-incomplete">Posouzení je neúplné. Potřebné doplnění je v detailu.</p>{% endif %}
+    <details class="doctor-card-details"><summary>Podklady a kontakt</summary>
     <dl class="statistics">
       <dt>Další krok</dt><dd>{{ card.action }}</dd>
       <dt>Kontakt a lhůta</dt><dd>{{ assessment.doporuceny_kontakt or 'Kontakt není uveden.' }}</dd>
@@ -19,9 +25,6 @@
       <dt>Zdrojový check-in</dt><dd>{{ assessment.date }} {{ assessment.time or '' }} · {{ assessment.checkin_id }}</dd>
       <dt>Verze pravidel</dt><dd>{{ assessment.rules_version or 'Neuvedena' }}</dd>
     </dl>
-    {% if assessment.requires_review %}
-      <p class="triage-incomplete">Posouzení je neúplné. Potřebné doplnění je v detailu.</p>
-    {% endif %}
     {% if assessment.reasons | selectattr('provisional') | list %}
       <p>Některé důvody hodnocení jsou předběžné; vyžadují ověření.</p>
     {% endif %}
@@ -46,5 +49,6 @@
     {% if email_token %}
       {{ patient_email(card.patient_id, email_token, 'team' if detail_link else 'report', card.email) }}
     {% endif %}
+    </details>
   </article>
 {%- endmacro %}

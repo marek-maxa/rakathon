@@ -1,11 +1,12 @@
 """Small patient views and follow-up tasks over the existing saved check-ins."""
 
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 
 from llm_intake.core import load_questions
+from llm_intake.question_catalog import lookup_questions
 from meddi.routing import checkin_time
 from web.triage import checkin_assessments
 
@@ -65,7 +66,7 @@ def controls_for(patient, now=None):
     """Keep a few explicit tasks; no inferred medical interval or episode engine."""
     if "portal_controls" in patient:
         return [
-            deepcopy(c)
+            scheduled_control(c, now)
             for c in patient["portal_controls"]
             if now is None or datetime.fromisoformat(c["created_at"]) <= now
         ]
@@ -73,6 +74,56 @@ def controls_for(patient, now=None):
     if now is not None:
         history = [c for c in history if at(c) <= now]
     return new_controls(max(history, key=at)) if history else []
+
+
+SCHEDULE_FIELDS = (
+    "due_at",
+    "repeat_hours",
+    "requested_at",
+    "completed_checkin_id",
+    "last_completed_at",
+    "plan_note",
+)
+
+
+def scheduled_control(control, now=None):
+    result = deepcopy(control)
+    if now is not None and control.get("schedule_history"):
+        available = [
+            s
+            for s in control["schedule_history"]
+            if datetime.fromisoformat(s["available_at"]) <= now
+        ]
+        result["schedule_history"] = deepcopy(available)
+        for field in SCHEDULE_FIELDS:
+            result.pop(field, None)
+        if available:
+            result.update(
+                {k: v for k, v in available[-1].items() if k in SCHEDULE_FIELDS}
+            )
+    return result
+
+
+def remember_schedule(control, when):
+    control.setdefault("schedule_history", []).append(
+        {
+            "available_at": when.isoformat(),
+            **{k: control.get(k) for k in SCHEDULE_FIELDS},
+        }
+    )
+
+
+def message_facts(checkin):
+    analysis = (
+        (checkin.get("triage_assessment") or {}).get("intake")
+        or checkin.get("patient_message_analysis")
+        or {}
+    )
+    return [
+        f
+        for f in analysis.get("facts", [])
+        if f.get("subject") == "patient" and f.get("presence") in {"present", "absent"}
+    ]
 
 
 def new_controls(checkin):
@@ -93,7 +144,43 @@ def new_controls(checkin):
             )
             if len(controls) == 3:
                 break
+    # A clinical finding can exist without a selected questionnaire option.
+    # Preserve its concept and literal source, rather than fabricating a choice.
+    for fact in message_facts(checkin):
+        if fact["presence"] != "present" or fact["concept"] == "overall_feeling":
+            continue
+        topics = fact.get("topic_ids") or [
+            f"{q['questionnaire_id']}/{q['question_id']}"
+            for q in lookup_questions([fact["concept"]])["questions"]
+        ]
+        candidates = [
+            topic
+            for topic in topics
+            if topic in questions() and not questions()[topic].condition
+        ]
+        topic = candidates[0] if candidates else None
+        key = topic or f"finding:{fact['concept']}"
+        if existing := next((c for c in controls if c["id"] == key), None):
+            existing.update(concept=fact["concept"], reason=fact.get("evidence"))
+            continue
+        controls.append(
+            {
+                "id": key,
+                "kind": "question" if topic else "finding",
+                "label": QUESTION_LABELS.get(
+                    questions()[topic].id, questions()[topic].text
+                )
+                if topic
+                else "Kontrola hlášené potíže",
+                "concept": fact["concept"],
+                "reason": fact.get("evidence") or "Navazuje na pacientovo sdělení.",
+            }
+        )
+        if len(controls) >= 6:
+            break
     for field, (label, _) in MEASUREMENTS.items():
+        if len(controls) >= 6:
+            break
         if ((checkin.get("vitalni_funkce") or {}).get(field) or {}).get(
             "hodnota"
         ) is not None:
@@ -124,18 +211,36 @@ def update_controls(patient, controls, checkin):
         if row and row.get("hodnota") is not None
     }
     for control in controls:
+        threshold = datetime.fromisoformat(
+            control.get("requested_at") or control["created_at"]
+        )
+        described = control.get("concept") in {
+            f["concept"] for f in message_facts(checkin)
+        }
         if (
             control["source_checkin_id"] != checkin["checkin_id"]
-            and at(checkin) >= datetime.fromisoformat(control["created_at"])
-            and control["id"]
-            in (answers if control["kind"] == "question" else measurements)
+            and at(checkin) >= threshold
             and (
-                control["kind"] == "question"
-                or measurements[control["id"]]
-                >= datetime.fromisoformat(control["created_at"])
+                described
+                if control["kind"] == "finding"
+                else control["id"]
+                in (answers if control["kind"] == "question" else measurements)
+            )
+            and (
+                control["kind"] != "measurement"
+                or measurements[control["id"]] >= threshold
             )
         ):
             control["completed_checkin_id"] = checkin["checkin_id"]
+            control["last_completed_at"] = at(checkin).isoformat()
+            if control.get("repeat_hours"):
+                control["due_at"] = (
+                    at(checkin) + timedelta(hours=control["repeat_hours"])
+                ).isoformat()
+                control["requested_at"] = at(checkin).isoformat()
+                control["completed_checkin_id"] = None
+            if control.get("schedule_history"):
+                remember_schedule(control, at(checkin))
     known = {c["id"] for c in controls}
     for candidate in new_controls(checkin):
         if candidate["id"] not in known and len(controls) < 6:
@@ -154,6 +259,14 @@ def follow_up(control):
             "options": q.patient_options(),
             "topic": control["id"],
         }
+    if control["kind"] == "finding":
+        return {
+            "id": control["id"],
+            "question": "Jak se od poslední kontroly změnila tato potíž? "
+            + control.get("reason", control["label"]),
+            "instruction": "Popište současný stav, zda se zlepšuje nebo zhoršuje, a případné další potíže.",
+            "topic": None,
+        }
     label, unit = MEASUREMENTS[control["id"]]
     return {
         "id": control["id"],
@@ -163,10 +276,10 @@ def follow_up(control):
     }
 
 
-def build_portal(patient, now):
+def build_portal(patient, now, *, assessments=None):
     history = visible_checkins(patient, now)
     current = {**patient, "checkiny": history}
-    assessments = checkin_assessments(current)
+    assessments = checkin_assessments(current) if assessments is None else assessments
     controls = controls_for(current, now)
     rows = []
     for control in controls:
@@ -180,7 +293,7 @@ def build_portal(patient, now):
                 value = answer.get("odpoved") if answer else None
                 has_observation = answer is not None
                 observed = at(checkin)
-            else:
+            elif control["kind"] == "measurement":
                 measured = (checkin.get("vitalni_funkce") or {}).get(
                     control["id"]
                 ) or {}
@@ -193,6 +306,15 @@ def build_portal(patient, now):
                     if measured.get("observed_at")
                     else at(checkin)
                 )
+            else:
+                facts = [
+                    f
+                    for f in message_facts(checkin)
+                    if f["concept"] == control.get("concept")
+                ]
+                has_observation = bool(facts)
+                value = facts[-1].get("evidence") if facts else None
+                observed = at(checkin)
             if has_observation and observed <= now:
                 observations.append((value, observed))
         observations.sort(key=lambda entry: entry[1])
@@ -210,6 +332,10 @@ def build_portal(patient, now):
                 else value,
                 "time": display_time(observed),
                 "due": display_time(due) if due else None,
+                "overdue": overdue,
+                "repeat_label": f"Každých {control['repeat_hours']:g} hodin podle plánu týmu"
+                if control.get("repeat_hours")
+                else None,
                 "status": "K upřesnění"
                 if observations and value is None
                 else "Aktualizováno"
@@ -224,6 +350,7 @@ def build_portal(patient, now):
         "assessment": latest,
         "time": display_time(at(history[-1])) if history else None,
         "controls": rows,
+        "overdue_count": sum(r["overdue"] for r in rows),
         "history": [
             {
                 "date": display_time(at(c)),

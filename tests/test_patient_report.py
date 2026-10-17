@@ -205,6 +205,9 @@ def test_report_renders_measurement_chart_and_warning_details(monkeypatch):
 
     assert response.status_code == 200
     assert 'class="plotly-graph-div"' in html
+    assert 'id="plotly-source" type="application/json"' in html
+    assert "window.meddiCharts.push(function () {" in html
+    assert "});</script>" in html
     assert "Plotly.newPlot(" in html
     assert "SpO₂ (%)" in html
     assert html.count("/assets/plotly-") == 1

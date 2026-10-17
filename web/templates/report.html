@@ -10,9 +10,11 @@
   <title>Přehled stavu pacienta</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='patient_report.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='triage.css') }}">
-  <script src="{{ url_for('patient_report.plotly_js', version=plotly_js_version) }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='doctor.css') }}">
+  <script id="plotly-source" type="application/json">{{ url_for('patient_report.plotly_js', version=plotly_js_version) | tojson }}</script>
 </head>
-<body>
+<body class="doctor-body">
+  <nav class="doctor-nav" aria-label="Lékařské rozhraní"><a class="doctor-brand" href="{{ url_for('home') }}"><span class="brand-mark">M</span> MEDDI <strong>ONCO</strong></a><a class="doctor-back" href="{{ url_for('patient_report.team_overview') }}">← Přehled pacientů</a><span class="doctor-avatar" aria-label="Rozhraní zdravotnického týmu">T</span></nav>
   <header class="report-header">
     <p class="eyebrow">MEDDI ONCO · PRO LÉKAŘE</p>
     <h1>Přehled stavu pacienta</h1>
@@ -20,8 +22,10 @@
       <a href="{{ url_for('patient_report.team_overview') }}">Požadavky pro tým</a>
     </nav>
   </header>
-  <main class="report-shell">
+  <main class="report-shell doctor-shell">
     {% include '_email_feedback.html' %}
+    {% include '_doctor_summary.html' %}
+    <details class="doctor-source-panel doctor-full-report"><summary>Podklady hodnocení a úplná historie</summary>
     {% if clinical_card %}
       {{ render_clinical_card(clinical_card, detail_link=false, email_token=email_token) }}
     {% else %}
@@ -249,10 +253,12 @@
         {% endfor %}
       </section>
     </section>
+    </details>
     <footer class="demo-tools" aria-label="Ovládání ukázky">
       <span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a>
     </footer>
   </main>
   <script src="{{ url_for('static', filename='patient_mail.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='doctor.js') }}" defer></script>
 </body>
 </html>

@@ -8,40 +8,63 @@
   <title>Požadavky pro tým · MEDDI ONCO</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='patient_report.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='triage.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='doctor.css') }}">
 </head>
-<body>
-  <header class="report-header">
-    <p class="eyebrow">MEDDI ONCO · PRO LÉKAŘE</p>
-    <h1>Požadavky pro tým</h1>
+<body class="doctor-body">
+  <nav class="doctor-nav" aria-label="Lékařské rozhraní">
+    <a class="doctor-brand" href="{{ url_for('home') }}"><span class="brand-mark">M</span> MEDDI <strong>ONCO</strong></a>
+    <span class="doctor-nav-label">Monitorovací centrum</span>
+    <span class="doctor-avatar" aria-label="Rozhraní zdravotnického týmu">T</span>
+  </nav>
+  <header class="doctor-page-header">
+    <div><p class="eyebrow">MEDDI ONCO · PRO LÉKAŘE</p><h1>Vaši pacienti. To důležité právě teď.</h1><p>Priorita, souvislosti a další krok na jednom místě.</p></div>
+    <span class="demo-pill">Ukázkové prostředí</span>
   </header>
-  <main class="report-shell">
+  <main class="report-shell doctor-shell">
     {% include '_email_feedback.html' %}
-    <p class="note">Demonstrační přehled podle posledního check-inu každého pacienta.
-      Požadavky jsou seřazené podle úrovně, v rámci úrovně od nejstaršího záznamu.
-      Předání je simulované; přehled nesleduje doručení ani převzetí zdravotníkem.</p>
+    <div class="doctor-kpis" aria-label="Přehled sledování">
+      <a class="doctor-kpi" href="{{ url_for('patient_report.team_overview') }}"><span>Sledovaní pacienti</span><strong>{{ counts.total }}</strong><small>Společný přehled týmu</small></a>
+      <a class="doctor-kpi kpi-urgent" href="{{ url_for('patient_report.team_overview', view='urgent') }}"><span>Vyšší naléhavost</span><strong>{{ counts.urgent }}</strong><small>Oranžová a červená</small></a>
+      <a class="doctor-kpi kpi-due" href="{{ url_for('patient_report.team_overview', view='overdue') }}"><span>Čekáme na odpověď</span><strong>{{ counts.overdue }}</strong><small>Pacienti s kontrolou po termínu</small></a>
+      <a class="doctor-kpi" href="{{ url_for('patient_report.team_overview', view='review') }}"><span>Potřebují doplnění</span><strong>{{ counts.review }}</strong><small>Neúplnost posouzení</small></a>
+    </div>
+    <div class="doctor-toolbar">
+      <nav class="doctor-tabs" aria-label="Filtrovat požadavky">
+        {% for key, label in [('all', 'K posouzení'), ('urgent', 'Naléhavé'), ('overdue', 'Po termínu'), ('review', 'K doplnění')] %}
+          <a href="{{ url_for('patient_report.team_overview', view=key, q=query) }}" {% if view_mode == key %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </nav>
+      <form class="doctor-search" method="get" role="search">
+        <input type="hidden" name="view" value="{{ view_mode }}">
+        <label class="sr-only" for="patient-search">Hledat pacienta podle jména nebo ID</label>
+        <input id="patient-search" name="q" type="search" value="{{ query }}" placeholder="Hledat jméno nebo ID…" autocomplete="off">
+        <button type="submit">Hledat</button>
+      </form>
+    </div>
     <section aria-labelledby="requests-title">
-      <h2 id="requests-title">K posouzení týmem ({{ cards | length }})</h2>
+      <div class="doctor-section-title"><h2 id="requests-title">K posouzení týmem ({{ cards | length }})</h2><span>Poslední uložené hodnocení · nejvyšší priorita první</span></div>
+      <div class="doctor-queue">
       {% for card in cards %}
         {{ clinical_card(card, email_token=email_tokens[card.patient_id]) }}
       {% else %}
-        <p class="empty-state">Podle posledních hodnocení nyní není požadavek pro tým.</p>
+        <div class="doctor-empty"><span aria-hidden="true">✓</span><h3>V tomto výběru je klid.</h3><p>Podle posledních hodnocení nyní není požadavek pro tým odpovídající filtru.</p><a href="{{ url_for('patient_report.team_overview') }}">Zobrazit celý přehled</a></div>
       {% endfor %}
+      </div>
     </section>
-    <details>
+    <details class="doctor-source-panel">
       <summary>Další pacienti ({{ other_patients | length }})</summary>
-      <ul>
-        {% for item in other_patients %}
-          <li><a href="{{ url_for('patient_report.report_patient', patient_id=item.patient_id) }}">{{ item.card.name if item.card else item.patient_id }}</a>
-            {% if item.card %}{{ triage_badge(item.card.assessment.color) }} · {{ item.card.assessment.date }}
-            {% else %} · Bez check-inů{% endif %}
-          </li>
-        {% endfor %}
+      <ul class="doctor-other-patients">
+      {% for item in other_patients %}
+        <li><a href="{{ url_for('patient_report.report_patient', patient_id=item.patient_id) }}">{{ item.card.name if item.card else item.patient_id }}</a>
+          {% if item.card %}{{ triage_badge(item.card.assessment.color) }} <span>{{ item.card.as_of }}</span>{% else %}<span>Bez check-inů</span>{% endif %}
+        </li>
+      {% endfor %}
       </ul>
     </details>
-    <footer class="demo-tools" aria-label="Ovládání ukázky">
-      <span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a>
-    </footer>
+    <p class="doctor-footnote">Předání je v tomto demu simulované. Přehled ukazuje poslední uložený stav a nastavené kontroly.</p>
+    <footer class="demo-tools"><span>Demo</span><a href="{{ url_for('home') }}">Změnit rozhraní</a></footer>
   </main>
   <script src="{{ url_for('static', filename='patient_mail.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='doctor.js') }}" defer></script>
 </body>
 </html>

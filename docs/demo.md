@@ -3,7 +3,8 @@
 Praktický podklad pro M5: živý průchod, samostatná offline záloha, rozsah
 ověření a návrh integrace. Optimalizace LLM patří až na konec podle
 [tasks.md](tasks.md#priority-do-dokončení-mvp). Všechny vstupy zde jsou
-syntetické. Klinické převzetí mentorem a vizuální převzetí stále zbývají.
+syntetické. Mobil/desktop a prohlížečový cyklus kontroly jsou ověřené;
+klinické převzetí mentorem a závěrečný živý nácvik stále zbývají.
 
 ## Termín a rozsah prezentace
 
@@ -22,7 +23,7 @@ Python 3.12 + uv, z kořene repozitáře; stejné příkazy na Linuxu i v PowerS
 ```text
 uv sync --locked
 uv run --locked python -m scripts.build_demo
-uv run --locked pytest -q tests/test_mvp_scenarios.py tests/test_patient_portal.py tests/test_demo_export.py
+uv run --locked pytest -q tests/test_mvp_scenarios.py tests/test_patient_portal.py tests/test_doctor_followup.py tests/test_demo_export.py
 ```
 
 Export vytvoří `dist/demo/index.html` a `dist/demo/results.json`. HTML má
@@ -59,16 +60,22 @@ profily jsou v odděleném ovládání „Ukázkové účty“.
    kliknout „Aktualizovat měření“, napsat `Právě jsem naměřil 36,8 °C.`
    a dokončit případné relevantní upřesnění i potvrzení. Ukázat novou
    hodnotu, čas a „Aktualizováno“. Kliknutí bez uložené odpovědi nestačí.
-   Pro ukázku připomenutí musí být termín výslovně připravený v demo plánu;
-   aplikace nemá editor plánů ani sama neodvozuje klinické intervaly.
+   Termín a volitelný interval připraví tým v detailu profilu pod
+   „Naplánovat / upravit kontrolu“. Pro ukázku neodpovědi lze výslovně
+   zadat již uplynulý termín. Obě rozhraní ukážou „po termínu“; po uložené
+   odpovědi vznikne další termín pouze podle zadaného intervalu.
+   Jde o ukázkový plán, nikoli odhad klinického intervalu aplikací.
 4. **Okamžitá pomoc.** Zahájit novou pravidelnou kontrolu a napsat
    `Jsem náhle zmatený a nevím, kde jsem.` Ukázat naléhavou instrukci
    ještě před cíleným doptáváním a konečným potvrzením. Ve fiktivním
    scénáři lze následně výslovně pokračovat, doplnit údaje a uložit výsledek.
 5. **Lékař.** Přes demo patičku zvolit rozhraní Lékař. V `/team` otevřít
    aktuální kartičku stejného profilu: důvod, krok, kontakt, termín,
-   neúplnost zvlášť a detail se zdroji. U aktualizovaného měření ukázat
-   historii/graf. Předání je simulované; během průchodu neposílat e-mail.
+   neúplnost zvlášť. Ukázat hledání a filtry „Naléhavé / Po termínu /
+   K doplnění“. V detailu nejdřív stručný souhrn, léčbu, zdrojované trendy
+   a časovou osu, potom plán kontroly nebo záznam kontaktu týmu.
+   Úplná historie/graf jsou v rozbalení. Předání je simulované;
+   během průchodu neposílat e-mail.
 6. **Zastupování a další situace.** Na novém kontaktu ukázat nenápadné
    přepnutí pečujícího a změnu oslovení. Ostatní klinické situace lze
    stručně projít v připravené offline ukázce se zřetelným označením režimu.
@@ -80,6 +87,13 @@ neprovádí. Technický nácvik přes skutečné formulářové handlery se skut
 nakonfigurovaným LLM je popsán níže. Data pořadatelů jsou z roku 2026 a živý web používá
 skutečný čas serveru. Konkrétní vazby na podání léčby ověřit pro datum
 nácviku; offline ukázka má své časy výslovně zmrazené.
+
+Lokální Chrome nácvik nové návaznosti prošel se syntetickým profilem:
+plán týmu → neodpověď v přehledu i portálu → nové měření → potvrzení →
+další explicitní termín → odstranění z filtru neodpovědí. Ověřeno i načtení
+grafu až po rozbalení podkladů, bez JS chyb. LLM byl v tomto průchodu
+nahrazený a SMTP blokované; nejde o nové živé ověření extrakce.
+Vizuální kontrola 1440/390 px neukázala vodorovné přetečení.
 
 ## Přechod na offline zálohu
 
