@@ -1,7 +1,7 @@
 """Load treatment context and measured history available at a check-in.
 
-No patient messages, narrative treatment notes, scenario names or reference
-evaluations are interpreted. The organizer's cycle dates describe D1 treatment
+Only narrow explicit fluid reports are interpreted by fluid_intake; narrative
+treatment notes, scenario names and references are excluded. Cycle dates describe D1 treatment
 (bundle README §5). Medication doses can contain future changes, so only drug
 names and their explicit validity dates are used.
 """
@@ -13,6 +13,7 @@ from copy import deepcopy
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from .fluid_intake import fluid_observations
 from .form import prepare_checkin
 
 # Name-to-class mapping only: thresholds and decisions live in triage.
@@ -269,4 +270,5 @@ def build_triage_inputs(patient, checkin):
     if checkin.get("stav") != "vyplneno":
         observe("consecutive_missed_checkins", len(missed), {"checkin_ids": missed})
     prepared["context_sources"] = deepcopy(sources)
+    observations.update(fluid_observations(checkin, history, instant))
     return prepared, context, deepcopy(observations)

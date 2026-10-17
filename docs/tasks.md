@@ -33,8 +33,13 @@ souběžným zápisem do stejného checkoutu.
 Pro audit K7/K9 je nyní doložené [mentorovo upřesnění O10](backend.md#upřesnění-mentora-k-o10),
 předané uživatelem 17. 10. 2026: nemožnost přijmout/udržet tekutiny
 z libovolné příčiny + známky dehydratace znamená 4; u ONC-011-C09 navazuje
-na doložené selhání příjmu předchozího dne. Klinický výklad je upřesněný,
-obecná implementace a pozitivní/negativní časové regrese zbývají.
+na doložené selhání příjmu předchozího dne. Sdílené jádro nyní vyhodnotí nemožnost příjmu i udržení tekutin a známky
+dehydratace včetně tepu >100 a systolického tlaku <90; regrese jsou v
+`tests/test_dehydration_clarification.py`. Offline adaptér rozpozná omezený
+slovník výslovných sdělení pacienta a návaznost předchozího dne při aktuální
+zprávě o včerejším pití a přetrvávající těžké poruše polykání (afty index 3).
+Skutečný průchod ONC-011 C08 → 3, C09 → 4 má regresi bez LLM/referencí;
+obecné porozumění zprávám a řízení všech epizod tím není vyřešené.
 Původní vlastnictví auditu zůstává zachované; samotné závratě a málo moči
 bez doloženého selhání příjmu se podle mentora nepovyšují na 4.
 

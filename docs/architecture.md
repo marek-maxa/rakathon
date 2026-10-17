@@ -482,6 +482,21 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
 
 ## Otevřené integrační mezery
 
+Pravidla v7 doplňují mentorovo [upřesnění dehydratace O10](backend.md#upřesnění-mentora-k-o10):
+`cannot_drink_fluids` (nemožnost přijmout/polknout) nebo `cannot_keep_fluids`
+se známkami dehydratace znamená 4 bez ohledu na příčinu a léčbu. Jádro
+přebírá také `dizziness` a `pulse_bpm` (včetně `tepova_frekvence` z měření).
+Slovník pipeline a MASTER se odvozuje ze sdílených polí; prompt rozlišuje
+nemožnost příjmu od pouhého snížení. `meddi/fluid_intake.py` doplňuje offline
+adaptér o úzký slovník výslovných sdělení pacienta o nemožnosti pití,
+málu moči a závrati. Nepřiřadí první osobu pečujícího pacientovi.
+Z nejbližšího předchozího check-inu předchozího kalendářního dne naváže
+výslovné selhání příjmu jen při aktuální zprávě o včerejším pití a aktuální
+těžké poruše polykání (afty index 3). Obnovené pití návaznost přeruší.
+Nejde o obecnou klinickou expiraci nebo úplný parser; nerozpoznané zprávy
+zůstávají k review. Důkaz uchová původní citaci a obě zdrojová check-in ID.
+Regrese bez sítě: `uv run --locked python -m pytest -q tests/test_dehydration_clarification.py`.
+
 - P0 chrání již rozpoznané minimum. Kvalitu a úplnost extrakce ani klinické
   ověření všech šesti situací nenahrazuje. Instrukce zůstává v paměti;
   úplné průběžné/přerušené revize a obnova po restartu zůstávají K2b/K4.

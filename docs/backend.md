@@ -166,7 +166,7 @@ výsledků používá jen zmrazené vstupy, nikoli dnešní historii pacienta.
 | O7 | Skutečné podání, D1, vícedávkové/orální režimy a dostupnost dat bez času | S3 §5, S4 §3/§5; úplnost léčby, dostupnost laboratoře versus čas odběru |
 | O8 | Intervaly kontrol/přeměření, expirace a postup při neodpovědi nejsou úplné | S4 §2–6; termíny určí schválená politika nebo tým |
 | O9 | Provozní kalendář, hranice pracovní doby, zvláštní žluté lhůty a reálné paliativní kontakty | S4 §2/§4–5; potvrdit s pracovištěm |
-| O10 | Klinický výklad upřesnil mentor; implementace a regrese zůstávají otevřené | [Upřesnění O10](#upřesnění-mentora-k-o10): selhání příjmu nebo udržení tekutin z libovolné příčiny + známky dehydratace znamená 4. Pro C09 mentor potvrzuje návaznost na předchozí den; nevymýšlet anurii ani pravidlo podle ID |
+| O10 | Jádro i úzká offline návaznost implementované; obecné řízení epizod otevřené | [Upřesnění O10](#upřesnění-mentora-k-o10): selhání příjmu nebo udržení tekutin z libovolné příčiny + známky dehydratace znamená 4. Regrese skutečného offline replay ONC-011 C08 → 3, C09 → 4, včetně přejmenování ID, budoucích údajů, zlepšení a obnovení pití |
 
 S3–S5 označují [zdroje zadání](challenge.md#zdroje-a-jejich-platnost).
 Zobrazovací barva ESAS není NRS ani CTCAE stupeň. Nezavádět práh psychoškály
@@ -194,14 +194,30 @@ Točí se mi hlava, málo močím.“ a tep 112/min. Týmová hospitalizace z 17
 epizody, nikoli o domyšlenou anurii nebo automatické převzetí každého staršího
 nálezu. Mentor tímto neurčil obecnou dobu platnosti historického příznaku.
 
-Současný `fluid_intolerance_with_dehydration` vyžaduje `cannot_keep_fluids`;
-odlišné selhání příjmu při polykání a propojení s dostupným předchozím
-záznamem nejsou tímto komentářem automaticky implementované.
-`reduced_intake_with_circulatory_signs` nyní poskytuje oranžovou.
-Navazující oprava auditu K7/K9 má použít obecné doložené podmínky bez ID
-pacienta a testovat selhání příjmu při zvracení/polykání/mukozitidě,
-časovou návaznost, zlepšení po zásahu a negativní protějšek bez selhání
-příjmu. Z mentorova příkladu se neodvozuje samostatné pravidlo
+Další upřesnění předané uživatelem 17. 10. 2026 výslovně zahrnuje také
+systolický tlak pod 90. Implementace `fluid_intolerance_with_dehydration`
+(verze pravidel 7) kombinuje `cannot_keep_fluids` nebo `cannot_drink_fluids`
+s alespoň jednou známkou: `low_urine`, `dizziness`, `orthostatic_dizziness`,
+`pulse_bpm > 100`, `systolic_bp < 90`; zachovává i dříve podporované
+`dehydration_signs` a `hours_without_urine > 10`. Nemožnost příjmu sama
+znamená 3. Snížený příjem s málem moči nebo závratí zůstává 3.
+Léčba cisplatinou není nutná podmínka červené a její nepřítomnost nesnižuje
+úroveň. Prompt extrakce rozlišuje nemožnost příjmu od pouhého snížení.
+
+`tests/test_dehydration_clarification.py` ověřuje kombinace, hranice,
+cisplatinu i aktuální/expirující/budoucí/odeznělý údaj v pipeline snapshotu
+bez LLM. Nový úzký parser `meddi/fluid_intake.py` přes `build_triage_inputs`
+rozpozná vybraná výslovná sdělení pacienta (nikoli první osobu pečujícího).
+Naváže selhání příjmu z nejbližšího předchozího check-inu předchozího
+kalendářního dne, jen pokud aktuální pacient znovu popisuje včerejší pití
+a dotazník dokládá trvající těžkou poruchu polykání (afty index 3).
+Obnovené pití, mírnější porucha, chybějící historické selhání nebo jiný den
+neaktivují tuto návaznost. Zdroj má citaci i obě check-in ID; rozhodování
+nečte reference, ID ani názvy scénářů. Skutečný ONC-011 má C08 → 3, C09 → 4
+v offline regresi; obecné porozumění jazyku a řízení jiných epizod tím není
+vyřešené. Úzká návaznost vychází z mentorova konkrétního upřesnění, její
+klinické zobecnění na jiné průběhy zůstává součástí lidského převzetí.
+Z mentorova příkladu se neodvozuje samostatné pravidlo
 „tep nad 100 = dehydratace“ ani „snížený příjem = nemožnost přijímat tekutiny“.
 
 ## Původ mapování léčiv

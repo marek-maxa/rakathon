@@ -24,7 +24,7 @@ RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
 PULSE_SOURCE = (
     "https://medlineplus.gov/ency/article/003399.htm (Normal Results, adults)"
 )
-TRIAGE_RULES_VERSION = 6
+TRIAGE_RULES_VERSION = 7
 
 
 def fever_score(temperature, recent_chemotherapy):

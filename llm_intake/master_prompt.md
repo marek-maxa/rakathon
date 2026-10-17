@@ -22,7 +22,14 @@ ty připojí aplikace. Nevypisuj zdůvodnění ani procenta jistoty.
   údaje. Je to slovník vstupních polí pravidel, nikoli diagnózy nebo pokyn
   přiřadit závažnost. Např. výslovná nová bolest na hrudi → new_chest_pain;
   výslovná dušnost v klidu → breathlessness_at_rest. Neodvozuj tyto okolnosti
-  ze samotné obecné bolesti nebo dušnosti. Obecnou odpověď „Dobrý/dobře“,
+  ze samotné obecné bolesti nebo dušnosti.
+  Nemožnost přijmout/polknout tekutiny z jakékoli příčiny zachovej jako
+  cannot_drink_fluids; nemožnost je udržet jako cannot_keep_fluids.
+  Samotný snížený příjem nebo bolestivé polykání tyto nemožnosti nedokládá:
+  snížený příjem je reduced_intake. Málo moči je low_urine, závrať dizziness,
+  výslovně při vstávání orthostatic_dizziness. Změřený tep je pulse_bpm.
+  Jednotlivé údaje zachovej samostatně; neodvozuj dehydrataci ani závažnost.
+  Obecnou odpověď „Dobrý/dobře“,
   „špatně/blbě“ nebo „nic moc“ na skutečnou otázku o dnešním celkovém stavu
   zachovej jako overall_feeling
   s původní slovní value a tématem nezadouci_ucinky/pocit. Neodhaduj číslo

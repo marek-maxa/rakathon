@@ -82,6 +82,8 @@ OBSERVATION_FLAGS = {
     "new_bruises",
     "fainting",
     "cannot_keep_fluids",
+    "cannot_drink_fluids",
+    "dizziness",
     "dehydration_signs",
     "new_only_liquid_food",
     "pain_uncontrolled",
@@ -124,6 +126,7 @@ OBSERVATION_NUMBERS = {
     "nosebleed_minutes",
     "hours_without_urine",
     "vomiting_episodes_24h",
+    "pulse_bpm",
 }
 HANDLED_VITALS = {"tk_sys", "tk_dia", "glykemie_mmol_l", "vaha_kg"}
 HANDLED_QUESTIONS = {
@@ -261,6 +264,7 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
         ("tk_dia", "diastolic_bp"),
         ("glykemie_mmol_l", "glucose_mmol_l"),
         ("spo2_pct", "spo2_pct"),
+        ("tepova_frekvence", "pulse_bpm"),
     ):
         measurement = (prepared.get("vital_signs") or {}).get(raw_field)
         if measurement:
@@ -371,7 +375,13 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
         test("dehydration_signs"),
         test("low_urine"),
         test("orthostatic_dizziness"),
+        test("dizziness"),
+        test("pulse_bpm", lambda v: v > 100),
+        test("systolic_bp", lambda v: v < 90),
         test("hours_without_urine", lambda v: v > 10),
+    )
+    fluid_intolerance = any_of(
+        test("cannot_keep_fluids"), test("cannot_drink_fluids")
     )
     hypertension_warnings = any_of(
         *(
@@ -565,16 +575,16 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
     rule(
         "fluid_intolerance_with_dehydration",
         Severity.RED,
-        "Pacient neudrží tekutiny a má známky dehydratace.",
-        "§3 / Červená / Zvracení",
-        all_of(test("cannot_keep_fluids"), dehydration),
+        "Pacient nepřijme nebo neudrží tekutiny a má známky dehydratace.",
+        "§3 / Červená / Zvracení; upřesnění mentora O10 (docs/backend.md)",
+        all_of(fluid_intolerance, dehydration),
     )
     rule(
         "cannot_keep_fluids",
         Severity.ORANGE,
-        "Pacient neudrží tekutiny.",
+        "Pacient nepřijme nebo neudrží tekutiny.",
         "§3 / Oranžová / Příjem a tekutiny",
-        test("cannot_keep_fluids"),
+        fluid_intolerance,
     )
     rule(
         "new_liquid_diet_with_uncontrolled_pain",
@@ -586,11 +596,13 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
     rule(
         "reduced_intake_with_circulatory_signs",
         Severity.ORANGE,
-        "Snížený příjem doprovází málo moči nebo závrať při vstávání.",
+        "Snížený příjem doprovází málo moči nebo závrať.",
         "§3 / Oranžová / Příjem a tekutiny",
         all_of(
             test("reduced_intake"),
-            any_of(test("low_urine"), test("orthostatic_dizziness")),
+            any_of(
+                test("low_urine"), test("orthostatic_dizziness"), test("dizziness")
+            ),
         ),
     )
     rule(
