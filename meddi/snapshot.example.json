@@ -1,0 +1,14 @@
+{
+  "patient_id": "synthetic-patient",
+  "as_of": "2026-10-16T10:00:00+02:00",
+  "context": {
+    "chemotherapy_within_6_weeks": true
+  },
+  "observations": {
+    "temperature_c": {
+      "value": 36.5,
+      "unit": "degC",
+      "source": "synthetic previous measurement"
+    }
+  }
+}

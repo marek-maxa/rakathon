@@ -1,0 +1,132 @@
+{
+  "kind": "llm_intake",
+  "schema_version": 1,
+  "message": {
+    "id": "synthetic-master-01",
+    "patient_id": "synthetic-patient",
+    "text": "Od rána jsem dvakrát zvracel a jsem hodně unavený. Teplotu nemám.",
+    "available_at": "2026-10-16T10:00:00+02:00",
+    "source": "master_question",
+    "author": "patient",
+    "question": "Jak se dnes cítíte?"
+  },
+  "facts": [
+    {
+      "concept": "vomiting.episodes",
+      "presence": "present",
+      "evidence": "Od rána jsem dvakrát zvracel",
+      "subject": "patient",
+      "value": 2,
+      "unit": "episodes",
+      "time_text": "Od rána",
+      "certainty": "stated",
+      "topic_ids": [
+        "nezadouci_ucinky/zvraceni"
+      ],
+      "source_message_id": "synthetic-master-01",
+      "confirmation": "unconfirmed"
+    },
+    {
+      "concept": "fatigue",
+      "presence": "present",
+      "evidence": "jsem hodně unavený",
+      "subject": "patient",
+      "value": "hodně",
+      "unit": null,
+      "time_text": null,
+      "certainty": "stated",
+      "topic_ids": [
+        "nezadouci_ucinky/unava"
+      ],
+      "source_message_id": "synthetic-master-01",
+      "confirmation": "unconfirmed"
+    },
+    {
+      "concept": "temperature",
+      "presence": "absent",
+      "evidence": "Teplotu nemám.",
+      "subject": "patient",
+      "value": null,
+      "unit": null,
+      "time_text": null,
+      "certainty": "stated",
+      "topic_ids": [
+        "nezadouci_ucinky/teplota"
+      ],
+      "source_message_id": "synthetic-master-01",
+      "confirmation": "unconfirmed"
+    }
+  ],
+  "question_answers": [],
+  "analysis_status": "extracted",
+  "question_candidates": [
+    {
+      "question": {
+        "questionnaire_id": "nezadouci_ucinky",
+        "question_id": "zvraceni",
+        "text": "Kolikrát za 24 hodin došlo ke zvracení?",
+        "type": "jedna",
+        "instruction": null,
+        "note": null,
+        "questionnaire_note": null,
+        "condition": "nnz_typ:2",
+        "order": 6,
+        "exclusive_option_indices": [],
+        "options": [
+          {
+            "index": 0,
+            "text": "1-2 epizody zvracení."
+          },
+          {
+            "index": 1,
+            "text": "3-5 epizod zvracení."
+          },
+          {
+            "index": 2,
+            "text": "Více než 5 epizod zvracení."
+          },
+          {
+            "index": 3,
+            "text": "Zvracení je velmi výrazné. Obávám se, že tento nežádoucí účinek není zvladatelný v domácím prostředí a že bude vyžadovat hospitalizaci."
+          }
+        ]
+      },
+      "fact_indices": [
+        0
+      ]
+    },
+    {
+      "question": {
+        "questionnaire_id": "nezadouci_ucinky",
+        "question_id": "unava",
+        "text": "Pomůže Vám odpočinek ke zmírnění únavy?",
+        "type": "jedna",
+        "instruction": null,
+        "note": null,
+        "questionnaire_note": null,
+        "condition": "ucinky:7",
+        "order": 19,
+        "exclusive_option_indices": [],
+        "options": [
+          {
+            "index": 0,
+            "text": "Ano."
+          },
+          {
+            "index": 1,
+            "text": "Ne, únava mě však omezuje pouze v náročnějších aktivitách."
+          },
+          {
+            "index": 2,
+            "text": "Ne, únava mě omezuje výrazně i v běžných denních činnostech."
+          }
+        ]
+      },
+      "fact_indices": [
+        1
+      ]
+    }
+  ],
+  "unmapped_concepts": [],
+  "unknown_subject_fact_indices": []
+}

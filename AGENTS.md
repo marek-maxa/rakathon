@@ -24,3 +24,20 @@
   Klinická tvrzení musí mít zdroj a kvalifikované lidské ověření.
 - Při přehrávání pacienta používej jen informace dostupné k danému okamžiku.
   Referenční vyhodnocení drž oddělené od vstupů rozhodování.
+
+## Význam výstupních polí triáže
+
+Pracovní výklad týmu; klinickou interpretaci ověřuj vůči
+`rakathon_meddi_onco_data/docs/pravidla_triaze.md` (§1, §3–4 a §6).
+
+- `klicove_nalezy` jsou důležité informace pro lékaře: zahrnují zhoršení,
+  zlepšení i relevantní kontext aktuální situace.
+- `varovne_priznaky` jsou podmnožinou klíčových nálezů: jde o aktuální
+  příznaky či kombinace nálezů a kontextu, které podle pravidel zvyšují
+  výslednou závažnost na úroveň 3 nebo 4. Úroveň 2 v tomto výkladu ještě
+  nemá varovné příznaky.
+- Zlepšení nebo odeznění dřívějšího varovného příznaku patří mezi klíčové
+  nálezy; samo o sobě není aktuálním varovným příznakem.
+- `doporuceni_pro_pacienta` vychází z klíčových nálezů, výsledné triážní
+  úrovně a odpovídajících pravidel. Neodvozuj je jen ze seznamu varovných
+  příznaků: doporučení má podklad i u zelené a žluté úrovně.

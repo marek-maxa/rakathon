@@ -1,3 +1,4 @@
+{% from '_triage.html' import triage_result %}
 <!doctype html>
 <html lang="cs">
 <head>
@@ -6,6 +7,7 @@
   <meta name="theme-color" content="#172b4d">
   <title>Přehled stavu pacienta</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='patient_report.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='triage.css') }}">
   <script src="{{ url_for('patient_report.plotly_js', version=plotly_js_version) }}"></script>
 </head>
 <body>
@@ -15,7 +17,11 @@
   </header>
   <main class="report-shell">
     <aside class="note" aria-label="Rozsah a omezení reportu">
-      Varovné odpovědi vycházejí z barev dotazníků. Varovné nálezy měření
+      Triáž a její důvody počítá společný backend z údajů dostupných v čase check-inu.
+      Neúplnost posouzení se uvádí odděleně od doporučeného kroku.
+      Zelená znamená další sledování podle dostupných údajů, nikoli záruku bezpečí.
+      Samostatný přehled odpovědí níže vychází z barev dotazníků, které nejsou výslednou triáží.
+      Varovné nálezy měření
       odpovídají jen explicitním, kontextově samostatným prahům pravidel triáže;
       podmíněné situace vyžadující další údaje zde nejsou klasifikovány.
       Barvy jsou vždy doplněny textovým štítkem; šedá značí nezařazenou hodnotu.
@@ -41,6 +47,26 @@
         </div>
         <span class="patient-record">Souhrn dotazníků a měření</span>
       </header>
+
+      <section class="report-section" aria-labelledby="triage-title">
+        <h3 id="triage-title">Triáž posledního check-inu</h3>
+        {% if assessments %}
+          {% set latest = assessments[-1] %}
+          <p>{{ latest.date }} {{ latest.time or '' }} · {{ latest.checkin_id }}</p>
+          {{ triage_result(latest, detailed=true) }}
+          <details>
+            <summary>Historie triáže ({{ assessments | length }})</summary>
+            {% for assessment in assessments | reverse %}
+              <article>
+                <h4>{{ assessment.date }} {{ assessment.time or '' }} · {{ assessment.checkin_id }}</h4>
+                {{ triage_result(assessment, detailed=true) }}
+              </article>
+            {% endfor %}
+          </details>
+        {% else %}
+          <p class="empty-state">Bez check-inů k vyhodnocení.</p>
+        {% endif %}
+      </section>
 
       <section class="report-section" aria-labelledby="measurement-alerts-title">
         <h3 id="measurement-alerts-title">Varovné nálezy měření</h3>

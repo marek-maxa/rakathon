@@ -1,0 +1,384 @@
+[
+  {
+    "id": "nezadouci_ucinky/pocit",
+    "text": "Dnes se celkově cítím velmi špatně.",
+    "expected_topics": [
+      "nezadouci_ucinky/pocit"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/sobestacnost",
+    "text": "Při sprchování a oblékání už se bez pomoci neobejdu.",
+    "expected_topics": [
+      "nezadouci_ucinky/sobestacnost"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/ucinky",
+    "text": "Po léčbě se objevily nějaké vedlejší projevy, ale zatím je neumím popsat.",
+    "expected_topics": [
+      "nezadouci_ucinky/ucinky"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/nnz_typ",
+    "text": "Trápí mě zažívací potíže kolem jídla, neumím říct, jaké přesně.",
+    "expected_topics": [
+      "nezadouci_ucinky/nnz_typ"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/nechutenstvi",
+    "text": "Do jídla se musím nutit a sním méně než dřív.",
+    "expected_topics": [
+      "nezadouci_ucinky/nechutenstvi"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/nevolnost",
+    "text": "Zvedá se mi žaludek, ale zatím jsem nezvracel.",
+    "expected_topics": [
+      "nezadouci_ucinky/nevolnost"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/zvraceni",
+    "text": "Od rána jsem třikrát vracel.",
+    "expected_topics": [
+      "nezadouci_ucinky/zvraceni"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/stolice_typ",
+    "text": "Něco se změnilo s vyprazdňováním, ale nevím přesně co.",
+    "expected_topics": [
+      "nezadouci_ucinky/stolice_typ"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/prujem",
+    "text": "Běhám často na záchod a stolice je vodová.",
+    "expected_topics": [
+      "nezadouci_ucinky/prujem"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/zacpa",
+    "text": "Už čtyři dny jsem se nemohl vyprázdnit.",
+    "expected_topics": [
+      "nezadouci_ucinky/zacpa"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/afty",
+    "text": "Mám boláky na sliznici v puse a sousto bolestivě polykám.",
+    "expected_topics": [
+      "nezadouci_ucinky/afty"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/bolesti_typ",
+    "text": "Trápí mě bolesti, ale nedokážu určit, kde přesně.",
+    "expected_topics": [
+      "nezadouci_ucinky/bolesti_typ"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/bol_hlava",
+    "text": "Třeští mi hlava a kvůli tomu nezvládám práci.",
+    "expected_topics": [
+      "nezadouci_ucinky/bol_hlava"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/bol_hrud",
+    "text": "Nově mám svíravý tlak uprostřed hrudníku.",
+    "expected_topics": [
+      "nezadouci_ucinky/bol_hrud"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/bol_bricho",
+    "text": "Chytají mě křeče v břiše.",
+    "expected_topics": [
+      "nezadouci_ucinky/bol_bricho"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/bol_klouby",
+    "text": "Rozbolela mě kolena a svaly na nohou.",
+    "expected_topics": [
+      "nezadouci_ucinky/bol_klouby"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/brneni",
+    "text": "Tŕpnu mi končeky prstov na rukách.",
+    "expected_topics": [
+      "nezadouci_ucinky/brneni"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/teplota",
+    "text": "Teploměr ukazuje 38,2 stupně Celsia.",
+    "expected_topics": [
+      "nezadouci_ucinky/teplota"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/kuze",
+    "text": "Na rukou se mi udělaly svědivé pupínky.",
+    "expected_topics": [
+      "nezadouci_ucinky/kuze"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/unava",
+    "text": "Jsem bez energie a musím si pořád odpočívat.",
+    "expected_topics": [
+      "nezadouci_ucinky/unava"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/krvaceni",
+    "text": "Z dásní mi při čištění zubů tekla krev.",
+    "expected_topics": [
+      "nezadouci_ucinky/krvaceni"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/krvaceni_popis",
+    "text": "Krev šla z nosu a přestala téct během dvou minut.",
+    "expected_topics": [
+      "nezadouci_ucinky/krvaceni_popis"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/moceni",
+    "text": "Když čůrám, tak to pálí a řeže.",
+    "expected_topics": [
+      "nezadouci_ucinky/moceni"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/dusnost",
+    "text": "I po cestě do koupelny lapám po dechu.",
+    "expected_topics": [
+      "nezadouci_ucinky/dusnost"
+    ]
+  },
+  {
+    "id": "nezadouci_ucinky/jine",
+    "text": "Po léčbě mám ještě jiný nežádoucí účinek, který neumím pojmenovat.",
+    "expected_topics": [
+      "nezadouci_ucinky/jine"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/uzkost",
+    "text": "Poslední dva týdny mě svírají obavy a strach.",
+    "expected_topics": [
+      "psychoonkologicky_screening/uzkost"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/depresivita",
+    "text": "Už dva týdny nemám z ničeho radost a cítím beznaděj.",
+    "expected_topics": [
+      "psychoonkologicky_screening/depresivita"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/zvladani",
+    "text": "Psychicky se s touhle situací neumím vyrovnat.",
+    "expected_topics": [
+      "psychoonkologicky_screening/zvladani"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/deti",
+    "text": "Každý den se starám o svou devítiletou dceru.",
+    "expected_topics": [
+      "psychoonkologicky_screening/deti"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/trapeni",
+    "text": "Vedle nemoci mě teď trápí probíhající rozvod.",
+    "expected_topics": [
+      "psychoonkologicky_screening/trapeni"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/sam",
+    "text": "Nemám se komu svěřit a na všechno jsem zůstal sám.",
+    "expected_topics": [
+      "psychoonkologicky_screening/sam"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/psychiatr",
+    "text": "Dříve jsem docházel do ambulance psychiatra.",
+    "expected_topics": [
+      "psychoonkologicky_screening/psychiatr"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/sebevrazda",
+    "text": "V posledních dnech uvažuji o tom, že ukončím svůj život.",
+    "expected_topics": [
+      "psychoonkologicky_screening/sebevrazda"
+    ]
+  },
+  {
+    "id": "psychoonkologicky_screening/psycholog",
+    "text": "Chtěl bych během léčby mluvit s psychologem.",
+    "expected_topics": [
+      "psychoonkologicky_screening/psycholog"
+    ]
+  },
+  {
+    "id": "bolest_analgeticka_terapie/nrs",
+    "text": "Na škále NRS od nuly do deseti je moje bolest šest.",
+    "expected_topics": [
+      "bolest_analgeticka_terapie/nrs"
+    ]
+  },
+  {
+    "id": "bolest_analgeticka_terapie/spokojenost",
+    "text": "S nastavením léků proti bolesti nejsem spokojený.",
+    "expected_topics": [
+      "bolest_analgeticka_terapie/spokojenost"
+    ]
+  },
+  {
+    "id": "bolest_analgeticka_terapie/sos",
+    "text": "Záchrannou dávku si beru dvakrát za den.",
+    "expected_topics": [
+      "bolest_analgeticka_terapie/sos"
+    ]
+  },
+  {
+    "id": "bolest_analgeticka_terapie/nu",
+    "text": "Léky proti bolesti mě utlumují a po nich mám zácpu.",
+    "expected_topics": [
+      "bolest_analgeticka_terapie/nu"
+    ]
+  },
+  {
+    "id": "bolest_analgeticka_terapie/nu_jine",
+    "text": "Po analgetiku mám jiný nežádoucí účinek, který chci popsat.",
+    "expected_topics": [
+      "bolest_analgeticka_terapie/nu_jine"
+    ]
+  },
+  {
+    "id": "esas/pohoda",
+    "text": "V ESAS hodnotím celkovou pohodu jako šest z deseti.",
+    "expected_topics": [
+      "esas/pohoda"
+    ]
+  },
+  {
+    "id": "esas/bolest",
+    "text": "Moje položka bolest v ESAS je sedm z deseti.",
+    "expected_topics": [
+      "esas/bolest"
+    ]
+  },
+  {
+    "id": "esas/unava",
+    "text": "V ESAS je moje únava osm z deseti.",
+    "expected_topics": [
+      "esas/unava"
+    ]
+  },
+  {
+    "id": "esas/ospalost",
+    "text": "Přes den se mi stále zavírají oči a chce se mi spát.",
+    "expected_topics": [
+      "esas/ospalost"
+    ]
+  },
+  {
+    "id": "esas/nevolnost",
+    "text": "V ESAS dávám nevolnosti pět z deseti.",
+    "expected_topics": [
+      "esas/nevolnost"
+    ]
+  },
+  {
+    "id": "esas/nechutenstvi",
+    "text": "V ESAS je nechutenství šest z deseti.",
+    "expected_topics": [
+      "esas/nechutenstvi"
+    ]
+  },
+  {
+    "id": "esas/dusnost",
+    "text": "V ESAS je dušnost čtyři z deseti.",
+    "expected_topics": [
+      "esas/dusnost"
+    ]
+  },
+  {
+    "id": "esas/deprese",
+    "text": "Moje položka deprese v ESAS má sedm z deseti.",
+    "expected_topics": [
+      "esas/deprese"
+    ]
+  },
+  {
+    "id": "esas/uzkost",
+    "text": "V ESAS je úzkost šest z deseti.",
+    "expected_topics": [
+      "esas/uzkost"
+    ]
+  },
+  {
+    "id": "esas/jiny",
+    "text": "Položce jiný problém v ESAS dávám pět z deseti.",
+    "expected_topics": [
+      "esas/jiny"
+    ]
+  },
+  {
+    "id": "multiple_findings",
+    "text": "Bolí mě hlava, svědí mě kůže a pálí mě při močení.",
+    "expected_topics": [
+      "nezadouci_ucinky/bol_hlava",
+      "nezadouci_ucinky/kuze",
+      "nezadouci_ucinky/moceni"
+    ]
+  },
+  {
+    "id": "negative_and_caregiver",
+    "author": "caregiver",
+    "text": "Tatínek nemá žádnou vyrážku. Já, jeho dcera, jsem unavená.",
+    "expected_topics": [
+      "nezadouci_ucinky/kuze",
+      "nezadouci_ucinky/unava"
+    ],
+    "forbidden_candidates": [
+      "nezadouci_ucinky/kuze",
+      "nezadouci_ucinky/unava"
+    ]
+  },
+  {
+    "id": "insomnia_is_not_drowsiness",
+    "text": "Celou noc nemůžu usnout, ale přes den nejsem ospalý.",
+    "expected_topics": [
+      "esas/ospalost"
+    ],
+    "forbidden_candidates": [
+      "esas/ospalost"
+    ],
+    "expected_unmapped": true
+  },
+  {
+    "id": "unknown_cognitive_finding",
+    "text": "Nově nepoznávám místo, ve kterém bydlím.",
+    "expected_topics": [],
+    "expected_unmapped": true
+  }
+]

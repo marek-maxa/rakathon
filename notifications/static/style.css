@@ -1,0 +1,126 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #172b35;
+  background: #f2f6f5;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+}
+
+.card {
+  width: 100%;
+  max-width: 460px;
+  padding: clamp(24px, 6vw, 40px);
+  border: 1px solid #dce5e2;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 16px 48px #193f3410;
+}
+
+.brand {
+  margin: 0 0 24px;
+  color: #176b59;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(26px, 5vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.description {
+  margin: 14px 0 28px;
+  color: #61726e;
+  line-height: 1.6;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input,
+button {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 10px;
+  font: inherit;
+}
+
+input {
+  padding: 12px 14px;
+  border: 1px solid #bccdc6;
+  background: #fff;
+  color: inherit;
+}
+
+input::placeholder {
+  color: #7b8984;
+}
+
+button {
+  margin-top: 10px;
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 0;
+  background: #176b59;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #105443;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 3px solid #58aa94;
+  outline-offset: 3px;
+}
+
+.notice {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  background: #fff0ee;
+  color: #992b24;
+}
+
+.success {
+  background: #eaf6ef;
+  color: #1b6941;
+}
