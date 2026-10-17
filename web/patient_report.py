@@ -72,6 +72,7 @@ def _measurement_source_label(source):
         "domaci_tlakomer": "Domácí tlakoměr",
         "domaci_teplomer": "Domácí teploměr",
         "home_monitor": "Domácí přístroj",
+        "zprava_kontaktu": "Údaj ze zprávy v rozhovoru",
     }
     return mapping.get(source, source)
 

@@ -13,13 +13,15 @@ from web.export import meddi_record
 def assess_contact(packet: dict, patient: dict, at: datetime) -> dict:
     """Use the contact's facts and time-bounded treatment context.
 
-    Old measurements are not assumed current. The existing patient adapter
-    supplies treatment sources, but no narrative notes or reference data.
+    Only the contact's validated measurements become current vital signs.
+    The existing patient adapter supplies derived trends and treatment sources,
+    but no narrative notes, old raw vitals or reference data enter the pipeline.
     """
     if packet["message"]["patient_id"] != patient["patient_id"]:
         raise ValueError("Kontakt nepatří vybranému pacientovi.")
-    checkin = meddi_record(packet, at)["checkiny"][0]
-    prepared, context, _ = build_triage_inputs(patient, checkin)
+    current = evaluate_contact(packet, now=at)
+    checkin = meddi_record(packet, at, assessment=current)["checkiny"][0]
+    prepared, context, observations = build_triage_inputs(patient, checkin)
     snapshot = {
         "patient_id": patient["patient_id"],
         "as_of": at.isoformat(),
@@ -31,6 +33,7 @@ def assess_contact(packet: dict, patient: dict, at: datetime) -> dict:
             for field, value in context.items()
             if value is not None
         },
+        "observations": observations,
     }
     return evaluate_contact(packet, snapshot, now=at)
 

@@ -2,7 +2,9 @@
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .common_types import Severity
 from .form import QUESTIONNAIRE_DEFINITIONS, answer_colors
@@ -214,12 +216,22 @@ def _measurement_history(
             histories[measurement_id].append(
                 MeasurementObservation(
                     checkin_id=checkin["checkin_id"],
-                    date=checkin["datum"],
+                    date=(
+                        datetime.fromisoformat(measurement["observed_at"])
+                        .astimezone(ZoneInfo("Europe/Prague"))
+                        .date()
+                        .isoformat()
+                        if measurement.get("observed_at")
+                        else checkin["datum"]
+                    ),
                     cycle=checkin.get("cyklus"),
                     value=value,
                     source=measurement.get("zdroj"),
                 )
             )
+
+    for history in histories.values():
+        history.sort(key=lambda item: item.date)
 
     return tuple(
         MeasurementStatus(

@@ -16,7 +16,7 @@ from .clinical_rules import CONTEXT_FLAGS, OBSERVATION_FLAGS, OBSERVATION_NUMBER
 from .disposition import resolve_disposition
 from .form import QUESTIONNAIRE_DEFINITIONS, prepare_checkin
 from .triage import evaluate_checkin
-from .validation import number
+from .validation import VITAL_FIELDS, number
 
 NUMERIC_FACTS = {
     "temperature": "temperature_c",
@@ -27,6 +27,7 @@ NUMERIC_FACTS = {
     "pain.nrs": "pain_nrs",
     "overall_feeling": "overall_feeling",
     **{name: name for name in OBSERVATION_NUMBERS},
+    **{name: name for name in VITAL_FIELDS.values()},
 }
 FLAG_FACTS = {
     **{name: name for name in OBSERVATION_FLAGS},
@@ -211,6 +212,15 @@ def _prepare_inputs(root, treatment_sources, selected):
                 "hodnota": select(r["value"] for r in observations[field]),
                 "source": deepcopy(observations[field]),
             }
+    for raw, field in VITAL_FIELDS.items():
+        if raw in prepared["vital_signs"] or not observations.get(field):
+            continue
+        values = {r["value"] for r in observations[field]}
+        if len(values) == 1:
+            prepared["vital_signs"][raw] = {
+                "hodnota": next(iter(values)),
+                "source": deepcopy(observations[field]),
+            }
     prepared["non_green_answers"] = [
         a for a in prepared["answers"] if a["color"] in {"yellow", "orange", "red"}
     ]
@@ -349,7 +359,10 @@ def evaluate_contact(packet, patient_snapshot=None, *, context=None, now=None):
                     **source,
                     "available_at": available.isoformat() if available else None,
                 }
-            elif field in OBSERVATION_NUMBERS | {"pain_nrs", "overall_feeling"}:
+            elif field in OBSERVATION_NUMBERS | set(VITAL_FIELDS.values()) | {
+                "pain_nrs",
+                "overall_feeling",
+            }:
                 number(field, value, record.get("unit"))
                 add(
                     field,

@@ -21,6 +21,7 @@ relací, mergů a testovacích běhů nahrazuje Git.
 | Kontroly | Jedna evidence pro cílené otázky i přeměření | Vazba na epizodu, priorita, termín, stav a deduplikace; intervaly schvaluje klinická politika |
 | Lékař | Stručná aktuální kartička, detail a LLM zpráva ze stejné revize | Nutný krok a zdroje viditelné bez čekání na LLM; starší zpráva je historická |
 | M1 · přehled týmu | Kartička a `/team` jsou pohledy nad stejnými posledními hodnoceními; krátký souhrn tvoří šablona | Bez nové fronty a LLM; předání je označené jako simulované, neúplnost je oddělená od priority |
+| M2 · měření a trendy | Export promítá vybrané validované vstupy stejného hodnocení; živý web přebírá trendy ze stávajícího adaptéru | Bez nového parseru, klinických prahů nebo registru léčby; rozporná měření zůstávají doložená, bez smyšleného bodu grafu. Nahrazené hodnoty zůstávají v intake |
 | Zastupování | Nenápadná volba pod otázkou, autor oddělený od subjektu potíží | Oslovení skutečného adresáta; křestní jméno a doložený rod, jinak neutrálně; kanonický význam otázky zachovat |
 | Léčba a čas | Poslední skutečné podání doložit; plán, D1 a typ cyklu rozlišovat | Neznámá léčba není negativní kontext, budoucí údaje nepatří do hodnocení |
 | Úložiště | SQLite deník původních událostí před LLM; potvrzené check-iny dál v atomických JSON working copies | Aditivní zavedení bez přepisu originálů; obnova dialogu/revize jsou K2b, produkční databáze K10 |

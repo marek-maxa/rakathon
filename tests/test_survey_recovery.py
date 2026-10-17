@@ -176,7 +176,13 @@ def test_review_edit_and_follow_up_keep_profile_and_sources(survey):
     record = json.loads(next(directory.rglob("*.json")).read_text(encoding="utf-8"))
     checkin = record["checkiny"][-1]
     assert checkin["dotazniky"][0]["odpovedi"][0]["odpoved_index"] == 1
-    assert checkin["zprava_pacienta"] == "Nevím.\nAno.\nOprava."
+    assert checkin["zprava_pacienta"] == "Nevím."
+    assert [message["text"] for message in checkin["zdrojove_zpravy"]] == [
+        "Nevím.",
+        "Ano.",
+        "Oprava.",
+    ]
+    assert checkin["vyplnil"] == "pacient"
 
 
 def test_follow_up_and_review_precede_triage_result(survey):
@@ -207,9 +213,13 @@ def test_follow_up_and_review_precede_triage_result(survey):
 
 @pytest.mark.parametrize("color", [None, "green", "yellow", "orange", "red"])
 def test_assessment_waits_for_confirmation(survey, monkeypatch, color):
+    from web.triage import assess_contact
+
     client, _, _, _ = survey
     assessment = {"color": color, "requires_review": True, "reasons": []}
-    monkeypatch.setattr("web.app.assess_contact", lambda *_: assessment)
+    monkeypatch.setattr(
+        "web.app.assess_contact", lambda *args: {**assess_contact(*args), **assessment}
+    )
     start_review(client)
     assert "Výsledek triáže:" not in client.get("/patient").get_data(as_text=True)
     response = client.post("/patient", data={"confirm": "1"}, follow_redirects=True)
@@ -506,3 +516,32 @@ def test_triage_from_message_is_visible_after_confirmation_and_saved_for_report(
     assert record["checkiny"][-1]["checkin_id"] in team
     assert "/patients/ONC-002/report#triage-title" in team
     assert "Předání týmu: simulované" in team
+
+
+def test_measured_weight_survives_save_retry_and_appears_in_report(survey, monkeypatch):
+    from meddi.status import build_patient_status
+
+    client, key, directory, _ = survey
+
+    def weight(message):
+        return [
+            Fact("weight_kg", "present", message.text, "patient", value=72.5, unit="kg")
+        ]
+
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: weight)
+    post_answer(client, "Vážím 72,5 kg.")
+    client.post("/patient", data={"confirm": "1"})
+    path = directory / "pacienti" / "ONC-002.json"
+    original = path.read_bytes()
+    client.post("/patient", data={"confirm": "1"})
+    assert path.read_bytes() == original
+    saved = json.loads(original)
+    measured = saved["checkiny"][-1]["vitalni_funkce"]["vaha_kg"]
+    assert measured["hodnota"] == 72.5
+    source_id = measured["podklady"][0]["source"]["source_message_id"]
+    assert source_id == sessions[key]["packet"]["message"]["id"]
+    sessions.pop(key)
+    assert build_patient_status(saved).measurements[0].count == 1
+    html = client.get("/patients/ONC-002/report").get_data(as_text=True)
+    assert "Tělesná hmotnost (kg)" in html
+    assert "Údaj ze zprávy v rozhovoru" in html

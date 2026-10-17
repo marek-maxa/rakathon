@@ -221,7 +221,7 @@ K2b ani celý K3/K4/K5 nejsou podmínkou kartičky a jednoduchého předání.
 | K9 · průběžný replay a demo | Kontroly od K2, celý tok po K4–K8 | Všech 171 check-inů a šest povinných situací, negativní/mezní případy, metriky záchytu i falešných eskalací, srozumitelnost a záložní demo bez API |
 | K10 · MEDDI/AWS | K9; pracoviště a provozní převzetí | Návrh adaptérů, EU cesta dat/LLM, identita, tajemství, audit, obnova, selhání a odpovědný tým; skutečné nasazení je samostatný milník |
 
-Další implementace začíná M1 nad existujícím reportem, pak pokračuje M2–M5.
+M1 a omezené M2 jsou implementované; další postup je M3–M5 podle `docs/tasks.md`.
 K2c lze upravit bez K2b, potřebné trendy předat bez nového registru a
 požadavky zobrazit bez doručovacího subsystému. Audit K7 zůstává původnímu
 vlastníkovi. Ověřovat konkrétní průchod s každou funkcí; úplný produktový

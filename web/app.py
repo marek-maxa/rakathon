@@ -173,7 +173,11 @@ def accept_message(key, ticket, text):
 def save_packet(packet, patient_id, assessment):
     if packet["message"]["patient_id"] != patient_id:
         raise ValueError("Odpovědi nepatří vybranému pacientovi.")
-    record = meddi_record(packet, datetime.now().astimezone())
+    record = meddi_record(
+        packet,
+        datetime.fromisoformat(assessment["evaluated_at"]),
+        assessment=assessment,
+    )
     record["checkiny"][0]["triage_assessment"] = assessment
     return append_checkins(patient_id, record["checkiny"])
 

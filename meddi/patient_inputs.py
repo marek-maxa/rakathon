@@ -11,6 +11,7 @@ import unicodedata
 from calendar import monthrange
 from copy import deepcopy
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from .form import prepare_checkin
 
@@ -38,7 +39,18 @@ def normalized(text):
     )
 
 
+def _local_instant(stamp):
+    """Organizer dates are local; timestamped web inputs carry their offset."""
+    return (
+        datetime.fromisoformat(stamp)
+        .astimezone(ZoneInfo("Europe/Prague"))
+        .replace(tzinfo=None)
+    )
+
+
 def instant(item):
+    if item.get("available_at"):
+        return _local_instant(item["available_at"])
     return datetime.fromisoformat(f"{item['datum']}T{item.get('cas') or '23:59:59'}")
 
 
@@ -122,16 +134,34 @@ def build_triage_inputs(patient, checkin):
         )
         sources["diabetes"] = {"field": "komorbidity", "value": patient["komorbidity"]}
 
+    def measurement_time(item, field):
+        raw = (item.get("vitalni_funkce") or {}).get(field) or {}
+        stamp = raw.get("observed_at")
+        return _local_instant(stamp) if stamp else instant(item)
+
     def measurement(item, field):
-        return ((item.get("vitalni_funkce") or {}).get(field) or {}).get("hodnota")
+        raw = (item.get("vitalni_funkce") or {}).get(field) or {}
+        known = raw.get("available_at")
+        if (known and _local_instant(known) > now) or measurement_time(
+            item, field
+        ) > now:
+            return None
+        return raw.get("hodnota")
 
     available = history + [checkin]
-    bp = [
-        item
-        for item in available
-        if measurement(item, "tk_sys") is not None
-        or measurement(item, "tk_dia") is not None
-    ][-3:]
+    bp = sorted(
+        [
+            item
+            for item in available
+            if measurement(item, "tk_sys") is not None
+            or measurement(item, "tk_dia") is not None
+        ],
+        key=lambda item: max(
+            measurement_time(item, field)
+            for field in ("tk_sys", "tk_dia")
+            if measurement(item, field) is not None
+        ),
+    )[-3:]
     if bp and bp[-1]["checkin_id"] == checkin["checkin_id"]:
         count = sum(
             (measurement(item, "tk_sys") or 0) >= 140
@@ -151,12 +181,18 @@ def build_triage_inputs(patient, checkin):
         )
     weight = measurement(checkin, "vaha_kg")
     if weight is not None:
-        prior = [
-            item
-            for item in history
-            if measurement(item, "vaha_kg") is not None
-            and timedelta(0) < now - instant(item) <= timedelta(days=3)
-        ]
+        measured_at = measurement_time(checkin, "vaha_kg")
+        prior = sorted(
+            [
+                item
+                for item in history
+                if measurement(item, "vaha_kg") is not None
+                and timedelta(0)
+                < measured_at - measurement_time(item, "vaha_kg")
+                <= timedelta(days=3)
+            ],
+            key=lambda item: measurement_time(item, "vaha_kg"),
+        )
         if prior:
             baseline = prior[0]
             observe(
@@ -171,20 +207,24 @@ def build_triage_inputs(patient, checkin):
         start = (patient.get("obdobi_sledovani") or {}).get("od")
         baseline = (patient.get("antropometrie") or {}).get("vaha_kg_vychozi")
         baseline_date = date.fromisoformat(start) if start else None
-        year = today.year - (today.month == 1)
-        month = (today.month - 2) % 12 + 1
-        month_start = date(year, month, min(today.day, monthrange(year, month)[1]))
+        measured_day = measured_at.date()
+        year = measured_day.year - (measured_day.month == 1)
+        month = (measured_day.month - 2) % 12 + 1
+        month_start = date(
+            year, month, min(measured_day.day, monthrange(year, month)[1])
+        )
         candidates = [
             (
-                instant(item).date(),
+                measurement_time(item, "vaha_kg").date(),
                 measurement(item, "vaha_kg"),
                 {"checkin_id": item["checkin_id"]},
             )
             for item in history
             if measurement(item, "vaha_kg") is not None
-            and instant(item).date() >= month_start
+            and month_start <= measurement_time(item, "vaha_kg").date() <= measured_day
+            and measurement_time(item, "vaha_kg") < measured_at
         ]
-        if baseline and baseline_date and month_start <= baseline_date <= today:
+        if baseline and baseline_date and month_start <= baseline_date <= measured_day:
             candidates.append(
                 (baseline_date, baseline, {"field": "antropometrie.vaha_kg_vychozi"})
             )

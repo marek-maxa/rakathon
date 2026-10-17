@@ -11,14 +11,15 @@ závislosti. Požadované budoucí chování popisuje [plán](meddi-onco-plan.md
 | --- | --- | --- |
 | `llm_intake/` | Obecná extrakce, katalog 49 otázek, cílené větvení, potvrzení/opravy, omezený MASTER dialog | Výběr priorit podle rizika, bezpečnostní bod před dalším cíleným voláním, trvalé obnovení |
 | `meddi/` | Sdílená deterministická pravidla, normalizace, validace, zdrojované důvody a výstupní politika | Úplné vstupy a klinické mapování, obecná nejistota/trendy, karta a orchestrace |
+| `web/export.py`, `web/triage.py` | Export vybraných ověřených měření s původem, živé trendy stávajícího adaptéru a zdrojovaný kontext léčby | Úplný registr měření/epizod a skutečného podání léčby |
 | `web/app.py` | Vstup Pacient/Lékař, pacientský výběr profilu, MASTER, cílené doptání, společná kontrola, opravy a potvrzení | Přihlášení/oprávnění, volba zastupování, personalizace a bezpečnostní výstup během sběru |
 | `web/patient_store.py` | Pracovní kopie pacienta a atomické přidání potvrzeného check-inu | Sjednocení projekce s událostmi, průběžné revize a podpora více procesů |
-| `web/event_store.py` | SQLite deník původních zpráv před LLM, stabilní ID, dohledatelné opravy a deduplikace | Trvalé výsledky zpracování a obnova dialogu K2b; měření/export K2c |
+| `web/event_store.py` | SQLite deník původních zpráv před LLM, stabilní ID, dohledatelné opravy a deduplikace | Trvalé výsledky zpracování a obnova dialogu K2b; úplná historie měření/revizí K2c |
 | `web/patient_report.py`, `meddi/status.py` | Poslední/historická triáž, stručná kartička, přehled `/team`, historie odpovědí a měření, nezelené incidenty a grafy | Aktivní epizody, souhrn vývoje, plán kontrol a skutečné předání/převzetí |
 | `notifications/` | Samostatný formulář pro pevný testovací e-mail a SMTP transport | Napojení na triáž, adresáti/priorita, spolehlivé předání a převzetí |
 | `main.py` | Chronologicky omezené strukturované vstupy a oddělené porovnání s referencemi | Replay celého toku včetně zpráv, kontrol, intervencí a souhrnů |
 
-Plánovač, nové strukturované měření/přeměření, úplný odborný souhrn vývoje
+Plánovač, samostatný formulář měření/přeměření, úplný odborný souhrn vývoje
 a skutečné předání monitorovacímu centru nejsou implementované.
 
 ## Moduly a datové cesty
@@ -61,6 +62,50 @@ build_triage_inputs → evaluate_checkin → resolve_disposition
 Tato cesta interpretuje strukturované údaje; neextrahuje obsah původní
 `zprava_pacienta`. Úplná rovnocennost nových a importovaných zpráv je úkol K7.
 Podrobnosti triáže jsou pouze v [backendu](backend.md).
+
+### Měření a trendy M2
+
+`assess_contact` nejprve deterministicky normalizuje aktuální kontakt přes
+`evaluate_contact(packet, now=at)`. Jeho vybraná přesná měření promítne do
+dočasného check-inu a `build_triage_inputs` doplní stávající trendy hmotnosti,
+opakovaného tlaku a soběstačnosti spolu s kontextem léčby. Druhé vyhodnocení
+dostane jen tento zdrojovaný `context`/`observations`; staré vitální hodnoty
+se nepředávají jako dnešní. Oba průchody jsou lokální, bez dalšího LLM volání.
+Klinické prahy ani léčebná pravidla se v M2 nemění. Kontext zachovává zdroj
+léků/cyklů; chybějící podklad pro podání není negativní příznak. Plný registr
+skutečného podání a rozlišení plánu/D1 zůstává K3.
+
+`meddi_record(packet, completed_at, *, include_drafts=False, assessment=None)`
+zapisuje měření z `assessment.triage_inputs.observations`, nikoli novou
+interpretací textu. Při předání hodnocení ověřuje shodu pacienta, kontaktu
+a intake. Bez hodnocení slouží dosavadnímu náhledu odpovědí bez měření.
+Podporuje teplotu, SpO₂, systolický/diastolický tlak, glykémii, hmotnost a tep.
+Normalizace nově přijímá i `weight_kg` a `pulse_bpm`; existence měření sama
+nepřidává klinické pravidlo pro jeho vyhodnocení.
+
+Každá hodnota v `vitalni_funkce` má `hodnota`, `jednotka`,
+`zdroj=zprava_kontaktu`, `observed_at`, `available_at` a `podklady` s hodnotami,
+ID zprávy, doslovným důkazem a stavem potvrzení. Zdroj se nevydává za přímý
+odečet přístroje. Při současném rozporu je `hodnota=null`, všechny podklady
+zůstanou zachované a graf/trend nevybírá svévolně jeden bod; triáž dál vidí
+všechny zprávy. Novější hodnota nahrazuje starší podle společného adaptéru.
+Tato projekce obsahuje aktuálně vybrané hodnoty; úplná historie jednotlivých
+měření uvnitř kontaktu včetně nahrazených zůstává v intake, nikoli jako více
+bodů grafu. Staré uložené check-iny se zpětně nedoplňují.
+
+`zprava_pacienta` obsahuje pouze úvodní sdělení. `zdrojove_zpravy` zachovává
+samostatné MASTER/cílené odpovědi, autory, otázky a časy; `vyplnil` vychází
+z autora úvodní zprávy (`pacient`/`pecujici`/`tym`/`neznamy`). Export podporuje
+pečujícího v kontraktu; jeho volba ve formuláři ještě není implementovaná.
+Ukládá se projekce téhož konečného hodnocení v čase `evaluated_at`.
+Datum/čas check-inu jsou v Europe/Prague a čas dostupnosti má pásmo.
+Adaptér trendů respektuje i explicitní čas měření a jeho dostupnost;
+graf používá datum pozorování, pokud je známé. Pro Windows je přidané `tzdata`.
+Bez explicitního času pozorování zůstává výchozím čas přijetí zprávy;
+relativní historický čas se automaticky neodhaduje.
+
+Tvar původních dat: [README balíčku §5](../rakathon_meddi_onco_data/README.md#5-datový-slovník).
+Trend a kontext: [pravidla triáže §4–6](../rakathon_meddi_onco_data/docs/pravidla_triaze.md).
 
 ## Web a ukládání
 
@@ -192,22 +237,18 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
   v paměti. Restart tedy neztratí přijatý vstup, avšak neobnoví rozhovor ani
   průběžnou revizi; to je K2b. Testy `test_web_events.py` rozlišují zachování
   nové zprávy od zachování předchozího dialogu.
-- `assess_contact` z historického adaptéru předává pouze léčebný kontext,
-  nikoli odvozené trendy v `observations`. Stará měření správně nepovažuje za
-  dnešní; chybí ale doložené historické souvislosti pro živé hodnocení.
-- `web.export.meddi_record` zapisuje prázdné `vitalni_funkce`, spojuje všechny
-  zprávy do `zprava_pacienta` a nastavuje autora na pacienta. Vytěžené měření
-  tak může ovlivnit triáž a zůstat v intake, ale nepřibude do grafu měření.
+- M2 předává pouze trendy existujícího adaptéru. Obecné epizody, expirace
+  a interpretace vývoje příznaků v textu zatím nejsou implementované.
 - Historie incidentů není registr aktivních klíčových/varovných nálezů.
   Označení „varovné“ v reportu zahrnuje i žluté historické údaje, a proto
   neodpovídá užšímu týmovému významu aktuálních varovných příznaků.
 - `upozornit_tym` je požadovaná akce v datech. Neprokazuje odeslání ani převzetí.
   Chybí trvalá evidence příjemce, priority, termínu, pokusů a převzetí;
   samostatné SMTP demo ji nenahrazuje.
-- `web.app` předává hodnocení a exportu časy přes `datetime.now().astimezone()`;
-  ty závisejí na pásmu serveru. `disposition` zatím vrací obecný kontaktní
-  text, nikoli termín vypočtený pro konkrétní okamžik. K3/K6 musí předávat
-  explicitní čas a směrování počítat v `Europe/Prague`.
+- `web.app` předává explicitní čas hodnocení s pásmem; export a adaptér
+  timestampovaných měření jej převádějí do `Europe/Prague`. `disposition`
+  zatím vrací obecný kontaktní text, nikoli termín vypočtený pro konkrétní
+  okamžik. Směrování podle pracovního kalendáře zůstává M4.
 
 ## Spuštění a kontroly
 
