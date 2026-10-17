@@ -139,6 +139,7 @@ větev vyloučí, cíl ji nepřebije. Nevyřešené závislosti jsou `blocked`.
 max_questions=6, max_clarifications=2, bulk_confirmation=False)` poskytuje:
 
 - `start(message)`, `submit(message)`, `snapshot()` a `cancel(reason)`.
+- `next_question` poskytuje aktuální otázku i při otevřeném doptání bez Intake.
 - Výchozí potvrzení `confirm()` / `reject()` pro aktivní otázku.
 - Pro společné potvrzení: `review_sessions`, `revise(index)`, `confirm_all()`;
   oprava zneplatní závislé odpovědi, nepotvrdí nevyřešený návrh.
@@ -157,6 +158,23 @@ nikoli číslo nebo negace všech příznaků. Chyba extraktoru touto cestou nej
 Potvrzenou navazující odpověď dokládá až backend v `clarified_facts`;
 zdrojový fakt z intake nemizí. Obecné prázdné/nejasné odpovědi zůstávají
 nevyřešené.
+
+Obecné „špatně/blbě/nic moc“ také zachovává slovní `overall_feeling` a nabídne
+škálu. Po hodnotě 3/4 bez konkrétního popisu přejde kontakt do
+`needs_description`, `active=None`: `next_question` požádá o popis potíží,
+jejich začátku a vývoje. `submit()` přijme tuto skutečnou otázku a zpracuje
+novou zprávu běžnou obecnou extrakcí; checkpoint předchází cílenému LLM.
+Vzniklé kandidáty převezmou původní flow. Otevřený popis není umělá položka
+`question_answers`; má vlastní zdrojovou událost v `messages`.
+
+`dialogue.message_specificity` obsahuje `needs_details`, `reason`, `attempts`
+a `source_message_ids`. Není to klinické skóre ani pravděpodobnost. Při
+nedostatku informací bez jiných navazujících odpovědí se také doptá;
+opakovaná nejasnost skončí jako `unresolved/insufficient_detail`, vyčerpaný
+celkový rozpočet jako `limited/question_budget`. Platí `max_clarifications`
+a stejný celkový limit otázek. „Dobře → 1/2“ bez dalšího rizika zůstává
+bez otevřeného doptání; skóre 5 zachovává původní naléhavou cestu.
+Zdroje: pravidla triáže §3 / Celkový stav a §6.4; zadání PDF s. 5 a 7.
 
 Každá slovní odpověď projde obecnou extrakcí; nové kandidáty přidá flow po
 uzavření aktivní relace. Dialog spravuje rozpočet, nikoli naléhavost.

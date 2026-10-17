@@ -22,10 +22,14 @@ ty připojí aplikace. Nevypisuj zdůvodnění ani procenta jistoty.
   údaje. Je to slovník vstupních polí pravidel, nikoli diagnózy nebo pokyn
   přiřadit závažnost. Např. výslovná nová bolest na hrudi → new_chest_pain;
   výslovná dušnost v klidu → breathlessness_at_rest. Neodvozuj tyto okolnosti
-  ze samotné obecné bolesti nebo dušnosti. Kladnou odpověď „Dobrý/dobře“
-  na skutečnou otázku o dnešním celkovém stavu zachovej jako overall_feeling
+  ze samotné obecné bolesti nebo dušnosti. Obecnou odpověď „Dobrý/dobře“,
+  „špatně/blbě“ nebo „nic moc“ na skutečnou otázku o dnešním celkovém stavu
+  zachovej jako overall_feeling
   s původní slovní value a tématem nezadouci_ucinky/pocit. Neodhaduj číslo
   1–5 ani nepopírej všechny příznaky. Rozliší je navazující otázka.
+  Z „je mi špatně“ neodvozuj konkrétní nevolnost, zvracení nebo únavu,
+  pokud pacient nic takového nepopsal. Samotné celkové skóre nepopisuje
+  příčinu potíží; odpověď na žádost o popis zpracuj jako novou zprávu.
   Např. vomiting, vomiting.episodes, diarrhea.episodes, fatigue, temperature,
   breathlessness a bleeding. Tečka označuje konkrétní údaj tématu.
   Pro další sdělené potíže vytvoř stručný anglický pojem ve snake_case,

@@ -165,6 +165,43 @@ class MasterExtractor:
         return validate_facts(self.client.send(self.payload(message)), message)
 
 
+REASSURING_FEELINGS = {
+    "dobry",
+    "dobre",
+    "citim se dobre",
+    "je mi dobre",
+    "v pohode",
+    "fajn",
+}
+GENERAL_FEELINGS = REASSURING_FEELINGS | {
+    "spatne",
+    "spatny",
+    "blbe",
+    "blby",
+    "nic moc",
+    "citim se spatne",
+    "je mi spatne",
+    "citim se blbe",
+    "je mi blbe",
+    "velmi spatne",
+    "citim se velmi spatne",
+    "zle",
+    "citim sa zle",
+}
+
+
+def _feeling_text(text: str) -> str:
+    return "".join(
+        c
+        for c in unicodedata.normalize("NFKD", text.casefold())
+        if not unicodedata.combining(c)
+    ).strip(" \t\n.!?")
+
+
+def is_negative_feeling(text: str) -> bool:
+    return _feeling_text(text) in GENERAL_FEELINGS - REASSURING_FEELINGS
+
+
 def analyze_message(
     message: MessageEvent, extract: Callable[[MessageEvent], list[Fact]]
 ) -> dict:
@@ -176,12 +213,8 @@ def analyze_message(
     """
     facts = extract(message)
     # A narrow conversational fallback requests the existing scale; it never
-    # turns reassuring wording into a number or a denial of every symptom.
-    normalized = "".join(
-        c
-        for c in unicodedata.normalize("NFKD", message.text.casefold())
-        if not unicodedata.combining(c)
-    ).strip(" \t\n.!?")
+    # turns general wording into a number or a denial of every symptom.
+    normalized = _feeling_text(message.text)
     if (
         not facts
         and message.source == "master_question"
@@ -191,8 +224,7 @@ def analyze_message(
             "Jak se dnes cítíte?",
             "Jak se dnes cítí pacient, za kterého odpovídáte?",
         }
-        and normalized
-        in {"dobry", "dobre", "citim se dobre", "je mi dobre", "v pohode", "fajn"}
+        and normalized in GENERAL_FEELINGS
     ):
         facts = [
             Fact(

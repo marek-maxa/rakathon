@@ -12,9 +12,22 @@ from pathlib import Path
 from .client import APIError, Client
 from .core import Intake, load_question
 from .flow import QuestionnaireFlow
-from .master import MasterExtractor, analyze_message
+from .master import MasterExtractor, analyze_message, is_negative_feeling
 from .master_contract import MessageEvent
 from .pipeline import build_pipeline_packet
+
+DETAIL_QUESTION = (
+    "Zkuste prosím podrobněji popsat potíže: co se děje, od kdy a jak se stav mění?"
+)
+GENERAL_CONCEPTS = {
+    "overall_feeling",
+    "general_state",
+    "general_discomfort",
+    "malaise",
+    "feeling_unwell",
+    "unwell",
+    "unspecified_symptoms",
+}
 
 
 class MasterDialogue:
@@ -53,6 +66,64 @@ class MasterDialogue:
         self._questions_asked = 0
         self._reason: str | None = None
         self._pending_action: str | None = None
+
+    @property
+    def next_question(self) -> str:
+        if self.state == "needs_description":
+            return DETAIL_QUESTION
+        if self.active is None:
+            raise ValueError("Kontakt nyní nečeká na slovní odpověď.")
+        return self.active.next_question
+
+    def _description_status(self) -> dict:
+        """Dialogue completeness, never a clinical score or inferred symptom."""
+        replies = [m.id for m in self._messages if m.question == DETAIL_QUESTION]
+        facts = [f for a in self._analyses for f in a["facts"]]
+        specific = any(
+            f["subject"] in {"patient", "caregiver"}
+            and f["concept"] not in GENERAL_CONCEPTS
+            for f in facts
+        )
+        reason = None
+        general = [
+            s
+            for s in self.review_sessions
+            if (s.question.questionnaire_id, s.question.id)
+            == ("nezadouci_ucinky", "pocit")
+            and s.state in {"confirmed", "needs_confirmation"}
+        ]
+        answered_other = any(
+            s not in general and s.state in {"confirmed", "needs_confirmation"}
+            for s in self.review_sessions
+        )
+        qualitative = [
+            f["value"]
+            for f in facts
+            if f["concept"] == "overall_feeling"
+            and f["subject"] == "patient"
+            and f["presence"] == "present"
+            and isinstance(f.get("value"), str)
+        ]
+        reassuring = (
+            bool(general)
+            and general[-1].snapshot()["odpoved_index"] in {0, 1}
+            and not any(is_negative_feeling(value) for value in qualitative)
+        )
+        # The source's "5 = very bad" answer already has an actionable urgent
+        # route. Preserve that existing path rather than requiring more text.
+        very_bad = bool(general) and general[-1].snapshot()["odpoved_index"] == 4
+        if not specific and not answered_other and not reassuring and not very_bad:
+            reason = (
+                "general_state_without_details"
+                if facts or general
+                else "no_actionable_details"
+            )
+        return {
+            "needs_details": reason is not None,
+            "reason": reason,
+            "attempts": len(replies),
+            "source_message_ids": replies,
+        }
 
     def _checkpoint(self, checkpoint: Callable | None, action: str) -> bool:
         """Let the caller return to its UI before any targeted extraction."""
@@ -166,6 +237,14 @@ class MasterDialogue:
                     self._reserve_question()
                 return
         self.active = None
+        detail = self._description_status()
+        if detail["needs_details"]:
+            if detail["attempts"] < self._max_clarifications:
+                self.state, self._reason = "needs_description", "insufficient_detail"
+                self._reserve_question()
+            else:
+                self.state, self._reason = "unresolved", "insufficient_detail"
+            return
         incomplete = any(
             flow.snapshot()["state"] != "complete" for flow in self._flows.values()
         )
@@ -198,19 +277,23 @@ class MasterDialogue:
     def submit(
         self, message: MessageEvent, *, checkpoint: Callable | None = None
     ) -> dict:
-        if (
+        describing = self.state == "needs_description"
+        if not describing and (
             self.state not in {"needs_answer", "needs_correction"}
             or self.active is None
         ):
             raise ValueError("Kontakt nyní nečeká na slovní odpověď.")
         self._validate_event(message)
-        if message.question != self.active.next_question:
+        if message.question != self.next_question:
             raise ValueError("Událost neodpovídá skutečně položené otázce.")
         analysis = analyze_message(message, self._extract_message)
         self._messages.append(message)
         self._analyses.append(analysis)
         try:
-            if self._checkpoint(checkpoint, "answer"):
+            if self._checkpoint(checkpoint, "advance" if describing else "answer"):
+                return self.snapshot()
+            if describing:
+                self._advance()
                 return self.snapshot()
             self.active.submit_event(message)
         except (APIError, ValueError, TypeError):
@@ -366,6 +449,7 @@ class MasterDialogue:
                 "questions_asked": self._questions_asked,
                 "max_questions": self._max_questions,
                 "mode": "targeted_from_message",
+                "message_specificity": self._description_status(),
                 "pending_topic_ids": [
                     f"{form}/{q['question_id']}"
                     for form, flow in self._flows.items()
@@ -447,6 +531,7 @@ def main() -> int:
         contact.start(message)
         while contact.state in {
             "needs_answer",
+            "needs_description",
             "needs_correction",
             "needs_confirmation",
         }:
@@ -467,14 +552,18 @@ def main() -> int:
                 else:
                     print("Prosím odpovězte ano nebo ne.")
             else:
-                question = contact.active.next_question
+                question = contact.next_question
                 print(question)
                 text = input("Vaše odpověď: ")
                 if text.strip().casefold() == "/konec":
                     contact.cancel()
                 elif text.strip().casefold() == "/moznosti":
                     print(
-                        contact.active.question.patient_options()
+                        (
+                            contact.active.question.patient_options()
+                            if contact.active
+                            else None
+                        )
                         or "Tato otázka nemá nabídku odpovědí."
                     )
                 else:

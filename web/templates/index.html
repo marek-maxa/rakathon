@@ -22,7 +22,7 @@
           <p class="progress">Profil: {{ page.patient_name }}</p>
         {% endif %}
         {% if not page.select_patient and not page.done and not page.review %}
-          <p class="progress">{% if page.follow_up %}Doplnění sledovaného údaje{% elif page.master %}Úvodní otázka{% else %}Otázky dotazníků podle vaší zprávy{% endif %}</p>
+          <p class="progress">{% if page.description %}Upřesnění potíží{% elif page.follow_up %}Doplnění sledovaného údaje{% elif page.master %}Úvodní otázka{% else %}Otázky dotazníků podle vaší zprávy{% endif %}</p>
         {% endif %}
         {% if page.questionnaire_name %}<p class="progress">{{ page.questionnaire_name }}</p>{% endif %}
         {% if page.selected_questionnaires %}

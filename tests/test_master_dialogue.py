@@ -6,7 +6,7 @@ import pytest
 
 from llm_intake import Intake, load_question
 from llm_intake.client import APIError, Client
-from llm_intake.dialogue import MasterDialogue, main
+from llm_intake.dialogue import DETAIL_QUESTION, MasterDialogue, main
 from llm_intake.master_contract import Fact, MessageEvent
 from llm_intake.pipeline import build_pipeline_packet
 
@@ -57,7 +57,7 @@ def reply(contact, text):
     return event(
         text,
         id=f"synthetic-reply-{len(contact.snapshot()['messages'])}",
-        question=contact.active.next_question,
+        question=contact.next_question,
         source="targeted_answer",
     )
 
@@ -411,6 +411,47 @@ def test_cli_master_clarification_correction_and_file_export(
     assert len(packet["messages"]) == 3
     assert extract.call_count == 3
     assert "- Ano." in capsys.readouterr().out
+
+
+def test_cli_general_bad_state_requests_description_before_completion(
+    monkeypatch, tmp_path, capsys
+):
+    from llm_intake.master import MasterExtractor
+
+    def findings(message):
+        if message.text == "Jsem unavený.":
+            return fatigue(message)
+        return [
+            Fact(
+                "overall_feeling",
+                "present",
+                message.text,
+                "patient",
+                value=message.text,
+            )
+        ]
+
+    def extract_answer(_, question, sources, *args):
+        return answered(
+            3 if question.id == "pocit" else 0, sources[-1], len(sources) - 1
+        )
+
+    monkeypatch.setattr(Client, "from_env", lambda: Client("synthetic-key"))
+    monkeypatch.setattr(
+        MasterExtractor, "__call__", lambda _, message: findings(message)
+    )
+    monkeypatch.setattr(Client, "extract_events", extract_answer)
+    replies = iter(["blbě", "4", "ano", "/moznosti", "Jsem unavený.", "ano"])
+    monkeypatch.setattr("builtins.input", lambda _: next(replies))
+    output = tmp_path / "description.json"
+    monkeypatch.setattr("sys.argv", ["dialogue", "--output", str(output)])
+    assert main() == 0
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["dialogue"]["state"] == "complete"
+    assert result["dialogue"]["message_specificity"]["attempts"] == 1
+    assert result["messages"][-1]["question"] == DETAIL_QUESTION
+    assert all(a["confirmed"] for a in result["question_answers"])
+    assert DETAIL_QUESTION in capsys.readouterr().out
 
 
 def test_cli_cancel_keeps_unconfirmed_value(monkeypatch, tmp_path):

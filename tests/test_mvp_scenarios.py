@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from llm_intake.client import APIError, Client
+from llm_intake.dialogue import DETAIL_QUESTION
 from llm_intake.master_contract import Fact
 from web.app import app, sessions
 
@@ -116,6 +117,8 @@ def finish(demo):
                 as_text=True
             )
             demo.client.post("/patient", data={"continue": "1"})
+        elif contact.state == "needs_description":
+            post(demo, "Nevím, jak to přesněji popsat.")
         elif contact.state in {"needs_answer", "needs_correction"}:
             q = contact.active.question
             value = demo.answers.get(q.id, 0)
@@ -145,12 +148,13 @@ def finish(demo):
 
 @pytest.mark.parametrize("text", ["dobrý", "Dobře.", "dobre"])
 @pytest.mark.parametrize("model_finds_state", [False, True])
+@pytest.mark.parametrize("rating", [1, 2])
 def test_reassuring_master_is_clarified_once_and_reaches_green(
-    demo, text, model_finds_state
+    demo, text, model_finds_state, rating
 ):
     if model_finds_state:
         demo.findings[text] = [finding(text, "overall_feeling", text)]
-    demo.answers["pocit"] = 1  # The actual patient reply is option "2".
+    demo.answers["pocit"] = rating - 1  # Source options use zero-based indices.
     post(demo, text)
     contact = sessions[demo.key]["contact"]
     assert contact.state == "needs_answer"
@@ -166,6 +170,115 @@ def test_reassuring_master_is_clarified_once_and_reaches_green(
     assert not result["unprocessed_facts"]
     assert saved["zprava_pacienta"] == text
     assert result["intake"]["facts"][0]["value"] == text
+    assert not result["intake"]["dialogue"]["message_specificity"]["needs_details"]
+    assert result["intake"]["dialogue"]["message_specificity"]["attempts"] == 0
+
+
+@pytest.mark.parametrize("opening", ["blbě", "špatně", "dobře"])
+@pytest.mark.parametrize("model_finds_state", [False, True])
+def test_general_state_four_requests_details_then_routes_the_actual_symptom(
+    demo, opening, model_finds_state
+):
+    if model_finds_state:
+        demo.findings[opening] = [finding(opening, "overall_feeling", opening)]
+    demo.answers["pocit"] = 3
+    post(demo, opening)
+    response = post(demo, "4")
+    contact = sessions[demo.key]["contact"]
+    assert contact.state == "needs_description"
+    assert DETAIL_QUESTION in response.get_data(as_text=True)
+    assert contact.snapshot()["dialogue"]["message_specificity"]["needs_details"]
+    assert not demo.path.exists()
+    demo.client.post("/patient", data={"confirm": "1"})
+    assert not demo.path.exists()  # A score alone cannot finish this contact.
+
+    detail = "Jsem unavený, odpočinek mi pomáhá."
+    demo.findings[detail] = [finding(detail, "fatigue")]
+    demo.answers["unava"] = 0
+    response = post(demo, detail)
+    assert detail in response.get_data(as_text=True)  # Visible in shared review.
+    result = finish(demo)["triage_assessment"]
+    specificity = result["intake"]["dialogue"]["message_specificity"]
+    assert not specificity["needs_details"] and specificity["attempts"] == 1
+    details_event = result["intake"]["messages"][-1]
+    assert details_event["question"] == DETAIL_QUESTION
+    assert details_event["text"] == detail
+    assert result["intake"]["facts"][-1]["source_message_id"] == details_event["id"]
+    assert [
+        a["question"]["question_id"] for a in result["intake"]["question_answers"]
+    ] == ["pocit", "unava"]
+
+
+def test_repeatedly_vague_description_stops_with_review_not_green(demo):
+    demo.answers["pocit"] = 3
+    post(demo, "blbě")
+    post(demo, "4")
+    result = finish(demo)["triage_assessment"]
+    status = result["intake"]["dialogue"]
+    assert status["state"] == "unresolved"
+    assert status["reason"] == "insufficient_detail"
+    assert status["message_specificity"]["needs_details"]
+    assert status["message_specificity"]["attempts"] == 2
+    assert status["questions_asked"] == 4
+    assert result["requires_review"] and result["color"] != "green"
+
+
+def test_reassuring_paraphrase_with_low_score_does_not_request_more_description(demo):
+    opening = "Dnes se cítím celkem dobře."
+    demo.findings[opening] = [finding(opening, "overall_feeling", opening)]
+    demo.answers["pocit"] = 1
+    post(demo, opening)
+    result = finish(demo)["triage_assessment"]
+    assert result["color"] == "green"
+    assert result["intake"]["dialogue"]["message_specificity"]["attempts"] == 0
+
+
+def test_description_extraction_failure_keeps_receipt_and_does_not_close_contact(
+    demo, monkeypatch
+):
+    demo.answers["pocit"] = 3
+    post(demo, "blbě")
+    post(demo, "4")
+    contact = sessions[demo.key]["contact"]
+    before = contact.snapshot()
+
+    def fail(_):
+        raise APIError("synthetic description extraction failure")
+
+    monkeypatch.setattr(contact, "_extract_message", fail)
+    html = post(demo, "Je mi pořád nějak špatně.").get_data(as_text=True)
+    stored = sessions[demo.key]
+    assert "Zpráva je uložená, zpracování se nezdařilo" in html
+    assert stored["contact"].snapshot() == before
+    assert stored["contact"].state == "needs_description"
+    assert stored["received_message"].question == DETAIL_QUESTION
+    assert not stored["done"] and not demo.path.exists()
+
+
+def test_urgent_finding_in_description_pauses_before_targeted_extraction(demo):
+    demo.answers["pocit"] = 3
+    post(demo, "blbě")
+    post(demo, "4")
+    calls_before = len(demo.targeted_calls)
+    detail = "Teď mám novou bolest na hrudi."
+    demo.findings[detail] = [finding(detail, "new_chest_pain")]
+    html = post(demo, detail).get_data(as_text=True)
+    assert sessions[demo.key]["contact"].state == "paused"
+    assert "Naléhavé doporučení" in html and "155" in html
+    assert len(demo.targeted_calls) == calls_before
+    assert finish(demo)["triage_assessment"]["color"] == "red"
+
+
+def test_description_respects_total_question_budget(demo, monkeypatch):
+    monkeypatch.setitem(app.config, "MAX_QUESTIONS", 2)
+    demo.answers["pocit"] = 3
+    post(demo, "blbě")
+    post(demo, "4")
+    result = finish(demo)["triage_assessment"]
+    status = result["intake"]["dialogue"]
+    assert status["state"] == "limited" and status["questions_asked"] == 2
+    assert status["message_specificity"]["needs_details"]
+    assert result["requires_review"] and result["color"] != "green"
 
 
 @pytest.mark.parametrize("text", ["Nevím.", "OK", "Dobrý, ale špatně dýchám."])

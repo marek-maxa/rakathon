@@ -134,6 +134,12 @@ def survey_page(data):
         f["id"]: f["nazev"] for f in json.loads(DEFINITIONS.read_text(encoding="utf-8"))
     }
     selected = [names[flow["questionnaire_id"]] for flow in packet["dialogue"]["flows"]]
+    if contact.state == "needs_description":
+        return {
+            "question": contact.next_question,
+            "description": True,
+            "selected_questionnaires": selected,
+        }
     if contact.state in {"needs_answer", "needs_correction"}:
         return {
             "question": contact.active.next_question,
@@ -149,6 +155,8 @@ def survey_page(data):
             event["text"]
             for event in packet["messages"]
             if event["source"] in {"master_question", "patient_message"}
+            or event["id"]
+            in packet["dialogue"]["message_specificity"]["source_message_ids"]
         )
         or packet["message"]["text"],
         "selected_questionnaires": selected,
@@ -161,7 +169,8 @@ def survey_page(data):
             )
         )
         or bool(packet["unmapped_concepts"])
-        or bool(packet["unknown_subject_fact_indices"]),
+        or bool(packet["unknown_subject_fact_indices"])
+        or packet["dialogue"]["message_specificity"]["needs_details"],
         "blocked": any(
             q["state"] == "blocked"
             for flow in packet["dialogue"]["flows"]
@@ -205,10 +214,10 @@ def submission_token(data):
             "patient_id": data["patient_id"],
             "id": secrets.token_urlsafe(16),
             "source": "targeted_answer"
-            if active or data.get("follow_up")
+            if data["contact"] or data.get("follow_up")
             else "master_question",
-            "question": active.next_question
-            if active
+            "question": data["contact"].next_question
+            if data["contact"]
             else (
                 data["follow_up"]["question"]
                 if data.get("follow_up")
@@ -423,7 +432,8 @@ def index():
             if "set_author" in request.form:
                 if data.get("received_message") or (
                     contact is not None
-                    and contact.state not in {"needs_answer", "needs_correction"}
+                    and contact.state
+                    not in {"needs_answer", "needs_correction", "needs_description"}
                 ):
                     raise ValueError(
                         "Autora lze změnit jen před odesláním nové odpovědi."
@@ -485,6 +495,7 @@ def index():
                 if contact is not None and contact.state not in {
                     "needs_answer",
                     "needs_correction",
+                    "needs_description",
                 }:
                     raise ValueError("Nyní zkontrolujte souhrn odpovědí.")
                 original = accept_message(key, ticket, text)
