@@ -1,26 +1,30 @@
-# Notifications
+# SMTP demo
 
-One email field sends the predefined `SUBJECT` and `BODY` in `app.py`.
-No recipient, subject, or message is read from patient data.
+Samostatná Flask aplikace odešle na ručně zadanou adresu pevný předmět a text
+z `app.py`. Nečte pacientská data a není napojená na triáž. Transport lze
+později využít za předávacím adaptérem; klinická fronta, priority, opakování
+a převzetí jsou úkoly [K6](../docs/meddi-onco-plan.md#implementační-kroky-a-závislosti).
 
-Copy `.env.example` to `.env` in this directory and replace the SMTP settings
-with your provider's values. `SMTP_FROM` must be an address your server allows
-you to send from. `SMTP_SECURITY=starttls` uses port 587 by default;
-`SMTP_SECURITY=ssl` uses port 465. Leave both username and password empty only
-if your server allows unauthenticated sending over TLS.
+Zkopírujte [.env.example](.env.example) do `notifications/.env` a nastavte
+SMTP server, povoleného odesílatele a případné přihlašovací údaje.
+`SMTP_SECURITY=starttls` používá výchozí port 587, `ssl` port 465.
+Uživatelské jméno a heslo musí být obě vyplněná nebo obě prázdná; druhá
+varianta vyžaduje SMTP server umožňující neautentizované odeslání přes TLS.
 
-Run from the repository root on Linux or Windows PowerShell:
+Z kořene repozitáře, Linux i PowerShell:
 
 ```text
-uv run --env-file notifications/.env python notifications/app.py
+uv run --locked --env-file notifications/.env python -m flask --app notifications.app run --port 5001
 ```
 
-Open `http://127.0.0.1:5000`. Enter a recipient and press **Send notification**.
-The app reports success only after the SMTP server accepts the message;
-this does not confirm inbox delivery. Local `.env` files are ignored by Git.
+Otevřete http://127.0.0.1:5001. Port 5001 umožní souběh s pacientským webem
+na 5000. Při přímém `python notifications/app.py` aplikace používá výchozí
+port 5000 a prostředí je třeba načíst přes `uv run --env-file` jako výše.
 
-Tests use a mocked SMTP connection and never send real messages:
+Formulář používá CSRF token a validaci adresy. Úspěch znamená přijetí SMTP
+serverem, nikoli doručení do schránky nebo převzetí zdravotníkem. Lokální
+`.env` ignoruje Git. Testy používají náhradu SMTP a zprávy neposílají:
 
 ```text
-uv run --locked pytest tests/test_notifications.py -q
+uv run --locked python -m pytest tests/test_notifications.py -q
 ```

@@ -1,91 +1,39 @@
-# Rozhodnutí
+# Platná rozhodnutí
 
-Revize požadavků a cíl webu (17. 10. 2026): aktuální
-[plán K0–K10](meddi-onco-plan.md) vychází z opětovného přečtení všech
-dostupných podkladů MEDDI a komentářů týmu. Původní revize byla omezena
-na plán a seznam kroků. Následný pokyn již povolil merge main do web a
-zobrazení barev i problémů triáže s využitím existujících prvků. Nahrazuje to starší cílový odklad
-webu a interpretace zpráv; historická omezení auditu zůstávají popisem
-tehdejšího rozsahu, ne novým omezením výsledného produktu.
+Požadavky a jejich zdroje jsou v [zadání](challenge.md), cílové chování
+v [plánu](meddi-onco-plan.md), implementované rozhraní v [architektuře](architecture.md).
+Tento dokument uchovává volby důležité pro další vývoj; historii implementačních
+relací, mergů a testovacích běhů nahrazuje Git.
 
-Společný backend (17. 10. 2026): `meddi.pipeline.evaluate_contact` převádí
-potvrzené odpovědi a přesně doložené fakty do širšího jádra `meddi/`.
-Kořenové funkce zůstávají kompatibilními vstupy, klinická pravidla již nekopírují.
-Výstup odděluje známé minimum od úplnosti; zachovává zdroje a celý LLM kontakt.
-Bez dalšího LLM volání a bez nových závislostí; kontrakt v [backend.md](backend.md).
-
-MASTER QUESTION (16. 10. 2026): tým požaduje otevřený popis stavu a následný
-výběr jen potřebných otázek, použitelný také pro pozdější kontrolu parametrů.
-Zdrojovou zprávu zpracovávat společně se `zprava_pacienta`; zachovat čas a autora.
-Rozpracovaný [návrh propojení](master-question.md) odděluje fakta, odpovědi,
-prozatímní riziko a plán kontrol. Klinická interpretace nejistoty a konkrétní
-intervaly vyžadují upřesnění; propojení LLM s triáží již existuje, karta a
-plánování kontrol zatím implementované nejsou.
-
-Technický směr: oddělené LLM a triáž propojuje adaptér, zatím bez RAG.
-Vyšší úroveň z možných podložených interpretací počítá kód;
-nezapisuje se jako pacientem potvrzená horší hodnota. Bezpečnostní kontrolu
-neomezovat vyhledanými otázkami a nečekat na dokončení rozhovoru při známém
-tvrdém pravidle. Důvody a zdroje jsou v návrhu.
-
-| Datum | Rozhodnutí | Důvod |
+| Oblast | Rozhodnutí | Důvod / důsledek |
 | --- | --- | --- |
-| 2026-10-17 | Na pokyn týmu neponechávat nevyhodnocený nezelený signál bez předběžného minima; zachovat vyšší variantu při doložených příznacích a neznámém léčebném/rizikovém kontextu | Reprodukováno neurčeno s červeným ESAS. Pravidla §6.4 požadují vyšší možnou úroveň. Nepokryté signály mají dočasné minimum podle definic a `provisional=true`; známá klinická pravidla mají přednost. ESAS gradient není klinicky ověřený převod, politika může zvyšovat falešné poplachy a vyžaduje kvalifikované review. Report staré výsledky přepočítá ze zmrazených vstupů, originál zůstane zachovaný |
-| 2026-10-17 | Na výslovný pokyn týmu zobrazit triáž ve formuláři až po potvrzení a úspěšném uložení, bez výjimky pro barvu | Během doptávání a kontroly odpovědí se nemá zobrazovat nic navíc. Průběžné vyhodnocení na serveru pokračuje; tento pokyn nahrazuje předchozí návrh průběžného červeného upozornění ve formuláři |
-| 2026-10-17 | Na pokyn týmu sloučit aktuální main do web a připojit zobrazení barvy/důvodů společné triáže | Zachovat rozpracovaný MASTER a úložiště. Formulář používá evaluate_contact, historický report sdílené evaluate_checkin s časovým adaptérem; žádná nová klinická pravidla. Neúplné zelené minimum se zobrazuje jako neurčené |
-| 2026-10-17 | Ukládat celý výstup meddi_contact_assessment/v1 do triage_assessment u potvrzeného webového check-inu | Původní export ztrácel fakta mimo dotazníky; report musí po restartu zobrazit stejné důvody i zdrojový kontakt. Záznam a výsledek se zapíší společně atomicky do pracovní kopie, zdrojový balíček zůstává nezměněný |
-| 2026-10-17 | Na upřesnění týmu ukládat nové check-iny do pracovní kopie `data/pacienti/<patient_id>.json` a číst ji ve webovém reportu | Nahrazuje předchozí samostatné exporty; zachovat původní kontext i historii a neměnit zdrojový balíček ani CLI loader. Atomický zápis a zámek v procesu brání ztrátě historie při souběhu |
-| 2026-10-17 | Obnovit kolegův MASTER formulář z `6aeb385`, potřebný backend z lokálního `main` a doplnit společné potvrzení | Oprava regresí při rebase na pokyn týmu; zachovat výběr profilu i reporty. Návrhy mohou řídit větvení, potvrzené jsou až po kontrole souhrnu; oprava rodiče ruší podřízené návrhy |
-| 2026-10-17 | Potvrzený webový dotazník ukládat atomicky jako samostatný JSON pod vybraným patient_id v ignorovaném `data/` | Vazba na profil místo ID prohlížečové relace, zachování zdrojových pacientů a předchozích průchodů; chyba zápisu dovoluje opakování, dokončený formulář odmítá další změny |
-| 2026-10-17 | V této etapě pouze zdrojovaný plán; další cíl začlenění pipeline do existující větve web | Výslovné upřesnění týmu. Zachovat hotové prvky, nejprve kompatibilita API, pak identita/úložiště a propojení; přenos do větve neznamená ostré klinické nasazení |
-| 2026-10-17 | Všechny nezelené odpovědi i klinické nálezy zařadit mezi klíčové a sledovat jako epizody; zahrnout zlepšení a kontext | Komentáře týmu. Barva odpovědi není úroveň triáže, proto zahrnout také významné zelené/neobarvené vstupy. Aktivní varovné nálezy vedoucí k 3/4 jsou podmnožina klíčových; u 1/2 varovné prázdné. Nejde o nově implementovaný registr |
-| 2026-10-17 | Průběžné urgentní vyhodnocení a závěrečná uložená triáž jsou dva spouštěče stejné služby | Známé kritické minimum nesmí čekat na další cílené LLM volání ani na potvrzení; konec dotazníku vždy vytvoří revizi. Přerušení a chyba mají vlastní neúplný stav, nikoli green |
-| 2026-10-17 | Doporučení odvozovat kódem z klíčových nálezů, výsledné úrovně a pravidel také pro 1/2; zprávu zpracovat jako samostatný zdroj | Komentáře týmu a pravidla §1–6. Nepoužít jen varovné příznaky nebo spojení upozornění možností; zachovat autora, citace, čas, rozpory a přílohy |
-| 2026-10-17 | Evidovat poslední skutečnou chemoterapii a odstup se zdrojem; oddělit podání od plánu a typu cyklické léčby | Pravidla §3/§5 a komentář týmu. Rizikové okno není jen nadir a cyklus sám neprokazuje chemoterapii. Neznámé podání není negativní léčebný kontext |
-| 2026-10-17 | Jediné klinické jádro meddi/; nový evaluate_contact a kompatibilní kořenové vstupy | Opravit doložené chyby a sjednotit backend na pokyn týmu. Potvrzené odpovědi procházejí původními definicemi, doložená fakta normalizací a stejnými pravidly; žádný web, nové závislosti nebo LLM požadavky |
-| 2026-10-17 | Oddělit minimum_color, color a assessment_status; celý intake zachovat ve výstupu | Neúplné zelené minimum se nesmí vydávat za úplné posouzení. Známé riziko může být vyhodnoceno před potvrzením, aniž by se označilo za potvrzenou zkušenost pacienta. Rozsahy/nejisté alternativy zůstávají k dořešení, nikoli odhadnutou hodnotou |
-| 2026-10-17 | Snapshot je aktuální výběr karty s patient_id/as_of; zdroje mají dostupnost a volitelný skutečný čas/expiraci | Novější pozorování stejného parametru nahrazuje starší, současné konfliktní hodnoty se zachovají pro maximum pravidel. Neužívat trvale maximum celé historie ani první položku JSON. Obecné relativní časy a klinická expirace se nevymýšlejí; §6.2–6.4 pravidel |
-| 2026-10-17 | Sdílená validace číselných domén a jednotek před pravidly | NaN nesmí přes porovnání znamenat negativní nález. Validace není nová sada klinických prahů; degC přijato, bolest přítomna oddělena od novosti bolesti; zdrojové definice zůstávají beze změny |
-| 2026-10-16 | Revize připravenosti pipeline bez zásahu do aplikačního kódu; doporučení jednoho adaptéru nad meddi/ | Dvě současné cesty triáže mají odlišný rozsah i kontrakt, vzdálený web očekává chybějící API. Nejprve doložené chyby a společný vstup se zdroji/časem, pak jeden CLI průchod a připojení karty/webu. Podrobnosti a meze měření v pipeline-readiness.md; sjednocení nebylo tímto zápisem implementováno |
-| 2026-10-16 | Sloučení d1b58f4: zachovat širší meddi/ i omezený pipeline adaptér, obnovit historii LLM | Odlišné datové kontrakty a politika neúplných dat nedovolují automatickou záměnu. Přesné porovnání, reprodukce chyby mapování a oprava jsou v [merge-review.md](merge-review.md); klinické prahy a pravidla origin zůstávají beze změny |
-| 2026-10-16 | Adaptér evaluate_pipeline_packet v triage.py a export MasterDialogue z kořene | Triage modul přijímá celý pipeline packet s odpověďmi a fakty i volitelný kontext (chemoterapie z karty); kořen llm_intake exportuje MasterDialogue, load_topic_catalog a resolve_topics |
-| 2026-10-16 | Ponechat katalog a zprávu ve stejném uživatelském vstupu, katalog před proměnlivým textem | Při měření přesun katalogu do samostatné systémové části způsobil u jednoho citlivého syntetického screeningu HTTP 400 content_filter, původní i opravené uspořádání prošlo. Zachovat dotazníkový kontext a možnost opakovat statický prefix. Blokace má vlastní hlášení, chybná úvodní analýza uchová zprávu se stavem processing_error |
-| 2026-10-16 | Zmenšit reprezentaci MASTER a omezit cílené příklady, zachovat všech 49 témat a přesné možnosti | MASTER vynechá pouze mechanická metadata, poznámku formuláře předá jednou a celý katalog tvoří statický prefix. Cílené volání má nejvýše 3 příklady stejné otázky/typu, API JSON je kompaktní. Po limitu kontaktu se další cílená extrakce nevolá; neomezujeme pokrytí filtrem klíčových slov nebo top-k |
-| 2026-10-16 | Měřit tokeny z API a přesnost na plně označené syntetické sadě | Volitelný on_usage callback ukládá jen počty a dobu, bez textů a klíčů. Oddělit chybějící metriky od nuly, záchyt minimálních témat od nepovolených přiřazení, ověřovat negaci a subjekt. Cache měřit přes cached_tokens; slevu a latenci neslibovat z jediného měření. Klinické ověření je samostatné |
-| 2026-10-16 | Úplný katalog 49/49 otázek místo prvních šesti témat; klíčová slova, aliasy a kontext v question_topics.json | Celý katalog a aktuální balíčky otázek jsou v promptu; fakt vrací topic_ids omezené dynamickým enumem. Kód mapuje přesná ID a zachová pořadí i podmínky; žádné top-k nebo filtrování jen doslovnými slovy. Chybějící položka katalogu vyvolá chybu. Úplnost struktury nezaručuje sémantickou úplnost LLM; tu ověřuje oddělená syntetická regrese |
-| 2026-10-16 | Oddělit rozpoznaná témata od rozpočtu dotazování; zbývající otázky exportovat jako dialogue.pending_topic_ids | Všechna rozpoznaná fakta a kandidáti zůstávají v paketu i při limited; pacient se nezahltí automatickým kladením všech otázek. Popření a potíže pečujícího nevyvolávají cílený dotaz pacientovi; neznámé pojmy zůstávají viditelné |
-| 2026-10-16 | Propojit MASTER se stávajícím Intake přes seed původních zpráv a oddělené MasterDialogue | Úplná odpověď jde k potvrzení, neúplná k doptání. Zachovat skutečné otázky, autory, ID a dostupnost zdrojů; nepředstírat, že MASTER odpověď vznikla na cílený dotaz. Původní API i kolegovo napojení cíleného CLI na triáž zůstávají zachované |
-| 2026-10-16 | Výchozí limit kontaktu 6 zahrnuje MASTER, doptání, potvrzení i opravy; limit doptání parametru zůstává 2 | Omezení zátěže a opakovaných odmítnutí bez vynucování hodnoty. Limity lze nastavit; po vyčerpání limited, nepotvrzené hodnoty zůstávají návrhy. Jde o prototypovou politiku, nikoli klinicky schválené časování |
-| 2026-10-16 | Obecná extrakce každé další slovní odpovědi a přidání nových témat po uzavření aktivní relace | Nové potíže se nesmějí ztratit kvůli cílené otázce ani porušit její rozpracované pořadí. Naléhavost a reakce na riziko nadále patří do nezávislé integrace; MASTER dialog tuto bezpečnostní větev neimplementuje |
-| 2026-10-16 | Rozhraní modulu pro pipeline: find_question, QuestionnaireFlow.for_targets a create_targeted_session | Zjednodušení integrace cíleného dotazování na parametr bez nutnosti znát interní ID dotazníku; jednotná fasáda balíčku llm_intake; pro 49 otázek zatím ponechán přímý katalog bez RAG/embeddingů; srovnávací benchmark neproběhl, validace schématu je nezávislá na vyhledávání |
-| 2026-10-16 | MASTER extraktor vytěžuje fakta, kandidátní otázky vybírá kód přes dosavadní katalog | Samostatný prompt, striktní schéma a pět syntetických příkladů; LLM nevrací triáž ani potvrzení. Zachovat neznámá témata a neurčený subjekt, neptat se pacienta automaticky na potíže pečujícího nebo popřený příznak. Zatím šest témat, kandidáti nejsou hotový plán |
-| 2026-10-16 | Sdílet HTTP transport Client.send a tvorbu striktního požadavku s oběma extraktory | Zachovat dosavadní autentizaci a chybové stavy bez kopie klienta. Modelu pro MASTER poslat pouze text, otázku a autora; zdroj, ID a simulovaný čas zůstanou v aplikační obálce |
-| 2026-10-16 | Sdílený balíček otázky a možností pro model, katalog, příklady i export; volitelné /moznosti | Tým chce usnadnit pacientovi odpovídání a přitom přesně zachovat definice. Příklady odkazují ID místo kopií textů. Výlučné „žádné“ nelze kombinovat s účinky; popis barev se modelu nepředává |
-| 2026-10-16 | Pořadí a podmínky řídit QuestionnaireFlow ze zdrojového JSON; rozlišit celý formulář a cílený vstup | Tým požaduje původní větvení a budoucí kontrolu jednoho parametru. Cílený vstup nevyplňuje rodiče mimo rozsah, uvnitř rozsahu platí potvrzené podmínky; nevyřešené větve zůstávají viditelné |
-| 2026-10-16 | Nový pipeline paket llm_intake / v1 vedle původního intake v2 | Normalizované hodnoty, potvrzení a zdroje bez barev; odmítnutý návrh není aktuální odpověď. MASTER extraktor, karta, časování a triáž zůstávají oddělené následující úkoly |
-| 2026-10-16 | Nejbližší krok MASTER QUESTION omezit na samostatný kontrakt zprávy/faktů a první katalog v LLM části | Tým vyvíjí LLM nezávisle; triáž, karta a plánovač jsou nyní pouze kontext budoucího zapojení. Zachovat intake v2, intervaly, zdroj a nejasnost; nepokryté pojmy nezahazovat. Paket faktů má vlastní schema_version=1 a potvrzení unconfirmed přidává aplikace; obecný extraktor bude další krok |
-| 2026-10-16 | Python 3.12 + uv | Společný základ pro Python/ML na Linuxu i Windows |
-| 2026-10-16 | Obecné AGENTS.md + startovní prompt v README; práce podle docs/tasks.md | Jedno zadání pro libovolné agenty bez dalších šablon |
-| 2026-10-16 | documents/ pro zdroje, docs/ pro týmové zápisy | Podklady lze rovnou vkládat bez správy indexu |
-| 2026-10-16 | Přesné dodatečné kopie podkladů archivovat v documents/_duplicates/; zpřesnit tři neurčité názvy | Obsah ověřen porovnáním bajtů a SHA-256; vratný úklid bez mazání zdrojů, mapování v docs/vyber-tematu.md |
-| 2026-10-16 | Tým vybral MEDDI ONCO Challenge | Výslovné rozhodnutí týmu; aktivní zadání v docs/challenge.md |
-| 2026-10-16 | Ostatní podklady přesunout do documents/archive/, výběr tématu a staré úkoly do docs/archive/; odstranit tři znovu ověřené duplicity a lokální cache | Nový začátek na pokyn týmu, zachování původních podkladů a předchozí práce; nahrazuje rozhodnutí o uchování _duplicates/ |
-| 2026-10-16 | Odstranit předem zvolené runtime knihovny, ponechat Python 3.12 + uv, pytest a Ruff | Bez implementace nemají ML/HTTP knihovny využití; závislosti přidávat podle konkrétní potřeby |
-| 2026-10-16 | Nejprve data a jeden průchod v čase, potom implementace po domluvených krocích | Architektura je návrh k diskusi; MEDDI JSON zatím chybí, framework ani AI poskytovatel nejsou vybrané |
-| 2026-10-16 | První prototyp bude CLI, prioritu mají data a funkčnost; frontend a nasazení odkládáme | Výslovná představa týmu, snadné testování a přehlednost |
-| 2026-10-16 | Pacientská karta s vývojem v čase, LLM pro personalizované dotazy a strukturované zpracování odpovědí | Směr určený týmem; podoba historie, hranice rozhodování LLM, časování a schéma zůstávají k diskusi v docs/architecture.md |
-| 2026-10-16 | První CLI používá simulovaný čas a předem zaznamenané odpovědi | Výslovná odpověď týmu; umožní opakovatelné přehrávání, odpovědi na nové otázky se nesmějí domýšlet |
-| 2026-10-16 | MEDDI balíček je dostupný v rakathon_meddi_onco_data/ | Potvrzeno týmem a lokálně ověřeno 14 pacientů / 171 check-inů; reference zůstávají oddělené, podmínky pro LLM popisuje README balíčku, oddíl 6 |
-| 2026-10-16 | Veškerou triáž určuje náš kód; LLM pouze extrahuje informace pro rozhodování | Výslovná volba týmu. Kód vyhodnotí také kontext, trendy a nejistotu a určí úroveň, další krok, kontakt a upozornění; LLM nadále personalizuje formulaci otázek |
-| 2026-10-16 | První implementace: jeden triage.py, JSON vstup a barva s důvody; jen horečka při chemoterapii, absolutní saturace, pocit a bolest | Tým chce malý celek k review před LLM a širším CLI. Neúplný vstup se neoznačuje zeleně; prokázaná barva zůstává minimem a omezený rozsah je součástí výstupu |
-| 2026-10-16 | Kód triage.py a jeho JSON rozhraní jsou anglicky | Výslovný požadavek týmu na čitelnost; hlavní funkce evaluate_triage, barvy green/yellow/orange/red; aktuální kontrakt v architecture.md |
-| 2026-10-16 | Odstranit vlastní validaci a obsluhu výjimek z prvního prototypu | Tým upřednostňuje jednoduchý výzkumný kód pro připravený vstup; zachovat rozhodovací pravidla a rozlišení neznámých údajů |
-| 2026-10-16 | Jedna funkce na kritérium; výsledná závažnost je maximum skóre | Požadavek týmu na jednoduchou modularitu. Skóre 1–4, None pro nevyřešené kritérium; výstup ukazuje skóre místo textových důvodů |
-| 2026-10-16 | Izolovaný llm_intake/ pro jednu otázku, pacientovo potvrzení a opravu | Samostatná práce na pokyn týmu, bez zásahů do karty, triáže a definic; stav a potvrzování spravuje Python, export má schema_version=1 |
-| 2026-10-16 | Výchozí kandidát gpt-6.1-sol, Chat Completions přes dodanou OpenAI kompatibilní bránu | Oficiální podpora Structured Outputs a kompromis schopností/nákladů; zdroje v llm_intake/README.md. Nejde o změřené prvenství na MEDDI; klíč zůstává v prostředí, živé volání zatím neověřeno |
-| 2026-10-16 | Pacient odpovídá vlastními slovy; definované možnosti a barvy zůstávají interní | Upřesnění týmu: LLM přiřazuje význam odpovědi k možnosti, pacient potvrzuje jen slovní znění; kód připojí barvu odpovědi, další triáž zůstává samostatná. Technický výpis CLI vyžaduje --debug |
-| 2026-10-16 | Brána používá hlavičku api-key a deployment gpt-6-1-sol-dz-eu | 401 reprodukováno u Authorization i Ocp-Apim-Subscription-Key; po api-key následovalo 404 DeploymentNotFound pro obecné ID. Přesný deployment dodal tým a živé volání uspělo. Lokální .env opraven bez změny klíče |
-| 2026-10-16 | Nejasná odpověď vyvolá cílené doptání ve stejném LLM volání; historie obsahuje i otázky, export v2 | Reakce na opakování dotazu u „ne, nejde mi spat“. Výchozí limit dvě doptání, pak unresolved; nevynucovat vymyšlenou volbu. Počty doptání a odmítnutí měří kód |
-| 2026-10-16 | RAG, embeddingy a práh podobnosti zatím odložit | Všechny možnosti jedné otázky už jsou v kontextu; chybí informace od pacienta. Nejprve nezávislé označené případy pro správnost a počet nutných dotazů; podobnost není kalibrovaná pravděpodobnost správné odpovědi. Technické zdroje a odůvodnění v llm_intake/README.md |
-| 2026-10-16 | Nejmenší webový prototyp: Flask HTML formuláře bez JavaScriptu, tři ukázkové otázky | Odpovídá požadovanému toku bez nové frontendové vrstvy; stav je pouze v paměti, potvrzené odpovědi může pacient upravit |
-| 2026-10-16 | Web je vícekrokový formulář, nikoli chat; chyby patří do samostatného přístupného upozornění | Zpětná vazba k prototypu: otázky a ovládací prvky mají být hlavní obsah, technické chyby se nesmějí tvářit jako konverzační bublina; nepoužívaný chatový skript odstraněn |
+| Stack | Python 3.12 + uv, stávající Flask/Jinja/Plotly | Rozšiřovat hotové prvky; nový frontend ani framework není podmínkou |
+| Klinické rozhodování | Jediné deterministické jádro `meddi/`; kořenová API a web jsou adaptéry | Nekopírovat klinické prahy do UI nebo LLM |
+| Role LLM | Extrakce, formulace cílených otázek a odborné zprávy z pevné předlohy | Úroveň, trendy, příjemce, termíny a akce určí kód; zpráva má šablonovou zálohu |
+| Výstup | Oddělit zdrojový signál, minimum, výslednou úroveň a úplnost | Nevyřešený údaj není nula/false; relevantní nevyhodnocené vstupy mají lidskou cestu, známé 3/4 se nesnižuje |
+| MASTER | Odpověď je obdobou `zprava_pacienta`, nikoli jiná klinická politika | Zachovat otázku, autora/časy; zpráva má při rozporu přednost podle pravidel §6.2/§6.4 |
+| Potvrzení | Pacient kontroluje slovní návrhy; web používá společné potvrzení a opravy | Potvrzují se vyřešené odpovědi, nikoli automaticky všechny extrahované fakty |
+| Karta | Události a revize zachovávají původ; aktuální karta je odvozený pohled | Oprava ani zlepšení nesmažou historii; nebrat maximum celé historie |
+| Nálezy | Nezelené nálezy sledovat jako epizody; zahrnout relevantní zlepšení a kontext | Aktuální varovné příznaky pro 3/4 jsou podmnožina klíčových, u 1/2 prázdné |
+| Kontroly | Jedna evidence pro cílené otázky i přeměření | Vazba na epizodu, priorita, termín, stav a deduplikace; intervaly schvaluje klinická politika |
+| Lékař | Stručná aktuální kartička, detail a LLM zpráva ze stejné revize | Nutný krok a zdroje viditelné bez čekání na LLM; starší zpráva je historická |
+| Zastupování | Nenápadná volba pod otázkou, autor oddělený od subjektu potíží | Oslovení skutečného adresáta; křestní jméno a doložený rod, jinak neutrálně; kanonický význam otázky zachovat |
+| Léčba a čas | Poslední skutečné podání doložit; plán, D1 a typ cyklu rozlišovat | Neznámá léčba není negativní kontext, budoucí údaje nepatří do hodnocení |
+| Úložiště | Zatím atomické JSON working copies pro jeden proces; originály neměnit | Trvalé události/resume a produkční databáze jsou další samostatný krok |
+| Katalog | Explicitní katalog všech 49 otázek a zdrojové definice; zatím bez RAG | Podobnost není klinická jistota, tvrdá pravidla nesmějí záviset na top-k vyhledávání |
+| Integrace | Datový a předávací adaptér oddělené od pravidel; MEDDI API během soutěže pouze navrhnout | SMTP demo není doručený klinický požadavek; ostrá data vyžadují ověřený EU provoz |
+| Evaluace | Chronologický replay, reference a názvy scénářů mimo rozhodování/LLM | Nezávisle měřit záchyt i zbytečné eskalace; neladit pravidla podle ID nebo reference |
+
+## Otevřený konflikt bezpečnostního výstupu
+
+Dosavadní výslovný týmový pokyn skrývá výslednou triáž až do potvrzení a
+úspěšného uložení, pro všechny barvy. Tak se chová současný formulář i jeho
+regresní testy. Požadavek P07 a pravidla pořadatele §1–3 ale vyžadují
+okamžitou reakci na kritický nález. Žádný z těchto bodů se pouhým úklidem
+dokumentace nepovažuje za změněnou implementaci nebo odvolaný pokyn.
+
+Návrh k rozhodnutí před K4: běžný závěrečný výsledek ponechat po potvrzení,
+bezpečnostní instrukci pro známé kritické minimum oddělit a zobrazit před
+pokračováním cíleného sběru. Na tuto instrukci nesmí mít vliv chyba ukládání,
+dalšího LLM volání ani doručení zprávy týmu. Doporučení dořešit výslovně
+v rámci K4; ostatní integrační práce mohou pokračovat.

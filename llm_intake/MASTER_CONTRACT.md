@@ -1,303 +1,157 @@
-# Zpráva → fakta → vazby na otázky
+# Kontrakt LLM intake
 
-Samostatný modul pro MASTER QUESTION obsahuje datový kontrakt, katalog,
-LLM extraktor, návrh kandidátních otázek a omezený interaktivní dialog.
-Dosavadní `Intake` a export v2 zůstávají kompatibilní, navíc lze předat
-zdrojové události. Tento jiný typ pipeline výstupu má vlastní verzi 1.
-Bez nových závislostí, triáže, ukládání karty a časovače.
+Rozlišujeme tři výstupy: zdrojové fakty `build_packet` / v1, export jedné
+odpovědi `Intake.snapshot` / v2 a paket kontaktu `llm_intake` / v1.
+Verze nejsou vzájemné náhrady. Konfigurace/CLI jsou v [README](README.md),
+triážní adaptér v [backendu](../docs/backend.md).
 
-## Rozhraní
+## Zpráva a fakt
 
-- [master_contract.py](master_contract.py): `MessageEvent`, `Fact`,
-  `NumericRange`, `build_packet(message, facts) -> dict`.
-- [question_catalog.py](question_catalog.py): `load_catalog()`,
-  `load_topic_catalog()`, `resolve_topics(topic_ids) -> list[dict]`
-  a kompatibilní `lookup_questions(concepts) -> dict`.
-- [question_topics.json](question_topics.json): klíčová slova, aliasy a kontext
-  pro každou otázku. Texty otázek a možnosti se načítají přímo ze zdroje.
-- [master.py](master.py): `MasterExtractor(client)(message) -> list[Fact]`,
-  `validate_facts(result, message)` a `analyze_message(message, extract) -> dict`.
-- [dialogue.py](dialogue.py): `MasterDialogue`, interaktivní CLI a rozpočet kontaktu.
-- [master_prompt.md](master_prompt.md) a [master_schema.json](master_schema.json):
-  samostatné instrukce a striktní výstupní schéma otevřené zprávy.
-- [master_examples.json](master_examples.json): pět ručně sestavených syntetických
-  příkladů požadovaného převodu. Nejde o výsledky LLM ani nezávislou evaluační sadu.
-  Extraktor je posílá v kontextu každého volání; obálku tvoří aplikace.
+[master_contract.py](master_contract.py) poskytuje `MessageEvent`, `Fact`,
+`NumericRange` a `build_packet(message, facts)`.
 
-`MessageEvent` uchovává `id`, `patient_id`, původní `text`, `available_at`
-(ISO 8601 s časovým pásmem), `source`, `author` a skutečně položenou `question`.
-Zdroje jsou `master_question`, `patient_message` a `targeted_answer`.
-Spontánní zpráva nemusí mít otázku. Autor je `patient`, `caregiver`, `team`
-nebo `unknown`; jeho identitu dodá aplikace, nikoli model.
-
-| Pole faktu | Význam |
+| MessageEvent | Význam |
 | --- | --- |
-| `concept` | Pojem, např. `vomiting` nebo `vomiting.episodes`; lze zachovat i dosud nenamapovaný pojem |
-| `topic_ids` | Seznam přesných ID `dotaznik/otazka` podložených faktem; celý katalog tvoří enum modelového schématu. Pro nepokrytý pojem prázdný seznam |
+| `id`, `patient_id` | Stabilní zdrojová událost a pacient |
+| `text` | Doslovné původní sdělení |
+| `available_at` | ISO 8601 s pásmem; čas dostupnosti |
+| `source` | `master_question`, `patient_message`, `targeted_answer` |
+| `author` | `patient`, `caregiver`, `team`, `unknown`; dodává aplikace |
+| `question` | Skutečná otázka, povinná pro odpovědi; u spontánní zprávy může být null |
+
+| Fact | Význam |
+| --- | --- |
+| `concept` | Anglický pojem; nenamapované pojmy zůstávají zachované |
+| `topic_ids` | Přesná ID `dotaznik/otazka`; prázdné u nepokrytého pojmu |
 | `presence` | `present`, `absent`, `uncertain`; absence zmínky nevytváří fakt |
-| `subject` | `patient`, `caregiver`, `unknown`; pečující může popisovat i vlastní potíže |
-| `value` | Číslo včetně nuly, text, `NumericRange` nebo null; u popření null |
-| `unit` | Výslovná jednotka nebo null; nemění obecný pocit na číselné skóre |
-| `time_text` | Doslovné časové vyjádření nebo null; „od včera“ není automaticky 24 hodin |
-| `certainty` | `stated`, `approximate`, `uncertain`; charakter sdělení, nikoli pravděpodobnost správnosti modelu |
+| `subject` | `patient`, `caregiver`, `unknown`, nezávisle na autorovi |
+| `value`, `unit` | Číslo včetně nuly, text, NumericRange nebo null; výslovná jednotka |
+| `time_text` | Doslovný časový výraz nebo null; není normalizovaný čas pozorování |
+| `certainty` | `stated`, `approximate`, `uncertain`, nikoli kalibrovaná jistota modelu |
 | `evidence` | Neprázdná doslovná citace ze zprávy |
 
-Rozsah má `lower`, `upper` a `lower_inclusive` / `upper_inclusive`.
-Jedna mez může být null; příslušná uzavřenost se pak neuplatní. Nepřevádíme
-rozsah na jeho horší mez ani přibližný počet na přesnou hodnotu.
-`presence=present` může označovat také přítomnost konkrétního měření: například
-sdělené NRS 0 zůstane číselným faktem, ne diagnózou bolesti.
+`NumericRange` má dolní/horní mez a jejich uzavřenost; jedna mez může chybět.
+Interval se nepřevádí na přesnou horší hodnotu. Sdělená nula zůstává číslem,
+nikoli automatickou negací. `build_packet` ověří citaci a časový výraz vůči
+zprávě a přidá `source_message_id`, `confirmation=unconfirmed`.
+Prázdná extrakce neznamená dobrý stav. Neplatný vstup vyvolá výjimku.
 
-`build_packet` vrací `{schema_version: 1, message: {...}, facts: [...]}`.
-Ověří vazbu citace i časového textu na zprávu a ke každému faktu připojí
-`source_message_id` a vždy `confirmation="unconfirmed"`. Potvrzovací workflow
-se týká cílených odpovědí, samostatné fakty tím nepotvrzuje. Neplatná data vyvolají výjimku;
-prázdný seznam faktů značí pouze prázdnou extrakci, nikoli dobrý zdravotní stav.
-Typové kontroly a citace nedokazují správný význam, úplnost ani klinickou platnost.
-
-## Použití bez sítě
+Offline příklad:
 
 ```python
-from llm_intake.master_contract import Fact, MessageEvent, NumericRange, build_packet
-from llm_intake.question_catalog import lookup_questions
+from llm_intake import Fact, MessageEvent, NumericRange, build_packet
 
 message = MessageEvent(
-    id="synthetic-01",
-    patient_id="synthetic-patient",
+    id="synthetic-01", patient_id="synthetic-patient",
     text="Zvracel jsem pětkrát nebo šestkrát.",
-    available_at="2026-10-16T10:00:00+02:00",
-    source="master_question",
-    author="patient",
-    question="Jak se dnes cítíte?",
+    available_at="2026-10-17T10:00:00+02:00",
+    source="master_question", author="patient", question="Jak se dnes cítíte?",
 )
 fact = Fact(
-    concept="vomiting.episodes",
-    presence="present",
-    subject="patient",
-    evidence="Zvracel jsem pětkrát nebo šestkrát",
-    value=NumericRange(5, 6),
-    unit="episodes",
-    certainty="uncertain",
+    concept="vomiting.episodes", presence="present", subject="patient",
+    evidence="Zvracel jsem pětkrát nebo šestkrát", value=NumericRange(5, 6),
+    unit="episodes", certainty="uncertain",
 )
 packet = build_packet(message, [fact])
-links = lookup_questions(f["concept"] for f in packet["facts"])
 ```
 
-Katalog načítá všech 49 otázek z
-[definic](../rakathon_meddi_onco_data/docs/dotazniky_definice.json).
-Klíčem je dvojice ID dotazníku a otázky. Zachovává text, typ a zdrojovou
-`podminka`. Katalog používá stejný balíček `Question.specification()` jako
-intake, včetně možností, návodu a směru škály, bez barev.
-`load_topic_catalog()` přidá ke každé otázce klíčová slova, aliasy a `hint`.
-Kontroluje přesnou shodu ID se zdrojem: 25 otázek nežádoucích účinků,
-9 psychoonkologických, 5 analgetických a 10 ESAS. Chybějící i nadbytečná
-položka znamená chybu, nikoli zúžení promptu. Toto není úplné klinické pokrytí.
+Příklad nedokládá 24hodinové okno; backend ho nesmí doplnit odhadem.
 
-`resolve_topics` převede přesná ID na aktuální balíčky ve zdrojovém pořadí.
-U podmíněného popisu zahrne také rodiče (`krvaceni`, `nu`), organizační
-rozcestníky při konkrétní potíži nepřidává. Větvení následně vyhodnocuje
-[QuestionnaireFlow](../docs/llm-flow.md) podle potvrzených odpovědí.
-Podobná témata v různých formulářích se nezaměňují: běžná slovní únava vede
-na `nezadouci_ucinky/unava`, výslovná škála ESAS na `esas/unava`.
-Nespavost se nepřevádí na denní ospalost. Kontext určují i celé možnosti,
-nejen shodné slovo v názvu otázky.
+## Extrakce a katalog
 
-`lookup_questions` vrací `questions` bez duplicit a `unmapped_concepts`.
-Jde pouze o vazby: funkce nefiltruje autora, subjekt, popření, již známou hodnotu
-ani podmínky větvení. Budoucí výběr musí použít celé fakty a kontext,
-jinak by například kladl otázku pacientovi na únavu jeho pečujícího.
-Neznámý pojem zůstává v paketu i seznamu nenamapovaných pojmů.
+`MasterExtractor(client)(message)` vrací seznam faktů.
+`analyze_message(message, extract)` přidá do paketu:
 
-Pro ručně vybrané otázky již lze spojit fakta a výsledky intake přes
-`build_pipeline_packet()`; [popis a syntetický výstup](../docs/llm-flow.md).
-Katalog neobsahuje triážní pravidla. Ta a napojení na kartu zůstávají samostatná
-práce ostatních částí systému; širší kontext je v [návrhu](../docs/master-question.md).
+| Pole | Význam |
+| --- | --- |
+| `analysis_status` | `extracted` / `no_facts`, při chybě uloženého dialogu také `processing_error` |
+| `question_candidates` | Balíček otázky a `fact_indices`, pořadí podle definic, bez duplicit |
+| `unmapped_concepts` | Sdělené problémy bez odpovídající otázky |
+| `unknown_subject_fact_indices` | Fakta s neurčeným subjektem |
 
-## Extraktor a návrh otázek
+Model dostává text, skutečnou otázku a autora, úplný katalog s možnostmi
+a syntetické příklady. ID pacienta, systémový čas, barvy ani klinická pravidla
+nejsou součástí modelového vstupu. Validační schéma omezuje vrácená topic ID.
+Kandidáti vznikají z pacientových přítomných/nejistých faktů; popření a vlastní
+potíže pečujícího zůstanou ve faktech, ale nevyvolají automaticky dotaz pacientovi.
 
-```python
-import json
-from pathlib import Path
-from llm_intake.client import Client
-from llm_intake.master import MasterExtractor, analyze_message
-from llm_intake.master_contract import MessageEvent
+`load_topic_catalog()` spojuje [question_topics.json](question_topics.json)
+s [definicemi](../rakathon_meddi_onco_data/docs/dotazniky_definice.json) všech
+49 otázek; chybějící/nadbytečné ID je chyba. `resolve_topics(topic_ids)` vrací
+aktuální balíčky ve zdrojovém pořadí, pro podmíněný popis zahrne příslušného
+rodiče. `lookup_questions(concepts)` je kompatibilní aliasové mapování;
+nefiltrovalo by samo subjekt/negaci. U vlastních extraktorů bez `topic_ids`
+se použije aliasový fallback, modelový výstup je musí vracet.
 
-message = MessageEvent(
-    **json.loads(
-        Path("llm_intake/master_input.example.json").read_text(encoding="utf-8")
-    )
-)
-packet = analyze_message(message, MasterExtractor(Client.from_env()))
-```
+Katalog není klinické pokrytí. Kandidát není povinnost položit otázku;
+již sdělený údaj se využije a nerozpoznaný problém se nezahodí.
 
-Extraktor používá stávající deployment a autentizaci; `Client.structured_payload`
-a `Client.send` sdílejí sestavení striktního požadavku a HTTP transport s Intake.
-Modelu posíláme text, skutečnou otázku a autora, pět příkladů a úplný katalog
-všech 49 otázek s klíčovými slovy, kontextem a možnostmi odpovědí.
-Klíčová slova pomáhají porozumění; nejde o doslovné filtrování ani top-k.
-Model vrací všechna podložená `topic_ids` u jednotlivých faktů, schéma
-dynamicky přidá enum všech ID. Kód ověřuje ID a páruje je mechanicky.
-Katalog je statická část posledního uživatelského vstupu, před polem `message`.
-Obsahuje celé texty a možnosti; mechanická metadata (`order`, `condition`,
-duplicitní ID) zůstávají v aplikačním katalogu. Společný kontext formuláře
-je jednou v `questionnaire_context`.
-ID pacienta, systémový čas, barvy ani pravidla
-triáže neposíláme. Jiné potíže může model zachovat jako další pojmy.
-Pole pojmu má anglický identifikátor, např. `vomiting.episodes`; počet stolic
-nad obvyklý stav má odlišný pojem `diarrhea.increase_over_baseline`.
+## Intake a QuestionnaireFlow
 
-Lokální validace kontroluje všechny povinné klíče, hodnoty, uzavřenost mezí,
-citace a časový text. Neplatný výstup nebo chyba API vyvolá výjimku,
-nikoli úspěšný prázdný výsledek. Žádné částečné změny karty se zde nedělají.
+`Intake(question, extract, max_clarifications=2, extract_with_events=None)`
+spravuje jednu otázku. `submit(text)` zachová text, ale nedodá chybějící metadata.
+`seed(messages)` a `submit_event(message)` zachovají skutečné zdrojové události.
+`next_question` je aktuální text, `patient_summary()` slovní návrh.
 
-`analyze_message` rozšiřuje pipeline paket `kind="llm_intake"` / v1 o:
+| Stav | Další krok |
+| --- | --- |
+| `needs_answer` | Dodat odpověď na aktuální otázku |
+| `needs_confirmation` | Po výslovném souhlasu `confirm()`, jinak `reject()` |
+| `needs_correction` | Dodat slovní opravu |
+| `confirmed` | Dokončená potvrzená hodnota |
+| `unresolved` | Nevyřešeno, bez vynucené možnosti; důvod a zdroje zůstávají |
 
-- `analysis_status`: `extracted` nebo `no_facts`; nejde o vyhodnocení zdraví.
-- `question_candidates`: seznam `{question: celý balíček, fact_indices: [...]}`,
-  v pořadí definic, bez duplicit. Indexy odkazují do `facts`.
-- `unmapped_concepts`: sdělené pojmy bez odpovídající otázky. Obecné „jiné“
-  nesmí zakrýt nepokrytý problém, například zmatenost.
-- `unknown_subject_fact_indices`: fakta s neurčeným subjektem, která nelze
-  automaticky použít k dotazování pacienta.
+Extraktor jedné otázky vrací přesně `status`, `value`, `source_index`,
+`evidence`, `follow_up`. `answered` má hodnotu a citaci, `follow_up=null`;
+`unclear` má hodnotu/zdroj null a jednu cílenou otázku do 240 znaků.
+Indexy možností jsou od nuly, u více možností seznam. Číslo/škála/text nejsou
+index možnosti. Výlučné „žádné účinky“ nelze kombinovat s pozitivní volbou.
 
-Kandidáty vytvářejí pouze fakty se subjektem `patient` a přítomností `present`
-nebo `uncertain`. Popření a potíže pečujícího zůstávají ve `facts`, ale samy
-nevyvolají dotaz pacientovi. Neznámá témata a neurčené subjekty jsou explicitní
-mezery, nikoli důkaz normálního stavu. `question_answers` je zatím prázdný:
-model nevybírá indexy možností a nic není automaticky potvrzené.
-Vlastní extraktory mohou nadále vracet `Fact` bez `topic_ids`; pak kód použije
-anglické aliasy z katalogu a tečkovaná pole dědí nejbližší známou vazbu.
-Modelový výstup přes `MasterExtractor` musí pole vracet vždy.
+`Intake.snapshot()` / `confirm()` vrací `schema_version=2`, identifikaci otázky,
+revizi/stav/potvrzení, `odpoved`, `odpoved_index`, `extraction`, chronologické
+`source_messages`, `source_questions`, případné `source_events`,
+`signaly_odpovedi`, `follow_up`, `unresolved_reason`, `metrics`.
+`confirmed_data()` je jen pro potvrzený stav. Zdrojové barvy připojí kód z definic,
+nikoli model; nejsou finální triáž.
 
-Tyto kandidáty **nepokládat slepě jeden po druhém**. `MasterDialogue` nyní využívá
-již sdělené hodnoty, nabídne jejich potvrzení, řídí podmíněné větve a rozpočet
-kontaktu. Kandidát s úplným faktem nemusí potřebovat novou otázku. Historii,
-naléhavost ani stáří údajů vůči klinickým pravidlům tato vrstva nevyhodnocuje.
+`QuestionnaireFlow(questionnaire_id, targets=None)` řídí zdrojové pořadí
+a `podminka`: `next_question()` → Intake → `record(session)`.
+Cílený vstup nevyplní rodiče mimo rozsah; pokud rodič ve zvoleném rozsahu
+větev vyloučí, cíl ji nepřebije. Nevyřešené závislosti jsou `blocked`.
+`find_question(question_id, questionnaire_id=None)` odmítne nejednoznačné ID;
+`create_targeted_session` připraví samostatný Intake s volitelným klientem.
 
-## Omezený MASTER dialog
+## MASTER kontakt a paket pipeline
 
-```text
-uv run --locked --env-file llm_intake/.env python -m llm_intake.dialogue --debug --output .scratch/master-output.json
-```
+`MasterDialogue(extract_message, extract_answer, extract_with_events=None,
+max_questions=6, max_clarifications=2, bulk_confirmation=False)` poskytuje:
 
-Výchozí MASTER zní „Jak se dnes cítíte?“. `--input soubor.json` ji nahradí
-zaznamenanou zprávou. Parametr `--at` nastaví simulovaný čas; všechny nové
-odpovědi CLI mají stejný čas dostupnosti v rámci tohoto kontaktu. S `--input`
-se použije čas ze souboru. Pořadí rozlišují události a seznam `messages`.
+- `start(message)`, `submit(message)`, `snapshot()` a `cancel(reason)`.
+- Výchozí potvrzení `confirm()` / `reject()` pro aktivní otázku.
+- Pro společné potvrzení: `review_sessions`, `revise(index)`, `confirm_all()`;
+  oprava zneplatní závislé odpovědi, nepotvrdí nevyřešený návrh.
 
-`Intake.seed(messages)` předá existující `MessageEvent` bez změny původních
-otázek (včetně null u spontánní zprávy). Úplný význam přejde k potvrzení,
-neúplný k doptání. Nové odpovědi se předávají přes `submit_event(message)`.
-`Client.extract_events` posílá k textům i jejich autory, bez ID a časů.
-Původní `submit(text)` a tříargumentové extraktory zůstávají funkční.
+Každá slovní odpověď projde obecnou extrakcí; nové kandidáty přidá flow po
+uzavření aktivní relace. Dialog spravuje rozpočet, nikoli naléhavost.
+Výchozí režim započítává také vydané žádosti o potvrzení a opravy;
+webová společná kontrola potvrzení neprovádí po každé otázce.
+`complete` znamená hotový sběr v daném rozsahu, `limited` vyčerpaný rozpočet,
+`unresolved` nevyřešený vstup, `cancelled` přerušení. Chyba není prázdný úspěch.
 
-Python:
+`build_pipeline_packet(message, facts, sessions)` vrací `kind=llm_intake`,
+`schema_version=1`, `message`, `facts`, `question_answers`. Každá odpověď má
+balíček `question`, `state`, `confirmed`, `revision`, `value`, slovní `answer`,
+`evidence` s indexem do `turns`, samotné tahy, `follow_up`, důvod a metriky.
+Nepotvrzený návrh je odlišený, odmítnutý/nevyřešený nemá platnou hodnotu.
 
-```python
-from llm_intake.client import Client
-from llm_intake.dialogue import MasterDialogue
-from llm_intake.master import MasterExtractor
+MASTER rozšíří paket o `messages`, analýzu a `dialogue`: stav/důvod, počet a
+limit dotazů, stavy flow a `pending_topic_ids`. Fakta mají původní zdrojová ID,
+`fact_indices` odkazují do společného seznamu. Tahy odpovědí zachovají známého
+autora a čas. Potvrzení odpovědi nepotvrzuje samostatné fakty a pozdější
+protichůdná zpráva sama nepřepíše jinou potvrzenou odpověď.
 
-client = Client.from_env()
-contact = MasterDialogue(
-    MasterExtractor(client),
-    client,
-    extract_with_events=client.extract_events,
-    max_questions=6,
-    max_clarifications=2,
-)
-packet = contact.start(message)  # MessageEvent z předchozího příkladu
-# needs_confirmation: po výslovném souhlasu contact.confirm(), jinak contact.reject()
-# needs_answer/needs_correction: MessageEvent s contact.active.next_question → contact.submit(event)
-packet = contact.snapshot()
-```
-
-Každá slovní odpověď projde také obecnou extrakcí, aby se neztratilo nové téma.
-Nové kandidáty přidá `QuestionnaireFlow.add_targets()` po ukončení aktivní
-relace, se zachováním už potvrzených odpovědí. Při více tématech se nejprve
-dokončí aktivní relace; řízení naléhavosti je nezávislý budoucí vstup.
-Při chybě extrakce se odpověď nepotvrdí ani se nezmění na prázdný úspěch.
-CLI skončí kódem 1 a může uložit dosud zpracovaný stav; nemá automatické resume.
-I při selhání první extrakce uchová úvodní zprávu. `analysis_status` je při
-`dialogue.reason=processing_error` rovněž `processing_error`, nikoli `no_facts`.
-Chybu `content_filter` odlišujeme od chyby schématu; nelze ji počítat jako
-úspěšně vyhodnocenou zprávu.
-
-Rozpočet `max_questions` (výchozí 6) zahrnuje MASTER, vydané doptání, žádosti
-o potvrzení i opravu. Texty možností nebo opakování po neplatném vstupu nejsou
-nový dotaz. `max_clarifications` (výchozí 2) je zároveň limit doptání parametru.
-Stav `complete` znamená dokončený sběr v tomto rozsahu, nikoli triáž. `limited`
-znamená vyčerpaný rozpočet, `unresolved` nevyřešený dotaz, nepokryté téma nebo
-neurčený subjekt; `cancelled` přerušení. CLI vrací 0 / 2 / 1 pro dokončení /
-neúplné či přerušené zpracování / chybu. Nepotvrzené hodnoty se nevynucují.
-
-JSON rozšiřuje původní paket o `messages` (zdrojové události celého kontaktu)
-a `dialogue` (stav, důvod ukončení, počítadlo, limit a stavy větví).
-`dialogue.pending_topic_ids` obsahuje připravené i blokované otázky, které ještě
-zbývají. Limit nezkracuje seznam faktů nebo rozpoznaných kandidátů. `facts`
-obsahuje fakta všech zpráv s jejich původními `source_message_id`;
-`fact_indices` odkazují do tohoto spojeného seznamu. `question_answers`
-obsahuje ukončené i případnou aktivní nepotvrzenou relaci. Její `turns` navíc
-zachovává ID, čas dostupnosti a autora zdrojové události. Fakta zůstávají
-nepotvrzenými návrhy; potvrzení se týká přesné hodnoty cílené odpovědi.
-Pozdější protichůdné sdělení se uchová; jiná už potvrzená odpověď se automaticky
-nepřepisuje. Řešení rozporů a časových epizod zůstává budoucí integrace.
-
-## CLI nad zaznamenanou zprávou
-
-Linux i PowerShell, z kořene repa; klíč je ve stávajícím ignorovaném `.env`:
-
-```text
-uv run --locked --env-file llm_intake/.env python -m llm_intake.master llm_intake/master_input.example.json
-```
-
-[Vstup](master_input.example.json) obsahuje syntetickou odpověď na MASTER QUESTION
-a explicitní simulovaný čas dostupnosti. CLI vypíše pouze JSON pro další
-zpracování; chyby jdou na stderr s kódem 1. Toto není pacientské UI a nevede
-navazující rozhovor. Přijme stejný formát i pro spontánní zprávu či cílenou odpověď.
-[Ukázkový výstup](master_output.example.json) pochází z živého volání nad tímto
-syntetickým vstupem, nikoli z klinické reference.
-
-Ověřeny tři živé syntetické scénáře: více témat s popřenou teplotou, pečující
-s vlastním příznakem a přibližným počtem průjmů pacienta, nejistá horečka
-s nenamapovanou nespavostí. Jde o základní kontrolu, nikoli benchmark přesnosti.
-Technický podklad ke schématu: [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat),
-ověřeno 16. 10. 2026. Schéma ani citace nedokazují úplnost a správný význam.
-
-## Regrese úplného katalogu
-
-[53 syntetických případů](../tests/fixtures/master_topic_cases.json) pokrývá
-všech 49 ID a navíc více témat, popření, pečujícího a nepokryté potíže.
-Nejsou součástí in-context příkladů. Živý běh:
-
-```text
-uv run --locked --env-file llm_intake/.env python -m llm_intake.evaluate_topics --output .scratch/master-topics-evaluation.json
-```
-
-Report měří záchyt očekávaných témat přímo z modelových `topic_ids`, nikoli
-z pozdějšího aliasového fallbacku. Chyby API a validace jsou nevyhodnocené
-případy mimo jmenovatel `topic_recall`, běh s chybami přesto neprojde.
-Témata navíc vypisuje zvlášť; nejde o přesnost
-na klinicky anotovaném vzorku. `--case ID` lze opakovat pro vybrané scénáře.
-Volitelné `allowed_topics` označuje úplný seznam povolených témat případu;
-nepovolené přiřazení znamená neúspěch i při plném záchytu. `fact_checks`
-ověřuje anotovaný subjekt, negaci nebo hodnotu. `topic_precision` se počítá
-pouze nad takto označenými případy; `topic_recall` nad očekávanými tématy
-všech validně vyhodnocených případů. `api_usage` zachovává měření z API
-i u neúspěšné validace, pokud je brána vrátila. Bez údajů report vrací null.
-Pro přesnost slouží další [syntetická sada](../tests/fixtures/master_precision_cases.json);
-[příkaz a spotřeba](README.md#spotřeba-tokenů).
-Strukturální testy garantují pokrytí promptu a mechanické směrování,
-konečná syntetická sada nezaručuje zachycení každé budoucí formulace.
-
-Ověření 16. 10. 2026: 53/53 případů splnilo kontrolu minimálního pokrytí,
-55/55 očekávaných výskytů témat zachyceno. U 21 případů bylo nutné po HTTP 429
-opakovat volání se souběhem 1; žádný případ s chybou se nepočítal jako úspěšný.
-Model vrátil také 10 dalších přiřazení, včetně popřeného příznaku a souvisejících
-otázek. Z toho neodvozujeme míru falešných přiřazení ani klinickou přesnost.
-
-Ověření z kořene repa v Linuxu i PowerShellu:
-
-```text
-uv run --locked python -m pytest tests/test_master_contract.py tests/test_master_extraction.py tests/test_topic_catalog.py -q
-```
+[Ukázka paketu](pipeline_example.json) a [vstup MASTER](master_input.example.json)
+jsou syntetické. Limity nezkracují seznam rozpoznaných faktů/kandidátů.
+Snapshot není serializované obnovení; bezpečnostní reakce, persistence,
+aktuální epizody a plánování patří do [aplikačního toku](../docs/meddi-onco-plan.md).
+Citace a striktní schéma neprokazují sémantickou ani klinickou správnost.

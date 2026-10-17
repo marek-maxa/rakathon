@@ -13,5 +13,4 @@ prototyp nad těmito smyšlenými daty libovolný LLM. Skutečné pacientské ú
 ani klíče sem nepatří.
 
 Aktivní týmové zadání a návrh jsou v [docs/challenge.md](../docs/challenge.md)
-a [docs/architecture.md](../docs/architecture.md). Archiv ostatních témat už
-není součástí aktuálního checkoutu.
+a [docs/architecture.md](../docs/architecture.md).
