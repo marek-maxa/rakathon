@@ -23,8 +23,6 @@ port 5000 a prostředí je třeba načíst přes `uv run --env-file` jako výše
 
 Formulář používá CSRF token a validaci adresy. Úspěch znamená přijetí SMTP
 serverem, nikoli doručení do schránky nebo převzetí zdravotníkem. Lokální
-`.env` ignoruje Git. Testy používají náhradu SMTP a zprávy neposílají:
-
-```text
-uv run --locked python -m pytest tests/test_notifications.py -q
-```
+`.env` ignoruje Git. Automatické testy SMTP transportu a tohoto formuláře
+zatím chybí; `tests/test_notifications.py` v repozitáři neexistuje. Jejich
+doplnění s náhradou SMTP bez skutečného odesílání evidují [úkoly](../docs/tasks.md).

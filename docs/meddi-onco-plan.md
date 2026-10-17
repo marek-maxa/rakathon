@@ -51,11 +51,23 @@ podmíněna další odpovědí. Rozpočet dotazů nesnižuje známé riziko.
 
 Událost, její odvozená fakta a export nejsou tři nezávislá hlášení téže věci.
 Opravy a nové revize zachovají původ; opakovaný POST/import nesmí vytvořit
-nový nález či alert. Při změně úložiště zavést adaptér a migraci současných
-pracovních kopií. SQLite je možnost pro lokální prototyp, nikoli hotové
-rozhodnutí o produkční databázi. Snapshot dialogu sám není implementované resume.
+nový nález či alert. Stabilní identifikátor odeslání musí přežít opakovaný
+POST i obnovení klienta; kontrola duplicit až podle exportovaného `checkin_id`
+nestačí, pokud opakování založí novou zdrojovou událost. Událost uložit před
+LLM a výsledek externího zpracování připojit k odpovídající revizi vstupů.
+Při chybě zápisu nepotvrdit úspěšné přijetí; již známou kritickou instrukci
+neskrýt kvůli chybě dalšího ukládání nebo zpracování.
 
-Časy ukládat s pásmem, zobrazovat a směrovat v `Europe/Prague`.
+Při změně úložiště zavést adaptér a migraci současných pracovních kopií.
+SQLite ze standardní knihovny je doporučený kandidát pro lokální prototyp
+kvůli transakcím a unikátním klíčům; volbu a migraci konkretizovat v K2a.
+Nejde o přijaté rozhodnutí o lokální ani produkční databázi.
+Snapshot dialogu sám není implementované resume: uložit a obnovit také
+rozpracovaný stav, návrhy, potvrzení, závislosti a rozpočet dotazů,
+bez opakování již dokončených LLM volání. Neukládat klienta ani jeho tajemství.
+
+Čas hodnocení předávat explicitně; časy ukládat s pásmem, zobrazovat a
+směrovat v `Europe/Prague`, nezávisle na lokálním pásmu serveru.
 U původních dat bez pásma/času zachovat originál a explicitní převodní politiku.
 Dostupnost výsledku laboratoře není automaticky čas odběru. Filtrovat i léčiva,
 podání, vyšetření, poznámky a zásahy týmu; budoucí změna v souhrnném poli
@@ -159,21 +171,35 @@ Zdroj: S4 §2–6; týmový požadavek cílených kontrol a přeměření.
 | Krok | Závislost a rozsah | Podmínka dokončení |
 | --- | --- | --- |
 | K1 · webový základ | Existující Flask, MASTER, doptání, kontrola a opravy | Funkční průchod a API ověřené náhradou LLM; základ již existuje |
-| K2 · trvalé události a měření | K1; úložné rozhraní nad working copies, stabilní ID, původní vstup před LLM, revize a export | Po restartu neztracené podklady; autor/opravy/nejistota zachované; nové měření v historii, grafu i triáži; opakování neduplikuje událost |
+| K2a · trvalé přijetí události | K1; úložné rozhraní nad working copies, volba úložiště a migrace, stabilní ID kontaktu/odeslání, původní vstup před LLM | Přijatý originál včetně autora, skutečné otázky, časů a vazby opravy přežije timeout i restart; opakovaný POST nevytvoří druhou událost; chyba zápisu není úspěšné přijetí |
+| K2b · obnova dialogu a revize | K2a; serializovaný stav dialogu a uložené výsledky zpracování, průběžné/konečné/přerušené revize | Po restartu pokračování ve stejném bodě bez opakování dokončených LLM volání; zachované návrhy, potvrzení, opravy, nejistota i auditní původ |
+| K2c · měření a export | K2a/K2b; jednotná zdrojovaná měření a adaptér původního formátu | Stejné měření v triáži, historii i grafu; správný autor, MASTER oddělený od cílených odpovědí, opravy a deduplikace |
 | K3 · časový kontext a podání | K2; využít `patient_inputs`, registry a odvozené trendy | Skutečné podání oddělené od plánu/typu cyklu, doložený odstup; snapshot bez budoucích dat, včetně potřebných historických souvislostí pro živý web |
 | K4 · orchestrace a bezpečnost | K2/K3; společná aplikační služba a bod před další cílenou extrakcí | Známé riziko nečeká na konec; závěr/přerušení uloží revizi; chyba LLM nebo zápisu neztratí zdroj a nevytvoří zelený úspěch; vyřešený konflikt UI |
 | K5 · nálezy a kontroly | K2–K4 a schválené časování | Aktivní epizody, klíčové/varovné vazby, zlepšení, otázky i přeměření, splnění/nezodpovězení a opakovatelný běh v čase bez duplicit |
-| K6 · doporučení, předání a souhrn | K3–K5; využít `disposition`, předávací adaptér a pevnou předlohu | Zdůvodněný krok a skutečná lhůta; 2–4 mají dohledatelné předání/převzetí a opakování při chybě; LLM pouze formuluje, existuje šablonová záloha |
+| K6 · doporučení, předání a souhrn | První průchod po K3/K4, dokončení po K5; využít `disposition`, předávací adaptér a pevnou předlohu | Zdůvodněný krok a skutečná lhůta; 2–4 mají dohledatelné předání/převzetí a opakování při chybě; LLM pouze formuluje, existuje šablonová záloha |
 | K7 · text a klinické pokrytí | Průběžně K2–K6; mentor a otevřené otázky backendu | MASTER i importované zprávy stejnou klinickou cestou; intervaly/rozpory/nepokryté pojmy nemizí; nezvyšovat počet zelených ukrýváním nevyhodnocených vstupů |
-| K8 · pacient a zdravotník | K1–K7; rozšířit Flask/Jinja a report | Aktuální kartička, detail a zpráva stejné revize, kontroly a nutné kroky; role, převzetí a zásah týmu; checkbox zastupování a správné oslovení bez změny významu otázky |
-| K9 · celý replay a demo | K4–K8 | Všech 171 check-inů a šest povinných situací, negativní/mezní případy, metriky záchytu i falešných eskalací, srozumitelnost a záložní demo bez API |
+| K8 · pacient a zdravotník | První kartička společně se základem K6 po K3/K4, dokončení K1–K7; rozšířit Flask/Jinja a report | Aktuální kartička, detail a zpráva stejné revize, kontroly a nutné kroky; role, převzetí a zásah týmu; checkbox zastupování a správné oslovení bez změny významu otázky |
+| K9 · průběžný replay a demo | Kontroly od K2, celý tok po K4–K8 | Všech 171 check-inů a šest povinných situací, negativní/mezní případy, metriky záchytu i falešných eskalací, srozumitelnost a záložní demo bez API |
 | K10 · MEDDI/AWS | K9; pracoviště a provozní převzetí | Návrh adaptérů, EU cesta dat/LLM, identita, tajemství, audit, obnova, selhání a odpovědný tým; skutečné nasazení je samostatný milník |
 
-Nejbližší integrační celek: K2, poté K3/K4. Audit nadměrných eskalací a
-klinických mezer K7 probíhá při rozšiřování; není důvod odkládat bezpečnostní
-větev kvůli vzhledu portálu. Přehled aktuálních stavů/vlastníků je pouze
-v [tasks.md](tasks.md). SQLite, nové soubory či služby nejprve konkretizovat
-v příslušném malém kroku; tento plán sám nezakládá větve ani nové moduly.
+K2 je souhrn K2a–K2c; první implementační změnou má být K2a. Rozsah navazovat
+po malých samostatně ověřitelných krocích, poté propojit K3/K4. Audit nadměrných
+eskalací a klinických mezer K7 probíhá při rozšiřování se stávajícím vlastníkem.
+K9 začíná kontrolou každého kroku; celý replay nesmí být až posledním místem,
+kde se ověří propojení komponent.
+
+Po K3/K4 vytvořit první průchod K6/K8: trvalý požadavek týmu, příjemce,
+priorita, vypočtený termín, opakování a převzetí spolu s jednoduchou kartičkou
+ze stejné revize. Může používat doložené důvody současného hodnocení; úplné
+epizody a plánovač K5 ani LLM souhrn nejsou podmínkou tohoto průchodu.
+Simulované doručení viditelně označit; pro sdílený přístup zajistit oprávnění.
+Následně dokončit K5 a zbývající K6/K8. Toto pořadí upřednostňuje bezpečnost
+a využitelnost (S1 s. 10–12; S2 slidy 2–3 a 5), nemění klinické prahy.
+
+Přehled aktuálních stavů/vlastníků je pouze v [tasks.md](tasks.md). Úložiště,
+nové soubory či služby nejprve konkretizovat v příslušném malém kroku;
+tento plán sám nezakládá větve ani nové moduly a neřeší otevřený konflikt K4.
 
 Vazby: K2 → P03/P08/P20/P21; K3 → P02/P27; K4 → P05–P08/P15;
 K5 → P01/P09/P10/P16/P17; K6 → P11–P14/P18/P19/P23;
@@ -181,6 +207,14 @@ K7 → P04–P06/P15/P16; K8 → P17/P19/P26; K9 → P21/P22/P25;
 K10 → P12/P23/P24.
 
 ## Ověření a otevřené závislosti
+
+Před každou změnou určit cíl, rozsah souborů a pozorovatelnou podmínku
+dokončení. Vedle vhodných regresních testů ověřit integrační chování daného
+kroku: restart, opakované odeslání, opravu, timeout/neplatný výstup LLM a chybu
+zápisu. Kontrola předchozího stavu dialogu sama neprokazuje zachování nového
+vstupu. Pro časový kontext ověřit, že přidání budoucího záznamu nezmění starší
+hodnocení. U bezpečnostního bodu sledovat také pořadí volání: známé riziko
+vyhodnotit před cíleným LLM, nejen zkontrolovat konečnou barvu.
 
 Vedle šesti povinných situací podle [zadání](challenge.md#data-a-ověření)
 ověřit zejména:
@@ -210,6 +244,13 @@ strukturovaný backend, extrakci a celý tok: red/orange záchyt, podhodnocení,
 vyšší výsledky, neúplnost, správné kontakty/doručení, počet a zbytečnost otázek,
 latenci, chyby a tokeny bez citlivého textu v logu. Pacientské potvrzení není
 nezávislé ověření přesnosti modelu.
+
+Rozdíly proti referencím třídit podle příčiny: chybějící vstup, chyba extrakce,
+nepokryté mapování, chybějící trend nebo sporný klinický výklad. Vyšší výsledek
+není automaticky zbytečná eskalace a příznak `requires_review` není počet
+klinických poplachů. Zlepšení shody nesmí vzniknout odstraněním nevyhodnocených
+zpráv či měření. Výchozí omezení a stav replaye jsou v
+[architektuře](architecture.md#výchozí-stav-pro-k2); klinické výklady potvrzuje mentor.
 
 Klinické závislosti O1–O10 jsou pouze v [backendu](backend.md#otevřené-klinické-otázky).
 Konflikt bezpečnostního výstupu je v [rozhodnutích](decisions.md#otevřený-konflikt-bezpečnostního-výstupu).

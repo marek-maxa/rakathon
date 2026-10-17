@@ -17,21 +17,27 @@ souběžným zápisem do stejného checkoutu.
 
 ## Navazující implementace
 
-K1 má použitelný základ. Nejbližší integrační celek je K2, poté K3/K4;
-rozpracované klinické ověřování nepovažovat za dokončené jen kvůli novému UI.
+K1 má použitelný základ. Začít K2a, navázat K2b/K2c a K3/K4;
+podmínky a rozsah dílčích kroků jsou v plánu. K9 ověřovat průběžně od K2.
+Po K4 dodat základ předání a kartičky K6/K8 před úplným plánovačem K5.
+Rozpracované klinické ověřování nepovažovat za dokončené jen kvůli novému UI.
 
 | Krok / rozsah | Vlastník | Stav | Zbývající práce |
 | --- | --- | --- | --- |
-| K2 · události, měření, úložné rozhraní a export | Tým | todo | Originál před LLM, stabilní ID, trvalé revize/obnovení, autor i opravy zachované, MASTER a cílené odpovědi oddělené, měření v historii/grafu/triáži a deduplikace |
+| K2a · trvalé přijetí události před LLM | Tým | todo | Úložné rozhraní, stabilní ID kontaktu/odeslání, originál, autor, otázka, časy a vazba opravy; timeout/restart neztratí přijatý vstup a opakovaný POST jej neduplikuje; konkretizovat úložiště a migraci |
+| K2b · trvalý dialog a revize | Tým | todo | Obnovit rozpracovaný kontakt ve stejném bodě bez opakování dokončených LLM volání; zachovat návrhy, potvrzení, opravy, nevyřešené vstupy i konečné/přerušené revize |
+| K2c · měření a export | Tým | todo | Stejné zdrojované měření v triáži, historii a grafu; MASTER a cílené odpovědi oddělené, správný autor, opravy a deduplikace |
 | K3 · časový kontext a skutečné podání léčby | Tým | todo | Odlišit plán/podání/druh cyklu, poslední chemo se zdrojem a odstupem; potřebné trendy předat i živému webu bez budoucích dat |
 | K4 · aplikační orchestrace a bezpečnostní výstup | Tým | todo | Vyřešit konflikt zobrazení, vyhodnotit známé riziko před dalším cíleným LLM, uložit konečné i přerušené revize; chyba neztratí podklady |
 | K5 · epizody, otázky a přeměření | Tým | todo | Klíčové/varovné nálezy, zlepšení a uzavření, společný plán kontrol, odpověď/remeasurement, běh v čase, neodpověď a deduplikace; schválené intervaly |
+| K6/K8 · první průchod předání a kartičky | Tým | todo | Po K3/K4 trvalý požadavek se zdroji, prioritou, termínem, pokusy a převzetím; jednoduchá kartička stejné revize; simulaci jasně odlišit od skutečného doručení. Dokončení K5 ani LLM souhrnu není podmínkou tohoto průchodu |
 | K6 · doporučení, kontakty, předání a souhrn | Tým | todo | Doplnit konkrétní nálezy/plány, vypočtené lhůty, předání/převzetí/opakování, pevnou předlohu souhrnu s LLM pouze pro formulaci a šablonovou zálohu |
 | K7 · zprávy, nejistota a klinické mapování | Tým + mentor | todo | MASTER/importované zprávy stejnou cestou, konflikty/intervaly/nepokryté pojmy, schválené mapování škál; vyřešit O1–O10 backendu, neladit podle referenčních ID |
 | K8 · pacientský a zdravotnický web | Tým | todo | Stručná kartička/detail/LLM stejné revize, kontroly, prioritní požadavky a zásahy týmu; role, volba zastupování a správné oslovení bez změny významu otázek |
-| K9 · úplný replay a demo | Tým | todo | Všech 171 check-inů a šest povinných situací včetně negativních/mezních případů; záchyt i zbytečné eskalace, srozumitelnost a záložní demo bez LLM |
+| K9 · průběžný replay, úplný tok a demo | Tým | todo | Od K2 kontrolovat restart, opakované odeslání, opravy, výpadky a časovou izolaci; nakonec všech 171 check-inů a šest povinných situací včetně negativních/mezních případů, záchyt i zbytečné eskalace, srozumitelnost a záložní demo bez LLM |
 | K10 · MEDDI a provoz v EU | Tým + pracoviště | todo | Integrační/provozní kontrakt, data a model v EU, přístupy, obnova, doručení, odpovědnosti a klinické převzetí; skutečné nasazení zvlášť |
 | Lint · `meddi/disposition.py` | Tým | todo | Vyřešit dvě stávající ISC004 u spojovaných textů doporučení beze změny obsahu a ověřit Ruff |
+| Testy · SMTP transport a formulář | Tým | todo | Doplnit chybějící automatické testy bez skutečného odesílání pro konfiguraci, CSRF, validaci adresy a selhání transportu; teprve potom uvést funkční příkaz v notifikačním README |
 
 ## Rozhodnutí potřebná před dokončením
 

@@ -37,3 +37,17 @@ bezpečnostní instrukci pro známé kritické minimum oddělit a zobrazit před
 pokračováním cíleného sběru. Na tuto instrukci nesmí mít vliv chyba ukládání,
 dalšího LLM volání ani doručení zprávy týmu. Doporučení dořešit výslovně
 v rámci K4; ostatní integrační práce mohou pokračovat.
+
+Audit potvrdil, že `tests/test_survey_recovery.py` chrání čekání na potvrzení
+i pro červenou a pokračování doptávání při známém červeném nálezu. Po přijetí
+řešení K4 upravit odpovídající regresní očekávání; jejich současný průchod
+není důkaz splnění P07. Ověřit také pořadí obecné extrakce, triáže a cíleného
+LLM: změna samotného vykreslení až po návratu z `MasterDialogue` nestačí.
+
+## Návrh úložiště k rozhodnutí v K2a
+
+Doporučeným kandidátem pro lokální prototyp je SQLite ze standardní knihovny,
+kvůli transakcím a unikátním klíčům bez další runtime závislosti. Není zatím
+zvolena ani implementována. K2a musí konkretizovat malé úložné rozhraní
+oddělené od Flasku, migraci současných pracovních kopií a ochranu původních dat.
+Volba produkční databáze zůstává součástí K10 s MEDDI.

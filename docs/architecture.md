@@ -101,6 +101,14 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
   barvy. Některá upozornění možností se zobrazují při kontrole souhrnu;
   nejsou úplnou bezpečnostní reakcí. Konflikt s okamžitým kritickým krokem
   je v [rozhodnutích](decisions.md#otevřený-konflikt-bezpečnostního-výstupu).
+- `MasterDialogue.start/submit` může po obecné extrakci spustit cílené LLM
+  dříve, než se řízení vrátí do `assess_contact`. Chyba cíleného volání tak
+  může zabránit vyhodnocení již vytěženého rizika. K4 potřebuje bezpečnostní
+  bod uvnitř tohoto pořadí, nikoli jen další výpočet po návratu do webu.
+- `web.app.index` při chybě extrakce vrací předchozí stav relace. Test
+  `test_failed_extraction_preserves_current_state` chrání předchozí dialog,
+  ne trvalé přijetí právě odeslané zprávy. Původní vstup se před LLM na disk
+  neukládá a restart procesu relaci ztratí; řeší K2a/K2b.
 - `assess_contact` z historického adaptéru předává pouze léčebný kontext,
   nikoli odvozené trendy v `observations`. Stará měření správně nepovažuje za
   dnešní; chybí ale doložené historické souvislosti pro živé hodnocení.
@@ -111,6 +119,33 @@ disku nepřepisuje. Poslední stav vybírá podle času, nikoli nejhorší histo
   Označení „varovné“ v reportu zahrnuje i žluté historické údaje, a proto
   neodpovídá užšímu týmovému významu aktuálních varovných příznaků.
 - `upozornit_tym` je požadovaná akce v datech. Neprokazuje odeslání ani převzetí.
+  Chybí trvalá evidence příjemce, priority, termínu, pokusů a převzetí;
+  samostatné SMTP demo ji nenahrazuje.
+- `web.app` předává hodnocení a exportu časy přes `datetime.now().astimezone()`;
+  ty závisejí na pásmu serveru. `disposition` zatím vrací obecný kontaktní
+  text, nikoli termín vypočtený pro konkrétní okamžik. K3/K6 musí předávat
+  explicitní čas a směrování počítat v `Europe/Prague`.
+
+## Výchozí stav pro K2
+
+Jednorázový výchozí bod auditu z 2026-10-17, revize `7a73ce3`;
+po změně implementace tento stav nahradit nebo odstranit, nepřidávat historii běhů.
+
+- `uv run --locked python -m pytest -q`: 654 testů prošlo.
+- `uv run --locked ruff check .`: dvě ISC004 v `meddi/disposition.py`.
+- `uv run --locked python main.py --comparison lower`: 86/171 shod,
+  7 nižších a 78 vyšších výsledků; `requires_review` u všech 171 kontaktů.
+  U jedné ze šesti referenčně červených situací vyšla oranžová.
+- `tests/test_notifications.py` neexistuje; dříve uvedený příkaz v notifikačním
+  README proto selhal bez spuštění testů. Pokrytí SMTP je otevřený úkol.
+
+Replay výše používá pouze strukturovanou cestu, bez interpretace původních
+zpráv. Vyšší výsledek není sám o sobě prokázaná zbytečná eskalace;
+`requires_review` zahrnuje i chybějící podmínky hypotetických pravidel.
+Rozdíly je nutné vysvětlit vstupy, extrakcí, mapováním, trendem či sporným
+pravidlem. Prošlé testy ověřují i dosavadní skrývání červeného výsledku,
+nikoli splnění P07. Výchozí bod není klinická validace ani ověření živého
+LLM, SMTP, úplného produktu nebo Windows.
 
 ## Spuštění a kontroly
 
@@ -140,8 +175,9 @@ git diff --check
 ```
 
 `main.py` srovnává pouze strukturovanou cestu s referencemi, nikoli celý produkt.
-`--comparison` filtruje řádky, souhrn stále počítá celou sadu. Testy používají
-náhrady LLM/SMTP; živé evaluace jsou samostatná explicitní volání se syntetickými daty.
+`--comparison` filtruje řádky, souhrn stále počítá celou sadu. Testy intake/webu
+používají náhrady LLM; automatické testy SMTP zatím chybí. Živé evaluace jsou
+samostatná explicitní volání se syntetickými daty.
 Prošlé testy a správné schéma neprokazují klinickou správnost nebo úplnost
 extrakce. Testovací výsledky průběžně získávat příkazy, nevést jejich historii
 jako součást specifikace.
