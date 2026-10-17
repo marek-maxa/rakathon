@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
-    files = [ROOT / "pyproject.toml", ROOT / "uv.lock"]
+    files = [ROOT / "pyproject.toml", ROOT / "uv.lock", ROOT / "notifications/mailer.py"]
     files += [
         ROOT / "llm_intake" / name
         for name in (

@@ -148,6 +148,15 @@ webová společná kontrola potvrzení neprovádí po každé otázce.
 `complete` znamená hotový sběr v daném rozsahu, `limited` vyčerpaný rozpočet,
 `unresolved` nevyřešený vstup, `cancelled` přerušení. Chyba není prázdný úspěch.
 
+`start(message, checkpoint=None)` a `submit(message, checkpoint=None)` přijímají
+volitelný keyword callback `checkpoint(packet) -> bool`. Volá se po obecné
+extrakci a před cíleným seed/submit. Vrátí-li true, dialog zůstane `paused`
+s důvodem `external_checkpoint`; zpráva a její fakta jsou zachované, cílená
+extrakce ještě neproběhla. `resume()` dokončí odloženou práci bez opakování
+obecné extrakce. Web tím před dalším LLM zobrazí naléhavou instrukci; samotný
+dialog klinickou politiku nezná a callback si neukládá. Bez callbacku se tok
+nemění. Pozastavení ani `resume()` neimplementují trvalou obnovu K2b.
+
 `build_pipeline_packet(message, facts, sessions)` vrací `kind=llm_intake`,
 `schema_version=1`, `message`, `facts`, `question_answers`. Každá odpověď má
 balíček `question`, `state`, `confirmed`, `revision`, `value`, slovní `answer`,

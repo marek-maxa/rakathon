@@ -21,7 +21,8 @@ Prioritou je MVP podle [omezeného rozsahu M1–M5](meddi-onco-plan.md#aktuáln�
 K1 a K2a existují; na K2a nyní nenavazovat obnovou dialogu K2b.
 M1 a M2 jsou hotové. Zprávy, rozpory a cílený otázkový tok jsou propojené;
 M3 ale ještě není klinicky ověřené pro všech šest situací. Priority níže
-mají přednost před pořadím širšího backlogu.
+mají přednost před pořadím širšího backlogu. P0 je hotové; následuje P1,
+ověření šesti situací a auditu K7/K9.
 
 | Pořadí MVP | Vlastník | Stav | Podmínka dokončení |
 | --- | --- | --- | --- |
@@ -29,7 +30,7 @@ mají přednost před pořadím širšího backlogu.
 | UI · vstup Pacient / Lékař | Relace Codex | done | Úvodní volba na `/`, rozhovor na `/patient`, lékařský přehled na `/team`; přepnutí v demo patičce zachová rozhovor. Výběr fiktivního profilu je označený jako ukázka; volba rozhraní není přihlášení/oprávnění |
 | M2 · měření, původ a potřebné trendy | Relace Codex | done | Vybraná ověřená měření v triáži, uložené historii a grafu; MASTER/cílené odpovědi a autor odděleně. Živý web přebírá zdrojované trendy a léčebný kontext stávajícího adaptéru; bez K2b a nového registru léčby |
 | M3 · šest situací a zprávy | Tým + mentor | doing | Integrační část hotová; zbývá nezávislý průchod šesti situacemi a negativními případy, kvalita extrakce a doložené klinické mezery. Koordinovat s auditem K7, neopakovat zavedení zpráv |
-| M4 · doporučení a směrování | Tým | todo | Správný krok a kontakt podle běžné pracovní doby, zachované známé riziko; bez obecného přepisu orchestrace a doručovací fronty |
+| M4 · doporučení a směrování | Tým | todo | P0 dodává okamžitou instrukci před dalším LLM; zbývá správný krok/kontakt a termín podle běžné pracovní doby. Bez obecného přepisu orchestrace a doručovací fronty |
 | M5 · ověření, demo a návrh integrace | Tým | todo | Průchod šesti situacemi a relevantní negativní případy, existující replay, záložní demo a stručný návrh MEDDI/EU provozu |
 
 Následuje úplný backlog K1–K10, nikoli pořadí MVP. K2b, obecný K5,
@@ -43,7 +44,7 @@ Lint a SMTP testy nejsou prioritou před fungujícím M1–M5.
 | K2b · trvalý dialog a revize | Tým | todo | Obnovit rozpracovaný kontakt ve stejném bodě bez opakování dokončených LLM volání; zachovat návrhy, potvrzení, opravy, nevyřešené vstupy i konečné/přerušené revize |
 | K2c · měření a export | Tým | todo | Základ dodává M2; dále úplná historie jednotlivých měření uvnitř kontaktu a napojení průběžných revizí K2b. Nahrazené hodnoty nyní zůstávají v intake, ne jako další body grafu |
 | K3 · časový kontext a skutečné podání léčby | Tým | todo | M2 předává živému webu existující trendy bez budoucích dat; zbývá odlišit plán/podání/druh cyklu, doložit poslední chemo a odstup |
-| K4 · aplikační orchestrace a bezpečnostní výstup | Tým | todo | Vyřešit konflikt zobrazení a vyhodnotit každé nové riziko včetně úvodu před dalším cíleným LLM, uložit konečné i přerušené revize; chyba neztratí podklady |
+| K4 · aplikační orchestrace a bezpečnostní výstup | Tým | todo | P0 řeší zobrazení a kontrolu rozpoznaného rizika před cíleným LLM; zbývají úplné průběžné/přerušené revize a explicitní klinické uzavření opravy/odeznění |
 | K5 · epizody, otázky a přeměření | Tým | todo | Klíčové/varovné nálezy, zlepšení a uzavření, společný plán kontrol, odpověď/remeasurement, běh v čase, neodpověď a deduplikace; schválené intervaly |
 | K6/K8 · první průchod předání a kartičky | Tým | todo | M1 dodává kartičku a simulovaný přehled; nad rámec MVP zbývá trvalý požadavek se zdroji, prioritou, termínem, pokusy a převzetím |
 | K6 · doporučení, kontakty, předání a souhrn | Tým | todo | Doplnit konkrétní nálezy/plány, vypočtené lhůty, předání/převzetí/opakování, pevnou předlohu souhrnu s LLM pouze pro formulaci a šablonovou zálohu |
@@ -73,7 +74,7 @@ Lint a SMTP testy nejsou prioritou před fungujícím M1–M5.
 
 | Priorita | Co nyní dokončit | Přijímací podmínka |
 | --- | --- | --- |
-| P0 · bezpečnostní bod K4/M4 | Výslovně uzavřít konflikt skrývání triáže a okamžité instrukce; stejnou ochranu při úvodu, další odpovědi, opravě a chybě LLM/zápisu | Doložené 3/4 nezablokuje další cílené volání ani potvrzování. Cílené využití MASTER může spustit další LLM před návratem k triáži; ochrana pořadí i zobrazení stále chybí |
+| P0 · bezpečnostní bod K4/M4 · done | Relace Codex: uživatel schválil okamžitou naléhavou instrukci; checkpoint po obecné extrakci úvodu/odpovědi/opravy, před cíleným LLM; instrukce přežije chybu LLM/zápisu | Rozpoznané minimum 3/4 se zobrazí bez potvrzení/uložení; další doplnění až po výslovném pokračování, bez opakované obecné extrakce. Běžný konečný výsledek zůstává po potvrzení |
 | P1 · M3 + audit K7/K9 | Ověřit šest povinných situací přes zprávy i formuláře, pečujícího a negativní/mezní případy; vysvětlit změněné eskalace | Známá tvrdá minima zachovaná, žádné reference ve vstupu; doložené důvody pro nižší/vyšší výsledky, klinické nejasnosti potvrzené mentorem |
 | P2 · M4 | Konkrétní krok/kontakt a termín podle Europe/Prague, včetně mimo pracovní dobu a paliativního kontextu | Srozumitelný krok pro každou úroveň; neúplnost oddělená od priority, známé minimum zachované |
 | P3 · M5 | Pacient → potvrzený výsledek → kartička/přehled, záložní demo bez LLM, návrh MEDDI/EU a odevzdání | Opakovatelné demo se šesti situacemi; ověřit čitelnost, termín/formát a případné sdílené demo v cílovém prostředí |
@@ -90,8 +91,8 @@ Pro MVP řešit klinické nejasnosti, které mění jeho konkrétní případy;
 všechny O1–O10 ani produkční otázky nejsou univerzální vstupní brána.
 Neověřený klinický výklad zachovat viditelný, nevyřešit jej odhadem.
 
-- K4: výslovně dořešit [konflikt okamžité kritické instrukce](decisions.md#otevřený-konflikt-bezpečnostního-výstupu)
-  se skrýváním triáže až do potvrzení.
+- K4: zachovat schválené oddělení [naléhavé instrukce a konečného výsledku](decisions.md#bezpečnostní-výstup-k4m4);
+  úplné revize a klinické uzavření nálezu zůstávají mimo P0.
 - K3/K5–K7: kvalifikovaně potvrdit [klinické a časové otázky O1–O10](backend.md#otevřené-klinické-otázky),
   zejména škály, rozpory definic, poslední podání, intervaly přeměření a dostupnost dat.
 - K9/K10: s pořadateli ověřit formát/termín odevzdání a hodnoticí rozhraní;

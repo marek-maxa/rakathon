@@ -31,6 +31,16 @@
         <span class="spinner" aria-hidden="true"></span>
         <span>Zpracováváme odpověď, chvíli prosím počkejte…</span>
       </div>
+      {% if page.safety_notice and not page.done %}
+        {% set urgent = page.safety_notice.assessment %}
+        <section class="form-card safety-notice safety-{{ urgent.minimum_color }}" role="alert" aria-labelledby="safety-title">
+          <h2 id="safety-title">Naléhavé doporučení</h2>
+          <p>Podle dosud uvedených údajů je potřeba jednat. Nečekejte na dokončení dotazníku.</p>
+          <p><strong>{{ urgent.doporuceni_pro_pacienta }}</strong></p>
+          <p>{{ urgent.doporuceny_kontakt }}</p>
+          <p>Doplnění údajů v aplikaci nesmí odložit vyhledání pomoci.</p>
+        </section>
+      {% endif %}
       {% if page.done and page.assessment %}
         <section class="form-card" aria-label="Triáž podle dostupných údajů" aria-live="polite">
           {{ triage_result(page.assessment, prominent=true) }}
@@ -61,6 +71,12 @@
         {% elif page.done %}
           <h2 id="question-title">Děkujeme</h2>
           <p>Odpovědi jsou uložené. Odpovědi bez přiřazení zůstávají označené jako nevyřešené.</p>
+        {% elif page.paused %}
+          <h2 id="question-title">Nejprve řešte doporučenou pomoc</h2>
+          <p>Další doplnění údajů je volitelné. Doporučení výše platí i bez potvrzení nebo uložení dotazníku.</p>
+          <form method="post">
+            <button type="submit" name="continue" value="1">Pokračovat v doplnění údajů</button>
+          </form>
         {% elif page.review %}
           <h2 id="question-title">Zkontrolujte všechny odpovědi</h2>
           <p>Rozuměli jsme vám správně? Případné chyby opravte a pak potvrďte celý souhrn.</p>

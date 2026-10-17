@@ -105,6 +105,7 @@ def page_for(data):
         "patient_id": data["patient_id"],
         "patient_name": data["patient_name"],
         "assessment": data.get("assessment"),
+        "safety_notice": data.get("safety_notice"),
     }
 
 
@@ -112,6 +113,8 @@ def survey_page(data):
     contact = data["contact"]
     if contact is None:
         return {"master": True, "question": MASTER_QUESTION}
+    if contact.state == "paused":
+        return {"paused": True}
     packet = contact.snapshot()
     names = {
         f["id"]: f["nazev"] for f in json.loads(DEFINITIONS.read_text(encoding="utf-8"))
@@ -233,6 +236,41 @@ def save_packet(packet, patient_id, assessment):
     return append_checkins(patient_id, record["checkiny"])
 
 
+def retain_safety_notice(data, saved, assessment):
+    """Retain the alert across rollback; return whether it is new or increased."""
+    data["assessment"] = assessment
+    if assessment.get("minimum_color") not in {"orange", "red"}:
+        return False
+    previous = saved.get("safety_notice")
+    newly_urgent = previous is None or (
+        assessment["minimum_color"] == "red"
+        and previous["assessment"]["minimum_color"] != "red"
+    )
+    # An unfinished correction or failed processing cannot erase a known
+    # urgent instruction. Explicit clinical resolution is outside this MVP.
+    if (
+        previous is None
+        or assessment["minimum_color"] == "red"
+        or previous["assessment"]["minimum_color"] != "red"
+    ):
+        notice = {"assessment": assessment}
+        saved["safety_notice"] = data["safety_notice"] = notice
+    else:
+        data["safety_notice"] = previous
+    return newly_urgent
+
+
+def safety_checkpoint(data, saved):
+    """Evaluate before targeted LLM; the dialogue never stores this closure."""
+    patient = load_working_patient(data["patient_id"])
+
+    def checkpoint(packet):
+        assessment = assess_contact(packet, patient, datetime.now().astimezone())
+        return retain_safety_notice(data, saved, assessment)
+
+    return checkpoint
+
+
 @app.get("/")
 def home():
     return render_template("welcome.html")
@@ -255,6 +293,7 @@ def index():
                 data.pop("contact_id", None)
                 data.pop("submission", None)
                 data.pop("received_message", None)
+                data.pop("safety_notice", None)
                 sessions[key] = data
                 return redirect("/patient")
             ticket = None
@@ -287,7 +326,17 @@ def index():
                 sessions[key] = data
                 return redirect("/patient")
             contact = data["contact"]
-            if "confirm" in request.form:
+            if "continue" in request.form:
+                if contact is None:
+                    raise ValueError("Nejprve zahajte rozhovor.")
+                contact.resume()
+                data["assessment"] = assess_contact(
+                    contact.snapshot(),
+                    load_working_patient(data["patient_id"]),
+                    datetime.now().astimezone(),
+                )
+                retain_safety_notice(data, saved, data["assessment"])
+            elif "confirm" in request.form:
                 if contact is None:
                     raise ValueError("Nejprve dokončete všechny otázky.")
                 data["packet"] = contact.confirm_all()
@@ -296,6 +345,7 @@ def index():
                     load_working_patient(data["patient_id"]),
                     datetime.now().astimezone(),
                 )
+                retain_safety_notice(data, saved, data["assessment"])
                 data["output_file"] = str(
                     save_packet(data["packet"], data["patient_id"], data["assessment"])
                 )
@@ -344,15 +394,16 @@ def index():
                         max_questions=app.config["MAX_QUESTIONS"],
                         bulk_confirmation=True,
                     )
-                    contact.start(original)
+                    contact.start(original, checkpoint=safety_checkpoint(data, saved))
                     data["contact"] = contact
                 else:
-                    contact.submit(original)
+                    contact.submit(original, checkpoint=safety_checkpoint(data, saved))
                 data["assessment"] = assess_contact(
                     contact.snapshot(),
                     load_working_patient(data["patient_id"]),
                     datetime.now().astimezone(),
                 )
+                retain_safety_notice(data, saved, data["assessment"])
                 data.pop("submission", None)
                 data.pop("received_message", None)
             else:

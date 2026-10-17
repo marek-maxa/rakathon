@@ -21,6 +21,7 @@ relací, mergů a testovacích běhů nahrazuje Git.
 | Zdrojová barva | Zobrazovací barva nevyhodnocené odpovědi sama nevytváří předběžné červené/oranžové minimum | Nepokrytý význam zůstává k lidskému review; klinická pravidla a výstupní politika zůstávají autoritou |
 | Sdílené demo | Basic Auth na všech cestách, bez přihlašovacích údajů vracet 503; balík pro Azure bez klíčů/reference/dat working copies | Společné heslo není individuální role. Jeden proces, stabilní secret a trvalý DATA_DIR; vzdálené nasazení není součást této integrace |
 | Potvrzení | Pacient kontroluje slovní návrhy; web používá společné potvrzení a opravy | Potvrzují se vyřešené odpovědi, nikoli automaticky všechny extrahované fakty |
+| P0 · naléhavá instrukce | Uživatel schválil samostatnou okamžitou instrukci při minimu 3/4; konečný výsledek zůstává po potvrzení a uložení | Nový závažný nález pozastaví další cílenou extrakci do výslovného pokračování. Známá instrukce přežije chybu LLM/zápisu a otevřenou opravu |
 | Karta | Události a revize zachovávají původ; aktuální karta je odvozený pohled | Oprava ani zlepšení nesmažou historii; nebrat maximum celé historie |
 | Nálezy | Nezelené nálezy sledovat jako epizody; zahrnout relevantní zlepšení a kontext | Aktuální varovné příznaky pro 3/4 jsou podmnožina klíčových, u 1/2 prázdné |
 | Kontroly | Jedna evidence pro cílené otázky i přeměření | Vazba na epizodu, priorita, termín, stav a deduplikace; intervaly schvaluje klinická politika |
@@ -34,28 +35,27 @@ relací, mergů a testovacích běhů nahrazuje Git.
 | Integrace | Datový a předávací adaptér oddělené od pravidel; MEDDI API během soutěže pouze navrhnout | SMTP demo není doručený klinický požadavek; ostrá data vyžadují ověřený EU provoz |
 | Evaluace | Chronologický replay, reference a názvy scénářů mimo rozhodování/LLM | Nezávisle měřit záchyt i zbytečné eskalace; neladit pravidla podle ID nebo reference |
 
-## Otevřený konflikt bezpečnostního výstupu
+## Bezpečnostní výstup K4/M4
 
-Dosavadní výslovný týmový pokyn skrývá výslednou triáž až do potvrzení a
-úspěšného uložení, pro všechny barvy. Tak se chová současný formulář i jeho
-regresní testy. Požadavek P07 a pravidla pořadatele §1–3 ale vyžadují
-okamžitou reakci na kritický nález. Žádný z těchto bodů se pouhým úklidem
-dokumentace nepovažuje za změněnou implementaci nebo odvolaný pokyn.
+Uživatel výslovně zvolil okamžitou naléhavou instrukci. Původní pokyn
+skrývat výslednou triáž dál platí pro běžný konečný výsledek; samostatné
+doporučení při `minimum_color=orange/red` se zobrazí před potvrzením
+i uložením. Vychází z doporučení stejného backendu, nikoli ze zobrazovací
+barvy možnosti. Klinické prahy se tím nemění. Zdroj požadavku:
+`documents/MEDDI – MEDDI Onco.pdf`, s. 6–7; pravidla triáže §1–3 a §6.4.
 
-Návrh k rozhodnutí před K4: běžný závěrečný výsledek ponechat po potvrzení,
-bezpečnostní instrukci pro známé kritické minimum oddělit a zobrazit před
-pokračováním cíleného sběru. Na tuto instrukci nesmí mít vliv chyba ukládání,
-dalšího LLM volání ani doručení zprávy týmu. Doporučení dořešit výslovně
-v rámci K4; ostatní integrační práce mohou pokračovat.
+Po obecné extrakci úvodu, další odpovědi i opravy se nejprve spustí sdílená
+triáž. První rozpoznané minimum 3/4 nebo zvýšení z 3 na 4 vrátí řízení do
+webu před cíleným LLM; stejný již zobrazený pokyn nevyžaduje další potvrzení.
+Doplnění je volitelné až po výslovném pokračování. Pokračování nezopakuje
+obecnou extrakci. Běžný nezávažný tok zachovává cílené otázky a limit 6.
 
-Audit potvrdil, že `tests/test_survey_recovery.py` chrání čekání na potvrzení
-i pro červenou a pokračování doptávání při známém červeném nálezu. Po přijetí
-řešení K4 upravit odpovídající regresní očekávání; jejich současný průchod
-není důkaz splnění P07. Ověřit také pořadí obecné extrakce, triáže a cíleného
-LLM: změna samotného vykreslení až po návratu z `MasterDialogue` nestačí.
-Cílený režim opět používá známou MASTER odpověď pro přiřazení konkrétních
-otázek. To může spustit cílenou extrakci před návratem do webové triáže;
-původní integrační mezera K4 proto zůstává otevřená i pro úvod.
+Známá naléhavá instrukce v témže kontaktu zůstává při chybě zpracování,
+zápisu nebo otevřené opravě a nesníží se kvůli neúplnému novému návrhu.
+Neprokazuje skutečné předání týmu ani vyhledání pomoci. Její uchování je
+v paměti procesu; obnova po restartu, úplné revize a explicitní klinické
+uzavření nálezu zůstávají mimo P0. Nejistota extrakce a klinické pokrytí
+šesti situací se dál ověřují v M3. Směrování podle aktuálního času zůstává P2.
 
 ## Úložiště událostí K2a
 

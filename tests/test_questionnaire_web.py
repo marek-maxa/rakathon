@@ -250,6 +250,12 @@ def test_targeted_flow_keeps_initial_fever_and_measurement_export(browser, monke
         )
     ]
     opening(browser, "Dnes mám 38.5 stupně.")
+    assert sessions[browser.key]["contact"].state == "paused"
+    assert browser.answer_calls == []
+    assert "Naléhavé doporučení" in browser.client.get("/patient").get_data(
+        as_text=True
+    )
+    browser.client.post("/patient", data={"continue": "1"})
     assert answer_targets(browser) == [("nezadouci_ucinky", "teplota")]
     browser.client.post("/patient", data={"confirm": "1"})
     result = sessions[browser.key]["assessment"]

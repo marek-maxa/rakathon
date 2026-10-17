@@ -226,8 +226,8 @@ def test_assessment_waits_for_confirmation(survey, monkeypatch, color):
     assert "Výsledek triáže:" in response.get_data(as_text=True)
 
 
-def test_red_finding_does_not_hide_or_finish_follow_up(survey, monkeypatch):
-    client, key, directory, _ = survey
+def test_red_finding_shows_instruction_before_targeted_follow_up(survey, monkeypatch):
+    client, key, directory, calls = survey
 
     def confusion_and_fatigue(message):
         return [
@@ -238,15 +238,225 @@ def test_red_finding_does_not_hide_or_finish_follow_up(survey, monkeypatch):
     monkeypatch.setattr("web.app.MasterExtractor", lambda _: confusion_and_fatigue)
     response = post_answer(client, "Nevím.", follow_redirects=True)
     html = response.get_data(as_text=True)
-    assert "Průběžné upozornění" not in html
+    assert "Naléhavé doporučení" in html
+    assert "Volejte ihned 155" in html
     assert 'triage-red">Červená' not in html
     assert sessions[key]["assessment"]["color"] == "red"
     assert "Výsledek triáže:" not in html
-    assert "Pomůže vám odpočinek?" in html
-    assert 'name="answer"' in html
-    assert sessions[key]["contact"].state == "needs_answer"
+    assert "Pomůže vám odpočinek?" not in html
+    assert 'name="answer"' not in html
+    assert sessions[key]["contact"].state == "paused"
+    assert calls == []
     assert not sessions[key]["done"]
     assert not list(directory.rglob("*.json"))
+    html = client.post(
+        "/patient", data={"continue": "1"}, follow_redirects=True
+    ).get_data(as_text=True)
+    assert "Naléhavé doporučení" in html
+    assert "Pomůže vám odpočinek?" in html
+    assert sessions[key]["contact"].state == "needs_answer"
+    assert len(calls) == 1
+
+
+def test_orange_minimum_also_pauses_before_targeted_llm(survey, monkeypatch):
+    client, key, directory, calls = survey
+
+    def findings(message):
+        return [
+            Fact("orthopnea", "present", message.text, "patient"),
+            *fatigue(message),
+        ]
+
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    html = post_answer(
+        client, "Nově spím vsedě, jsem unavený.", follow_redirects=True
+    ).get_data(as_text=True)
+    assert sessions[key]["assessment"]["minimum_color"] == "orange"
+    assert "Naléhavé doporučení" in html
+    assert "telekonzultaci" in html
+    assert "Výsledek triáže:" not in html
+    assert calls == []
+    assert not list(directory.rglob("*.json"))
+
+
+@pytest.mark.parametrize("correction", [False, True])
+def test_new_urgent_fact_in_reply_or_correction_is_checked_before_targeted_llm(
+    survey, monkeypatch, correction
+):
+    client, key, directory, calls = survey
+
+    def findings(message):
+        return [
+            *fatigue(message),
+            *(
+                [Fact("confusion", "present", message.text, "patient")]
+                if message.source == "targeted_answer"
+                else []
+            ),
+        ]
+
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    post_answer(client, "Odpočinek pomůže." if correction else "Nevím.")
+    if correction:
+        client.post("/patient", data={"edit": "0"})
+    before = len(calls)
+    html = post_answer(client, "Jsem zmatený.", follow_redirects=True).get_data(
+        as_text=True
+    )
+    assert "Volejte ihned 155" in html
+    assert sessions[key]["contact"].state == "paused"
+    assert len(calls) == before
+    packet = sessions[key]["contact"].snapshot()
+    assert len(packet["messages"]) == 2
+    assert packet["facts"][-1]["source_message_id"] == packet["messages"][-1]["id"]
+    assert not list(directory.rglob("*.json"))
+    client.post("/patient", data={"continue": "1"})
+    assert len(calls) == before + 1
+    assert len(sessions[key]["contact"].snapshot()["messages"]) == 2
+    assert sessions[key]["assessment"]["minimum_color"] == "red"
+
+
+def test_urgent_instruction_survives_failed_targeted_continue_and_retry(
+    survey, monkeypatch
+):
+    client, key, _, calls = survey
+    analyses = []
+
+    def findings(message):
+        analyses.append(message.id)
+        return [
+            Fact("confusion", "present", message.text, "patient"),
+            *fatigue(message),
+        ]
+
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    post_answer(client, "Nevím.")
+    before = sessions[key]["contact"].snapshot()
+
+    def fail(*_):
+        raise APIError("synthetic targeted failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(sessions[key]["contact"], "_extract_with_events", fail)
+        html = client.post("/patient", data={"continue": "1"}).get_data(as_text=True)
+    assert "synthetic targeted failure" in html
+    assert "Volejte ihned 155" in html
+    assert sessions[key]["contact"].snapshot() == before
+    assert "Volejte ihned 155" in client.get("/patient").get_data(as_text=True)
+    assert len(analyses) == 1
+    assert calls == []
+    client.post("/patient", data={"continue": "1"})
+    assert len(analyses) == len(calls) == 1
+
+
+def test_increased_urgency_pauses_again_before_processing_the_reply(
+    survey, monkeypatch
+):
+    client, key, _, calls = survey
+
+    def findings(message):
+        concept = "orthopnea" if message.source == "master_question" else "confusion"
+        return [Fact(concept, "present", message.text, "patient"), *fatigue(message)]
+
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    post_answer(client, "Nevím.")
+    assert sessions[key]["safety_notice"]["assessment"]["minimum_color"] == "orange"
+    client.post("/patient", data={"continue": "1"})
+    assert len(calls) == 1
+    html = post_answer(client, "Jsem zmatený.", follow_redirects=True).get_data(
+        as_text=True
+    )
+    assert "Volejte ihned 155" in html
+    assert sessions[key]["contact"].state == "paused"
+    assert sessions[key]["safety_notice"]["assessment"]["minimum_color"] == "red"
+    assert len(calls) == 1
+
+
+def test_known_instruction_survives_edit_and_failed_general_extraction(
+    survey, monkeypatch
+):
+    client, key, _, _ = survey
+
+    def findings(message):
+        return [
+            Fact("confusion", "present", message.text, "patient"),
+            *fatigue(message),
+        ]
+
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    post_answer(client, "Odpočinek pomůže.")
+    client.post("/patient", data={"continue": "1"})
+    html = client.post("/patient", data={"edit": "0"}, follow_redirects=True).get_data(
+        as_text=True
+    )
+    assert "Volejte ihned 155" in html
+    assert "assessment" not in sessions[key]
+
+    def fail(_):
+        raise APIError("synthetic general failure")
+
+    monkeypatch.setattr(sessions[key]["contact"], "_extract_message", fail)
+    html = post_answer(client, "Oprava.").get_data(as_text=True)
+    assert "synthetic general failure" in html
+    assert "Volejte ihned 155" in html
+    assert "Volejte ihned 155" in client.get("/patient").get_data(as_text=True)
+
+
+def test_confirmed_urgent_answer_survives_save_failure_without_final_result(
+    survey, monkeypatch
+):
+    client, key, directory, _ = survey
+
+    def feeling(message):
+        return [Fact("overall_feeling", "present", message.text, "patient")]
+
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: feeling)
+
+    class FeelingClient:
+        def extract_events(self, question, sources, *_):
+            assert question.id == "pocit"
+            return answered(4, sources)
+
+    monkeypatch.setattr(Client, "from_env", FeelingClient)
+    html = post_answer(
+        client, "Cítím se velmi špatně.", follow_redirects=True
+    ).get_data(as_text=True)
+    assert "Naléhavé doporučení" not in html  # The scale value is still a draft.
+
+    def fail(*_):
+        raise OSError("synthetic disk failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr("web.app.save_packet", fail)
+        html = client.post("/patient", data={"confirm": "1"}).get_data(as_text=True)
+    assert "Naléhavé doporučení" in html
+    assert "telekonzultaci" in html
+    assert "Odpovědi se nepodařilo uložit" in html
+    assert "Výsledek triáže:" not in html
+    assert not sessions[key]["done"]
+    assert not list(directory.rglob("*.json"))
+    assert "Naléhavé doporučení" in client.get("/patient").get_data(as_text=True)
+    client.post("/patient", data={"confirm": "1"})
+    assert sessions[key]["done"]
+
+
+@pytest.mark.parametrize(
+    "subject,presence", [("caregiver", "present"), ("patient", "uncertain")]
+)
+def test_unproven_patient_risk_does_not_pause_or_invent_an_urgent_instruction(
+    survey, monkeypatch, subject, presence
+):
+    client, key, _, calls = survey
+
+    def findings(message):
+        return [Fact("confusion", presence, message.text, subject), *fatigue(message)]
+
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: findings)
+    html = post_answer(client, "Nevím.", follow_redirects=True).get_data(as_text=True)
+    assert "Naléhavé doporučení" not in html
+    assert "Výsledek triáže:" not in html
+    assert sessions[key]["contact"].state == "needs_answer"
+    assert len(calls) == 1
 
 
 @pytest.mark.parametrize(
@@ -495,6 +705,8 @@ def test_triage_from_message_is_visible_after_confirmation_and_saved_for_report(
     assert sessions[key]["assessment"]["reasons"]
     assert "Posouzení je neúplné" not in html
     assert not list(directory.rglob("*.json"))
+    assert "Volejte ihned 155" in html
+    client.post("/patient", data={"continue": "1"})
 
     response = client.post("/patient", data={"confirm": "1"}, follow_redirects=True)
     assert "Odpovědi jsou uložené." in response.get_data(as_text=True)

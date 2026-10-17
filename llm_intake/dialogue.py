@@ -48,15 +48,27 @@ class MasterDialogue:
         self.state = "needs_master_answer"
         self._questions_asked = 0
         self._reason: str | None = None
+        self._pending_action: str | None = None
 
-    def start(self, message: MessageEvent) -> dict:
+    def _checkpoint(self, checkpoint: Callable | None, action: str) -> bool:
+        """Let the caller return to its UI before any targeted extraction."""
+        if checkpoint is not None and checkpoint(self.snapshot()):
+            self.state, self._reason = "paused", "external_checkpoint"
+            self._pending_action = action
+            return True
+        return False
+
+    def start(
+        self, message: MessageEvent, *, checkpoint: Callable | None = None
+    ) -> dict:
         if self._messages or self._flows:
             raise ValueError("Kontakt už byl zahájen.")
         self._messages.append(message)
         self._questions_asked = int(message.source == "master_question")
         try:
             self._analyses.append(analyze_message(message, self._extract_message))
-            self._advance()
+            if not self._checkpoint(checkpoint, "advance"):
+                self._advance()
         except (APIError, ValueError, TypeError):
             # I při blokaci první zprávy musí zůstat zdroj k dalšímu zpracování.
             self.cancel("processing_error")
@@ -152,7 +164,9 @@ class MasterDialogue:
         ) < datetime.fromisoformat(self._messages[-1].available_at):
             raise ValueError("Událost nesmí předcházet poslední dostupné zprávě.")
 
-    def submit(self, message: MessageEvent) -> dict:
+    def submit(
+        self, message: MessageEvent, *, checkpoint: Callable | None = None
+    ) -> dict:
         if (
             self.state not in {"needs_answer", "needs_correction"}
             or self.active is None
@@ -161,12 +175,23 @@ class MasterDialogue:
         self._validate_event(message)
         if message.question != self.active.next_question:
             raise ValueError("Událost neodpovídá skutečně položené otázce.")
-        # Obě extrakce ověříme před přidáním zprávy do kontaktu. Selhání se
-        # nepřekládá na prázdná fakta nebo potvrzenou odpověď.
         analysis = analyze_message(message, self._extract_message)
-        self.active.submit_event(message)
         self._messages.append(message)
         self._analyses.append(analysis)
+        try:
+            if self._checkpoint(checkpoint, "answer"):
+                return self.snapshot()
+            self.active.submit_event(message)
+        except (APIError, ValueError, TypeError):
+            # Ordinary failed extraction remains atomic; the caller may retain
+            # an independently emitted alert and the original source receipt.
+            self._messages.pop()
+            self._analyses.pop()
+            raise
+        self._after_answer()
+        return self.snapshot()
+
+    def _after_answer(self):
         self.state = self.active.state
         if self.state == "unresolved" or (
             self._bulk_confirmation and self.state == "needs_confirmation"
@@ -174,6 +199,22 @@ class MasterDialogue:
             self._finish_active()
         elif self.state in {"needs_answer", "needs_confirmation"}:
             self._reserve_question()
+
+    def resume(self) -> dict:
+        """Continue a caller-requested pause without repeating general extraction.
+
+        The checkpoint callable is never stored on the dialogue. This is an
+        in-memory continuation, not durable dialogue recovery.
+        """
+        if self.state != "paused" or self._pending_action is None:
+            raise ValueError("Rozhovor nyní nečeká na pokračování.")
+        action = self._pending_action
+        if action == "advance":
+            self._advance()
+        else:
+            self.active.submit_event(self._messages[-1])
+            self._after_answer()
+        self._pending_action = None
         return self.snapshot()
 
     def _finish_active(self):

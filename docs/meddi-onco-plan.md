@@ -14,7 +14,7 @@ další rozvoj; jeho úplné splnění není podmínkou MVP. Aktuální pořadí
 nikoli postupné dokončování K1–K10. Aktuálně je integrační část M3 hotová:
 zprávy a cílené relevantní otázky používají společné jádro. Zbývá její
 klinické/negativní ověření, nikoli nové zavedení této datové cesty.
-Priorita před dalším rozvojem je P0 bezpečnostní výstup, P1 M3/audit,
+P0 bezpečnostní výstup je implementovaný. Další priority jsou P1 M3/audit,
 P2 směrování M4, P3 demo M5; přijímací podmínky jsou v
 [otevřených úkolech](tasks.md#priority-do-dokončení-mvp).
 
@@ -50,9 +50,9 @@ patří ke správné funkci a hodnocení, nikoli k odložené provozní odolnost
 
 Implementovaný MVP vybírá z MASTER konkrétní relevantní otázky a využívá
 již sdělené údaje; celé dotazníky nejsou chtěný tok. Podmíněné větve vybraných
-otázek se zachovávají, výchozí limit webu i CLI je 6. Níže uvedené prioritní
-adaptivní dotazování, zastupování a okamžitá bezpečnostní instrukce jsou
-cílové rozšíření, nikoli už dokončené vlastnosti.
+otázek se zachovávají, výchozí limit webu i CLI je 6. Adaptivní prioritizace
+a zastupování zůstávají cílovým rozšířením. P0 už implementuje okamžitou
+naléhavou instrukci pro web před cílenou extrakcí.
 
 1. Pacient otevře svůj profil a dostane širokou MASTER otázku. Pod otázkou
    může uvést, že odpovídá za pacienta. Odpověď má roli `zprava_pacienta`.
@@ -298,7 +298,8 @@ zpráv či měření. Aktuální integrační mezery jsou v
 [architektuře](architecture.md#otevřené-integrační-mezery); klinické výklady potvrzuje mentor.
 
 Klinické závislosti O1–O10 jsou pouze v [backendu](backend.md#otevřené-klinické-otázky).
-Konflikt bezpečnostního výstupu je v [rozhodnutích](decisions.md#otevřený-konflikt-bezpečnostního-výstupu).
+Schválené oddělení naléhavé instrukce a konečného výsledku je v
+[rozhodnutích](decisions.md#bezpečnostní-výstup-k4m4).
 Termíny přeměření, kontakty a kalendář potřebují souhlas příslušného odborníka
 či pracoviště; obecné technické práce tím nejsou zablokované.
 
