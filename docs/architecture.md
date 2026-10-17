@@ -2,35 +2,48 @@
 
 ## Aktuální webový průchod dotazníkem (17. 10. 2026)
 
-Po výběru profilu následuje výběr jednoho ze čtyř dotazníků, výchozí jsou
-Nežádoucí účinky. Následují otázky vybraného formuláře podle seznamu `otazky`
-a větvení `podminka` v `rakathon_meddi_onco_data/docs/dotazniky_definice.json`.
-Po nich web nabídne nepovinnou zprávu pacienta, kterou lze přeskočit,
-a společný souhrn s opravami a potvrzením. Tato verze nahrazuje dřívější
-webový vstup MASTER zprávou a směrování na témata; samostatné MASTER CLI
-zachovává původní adaptivní průchod.
+Po výběru profilu je první otázka „Jak se dnes cítíte?“. Odpověď má současně
+dvě role: zpráva pacienta pro společná triážní pravidla a zdroj výběru všech
+relevantních dotazníků. Ruční výběr jednoho formuláře a závěrečná nepovinná
+zpráva byly na nový pokyn uživatele nahrazeny tímto tokem.
 
-`MasterDialogue.start_questionnaire(questionnaire_id, patient_id)` otevře celý
-formulář v režimu hromadného potvrzení bez smyšlené úvodní zprávy. První
-skutečná odpověď je identifikátorem kontaktu v obálce; události mají stále
-skutečné otázky, časy a zdroj `targeted_answer`. Při dokončení je stav
-`needs_message`; `finish_message(event)` zpracuje závěrečnou `patient_message`
-stejným MASTER extraktorem a klientem, `finish_message()` výslovně přeskočí
-zprávu bez API. Extrahovaná fakta se předají stejným deterministickým pravidlům,
-neotevírají další formuláře a nenahrazují potvrzené dotazníkové odpovědi.
-LLM dál interpretuje slovní odpovědi; pořadí a větvení určuje kód.
+Web vytváří `MasterDialogue(full_questionnaires=True, bulk_confirmation=True)`.
+`start(event)` jediným voláním stávajícího MASTER extraktoru získá citovaná
+fakta a přesná `topic_ids` z katalogu všech 49 otázek. Kód vezme všechny
+odlišné dotazníky z kandidátů a pro každý vytvoří celý `QuestionnaireFlow`,
+nikoli pouze cílené otázky. Zprávy o pečujícím a výslovně popřené příznaky
+samy dotazník neotevírají; nepokryté či nejasné informace se neztrácejí.
+Pořadí otázek a větvení určuje zdrojový `dotazniky_definice.json`, pole
+`otazky`/`podminka`. Nové téma v pozdější odpovědi může přidat další formulář
+po dokončení aktivní otázky. Každý formulář se otevře nejvýše jednou.
 
-Web používá `MAX_QUESTIONS=None`, tedy neukončí kompletní dotazník po šesti
-dotazech. Limit dvou upřesnění jedné otázky zůstává; nevyřešený rodič neotevře
-podmíněné děti. MASTER CLI má nadále výchozí celkový limit 6; případný explicitní
-webový limit lze nastavit v konfiguraci. Přeskočení zprávy je v paketu jako
-`dialogue.patient_message_status=skipped`, při vyplnění `submitted`.
+Úvodní zpráva se v tomto režimu nepoužívá k tichému předvyplnění formulářů.
+Po MASTER extrakci se nevolá další cílené API: web předá stejná fakta do
+`assess_contact` a teprve další požadavek přijme první dotazníkovou odpověď.
+Samotné `MasterDialogue` zůstává bez triáže. Web dál vyhodnocuje odpovědi
+průběžně na serveru, výsledek zobrazuje po potvrzení a úspěšném uložení.
 
-Export `zprava_pacienta` nového webového průchodu obsahuje pouze závěrečnou
-zprávu, při přeskočení prázdný text. Odpovědi a jejich původ zůstávají v
-dotaznících a plném `triage_assessment.intake`. Původní MASTER export zůstává
-kompatibilní. Potvrzení a atomické uložení nadále probíhají až v souhrnu;
-selhání extrakce závěrečné zprávy zachová odpovědi i text pro opakování.
+Paket obsahuje `dialogue.mode=questionnaires_from_message` a
+`selected_questionnaire_ids`; UI ukazuje seznam vybraných formulářů a název
+právě vyplňovaného. Když žádný kandidát nevznikne, web ukáže souhrn s výslovnou
+informací, že zpráva žádný formulář nevybrala; klinická fakta se přesto
+vyhodnotí. Prázdná nebo neúspěšně extrahovaná zpráva nepředstírá zdravý stav.
+Při chybě API zůstává text ve formuláři pro opakování.
+
+V tomto novém režimu `meddi.pipeline` zachovává validní aktuální fakta
+z úvodní zprávy i vedle pozdější dotazníkové odpovědi stejného pole. Samotné
+pozdější vyplnění dotazníku nedokládá odeznění nálezu; obě verze dostanou
+stávající pravidla. Např. 38,5 °C se neztratí volbou nižšího pásma teploty.
+Fakta z budoucnosti nebo nevyjasněného minulého období tím nevznikají a
+nepřenášejí se mezi kontakty. Zdroj požadavku na přednost zprávy při rozporu:
+`pravidla_triaze.md`, §6.2, a zadání MEDDI, s. 12; bez změny klinických prahů.
+
+Web ponechává `MAX_QUESTIONS=None`, limit dvou upřesnění jednotlivé otázky
+zůstává. Export `zprava_pacienta` obsahuje úvodní zprávu, dotazníkové odpovědi
+zůstávají odděleně a celý zdrojový kontakt v `triage_assessment.intake`.
+Souhrn dovoluje opravy včetně zrušení podřízených větví a atomické uložení.
+Původní cílené MASTER CLI i explicitní API `start_questionnaire`/
+`finish_message` zůstávají kompatibilní; web druhé jmenované už nepoužívá.
 
 Základ: Python 3.12 + uv, Linux / Windows PowerShell. Vývojové nástroje: pytest a Ruff.
 Implementované jsou `llm_intake/`, společné výpočetní jádro `meddi/` bez vlastních

@@ -50,7 +50,15 @@ def event(
 
 
 def fatigue(message):
-    return [Fact("fatigue", "present", message.text, "patient")]
+    return [
+        Fact(
+            "fatigue",
+            "present",
+            message.text,
+            "patient",
+            topic_ids=("nezadouci_ucinky/unava",),
+        )
+    ]
 
 
 @pytest.fixture
@@ -112,33 +120,25 @@ def survey(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "llm_intake.flow.load_questions",
         lambda _: tuple(
-            replace(q, condition=None) for q in load_questions() if q.id == "unava"
+            replace(q, condition=None, text="Pomůže vám odpočinek?")
+            for q in load_questions()
+            if (q.questionnaire_id, q.id) == ("nezadouci_ucinky", "unava")
         ),
     )
     client = app.test_client()
     assert client.post("/", data={"patient_id": "ONC-002"}).status_code == 302
     with client.session_transaction() as flask_session:
         key = flask_session["id"]
-    start_form(client)
     yield client, key, directory, calls
     sessions.pop(key, None)
 
 
-def start_form(client):
-    if "Vyberte dotazník" in client.get("/").get_data(as_text=True):
-        assert (
-            client.post("/", data={"questionnaire_id": "nezadouci_ucinky"}).status_code
-            == 302
-        )
-
-
 def start_review(client):
-    start_form(client)
     response = client.post(
         "/", data={"answer": "Odpočinek pomůže."}, follow_redirects=True
     )
-    assert "Závěrečná zpráva (nepovinná)" in response.get_data(as_text=True)
-    response = client.post("/", data={"skip_message": "1"}, follow_redirects=True)
+    assert "Pomůže vám odpočinek?" in response.get_data(as_text=True)
+    response = client.post("/", data={"answer": "Ano."}, follow_redirects=True)
     assert response.status_code == 200
     assert "Zkontrolujte všechny odpovědi" in response.get_data(as_text=True)
 
@@ -176,7 +176,6 @@ def test_review_edit_and_follow_up_keep_profile_and_sources(survey):
     response = client.post("/", data={"answer": "Nevím."}, follow_redirects=True)
     assert "Pomůže vám odpočinek?" in response.get_data(as_text=True)
     client.post("/", data={"answer": "Ano."})
-    client.post("/", data={"skip_message": "1"})
     client.post("/", data={"edit": "0"})
     assert sessions[key]["contact"].state == "needs_correction"
     response = client.post("/", data={"answer": "Oprava."}, follow_redirects=True)
@@ -185,7 +184,7 @@ def test_review_edit_and_follow_up_keep_profile_and_sources(survey):
     record = json.loads(next(directory.rglob("*.json")).read_text(encoding="utf-8"))
     checkin = record["checkiny"][-1]
     assert checkin["dotazniky"][0]["odpovedi"][0]["odpoved_index"] == 1
-    assert checkin["zprava_pacienta"] == ""
+    assert checkin["zprava_pacienta"] == "Nevím."
 
 
 def test_follow_up_and_review_precede_triage_result(survey):
@@ -201,7 +200,6 @@ def test_follow_up_and_review_precede_triage_result(survey):
     assert not list(directory.rglob("*.json"))
 
     response = client.post("/", data={"answer": "Ano."}, follow_redirects=True)
-    response = client.post("/", data={"skip_message": "1"}, follow_redirects=True)
     html = response.get_data(as_text=True)
     assert "Zkontrolujte všechny odpovědi" in html
     assert "Výsledek triáže:" not in html
@@ -235,9 +233,7 @@ def test_red_finding_does_not_hide_or_finish_follow_up(survey, monkeypatch):
             *fatigue(message),
         ]
 
-    monkeypatch.setattr(
-        sessions[key]["contact"], "_extract_message", confusion_and_fatigue
-    )
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: confusion_and_fatigue)
     response = client.post("/", data={"answer": "Nevím."}, follow_redirects=True)
     html = response.get_data(as_text=True)
     assert "Průběžné upozornění" not in html
@@ -388,7 +384,6 @@ def test_early_confirmation_and_invalid_edits_do_not_change_review(survey):
         "/", data={"confirm": "1"}
     ).get_data(as_text=True)
     client.post("/", data={"answer": "Ano."})
-    client.post("/", data={"skip_message": "1"})
     before = sessions[key]["contact"].snapshot()
     for index in ("-1", "99", "invalid"):
         assert client.post("/", data={"edit": index}).status_code == 200
@@ -401,7 +396,7 @@ def test_restart_preserves_profile_and_creates_a_new_submission(survey):
     start_review(client)
     client.post("/", data={"confirm": "1"})
     response = client.post("/", data={"restart": "1"}, follow_redirects=True)
-    assert "Výběr dotazníku" in response.get_data(as_text=True)
+    assert "Úvodní otázka" in response.get_data(as_text=True)
     assert sessions[key]["patient_id"] == "ONC-002"
     start_review(client)
     client.post("/", data={"confirm": "1"})
@@ -435,7 +430,6 @@ def test_limited_contact_saves_unresolved_answer_without_guessing(survey, monkey
     client, key, directory, _ = survey
     monkeypatch.setitem(app.config, "MAX_QUESTIONS", 1)
     client.post("/", data={"restart": "1"})
-    start_form(client)
     response = client.post("/", data={"answer": "Nevím."}, follow_redirects=True)
     assert "Dosáhli jsme limitu dotazů." in response.get_data(as_text=True)
     client.post("/", data={"confirm": "1"})
@@ -493,7 +487,7 @@ def test_triage_from_message_is_visible_after_confirmation_and_saved_for_report(
     def confusion(message):
         return [Fact("confusion", "present", message.text, "patient")]
 
-    monkeypatch.setattr(sessions[key]["contact"], "_extract_message", confusion)
+    monkeypatch.setattr("web.app.MasterExtractor", lambda _: confusion)
     response = client.post("/", data={"answer": "Jsem zmatený."}, follow_redirects=True)
     html = response.get_data(as_text=True)
     assert 'triage-red">Červená' not in html
@@ -501,7 +495,6 @@ def test_triage_from_message_is_visible_after_confirmation_and_saved_for_report(
     assert "Posouzení je neúplné" not in html
     assert not list(directory.rglob("*.json"))
 
-    client.post("/", data={"skip_message": "1"})
     response = client.post("/", data={"confirm": "1"}, follow_redirects=True)
     assert "Odpovědi jsou uložené." in response.get_data(as_text=True)
     assert 'triage-red">Červená' in response.get_data(as_text=True)

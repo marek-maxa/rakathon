@@ -12,6 +12,7 @@ všechny souběžně. Dřívější odklad webu není cílovým omezením novéh
 
 | Úkol / rozsah souborů | Vlastník | Stav | Hotovo, když |
 | --- | --- | --- | --- |
+| Úvodní zpráva vybírá všechny relevantní celé dotazníky a současně se vyhodnocuje; llm_intake/dialogue.py, web/app/export/template, meddi/pipeline.py, testy a docs/ | Aktuální relace / web | done | Jedna MASTER extrakce pro směrování i pravidla, několik celých formulářů bez duplicit, zpráva se zachová při pozdějších odpovědích i v exportu; 756 testů, jedno živé API ověření se třemi vybranými formuláři a Azure ZIP prošly. Bez nasazení |
 | Jeden zvolený webový dotazník a nepovinná zpráva na konci; llm_intake/dialogue.py, web/app.py, export.py, templates/index.html, testy a docs/ | Aktuální relace / web | done | Výběr všech čtyř definovaných formulářů, výchozí Nežádoucí účinky; kompletní větvení bez limitu 6, zpráva nebo přeskočení před souhrnem, stejná extrakce a pravidla; 751 testů a Ruff prošly. Nasazení čeká na aktualizaci Azure |
 | Zapnout zprávy ve výchozím main.py a odhalit neprovedené LLM vyhodnocení; main.py, meddi/messages.py, testy a docs/ | Aktuální relace / web | done | Běžný CLI běh zahrnuje zprávy, offline režim výslovný, stav v tabulce i bez details, při chybě návratový kód 1 a vysvětlení. 740 testů a živý ONC-018: 8 complete / 0 failed / 5 bez zprávy |
 | Zprávy pacienta přes existující LLM → fakta → společná pravidla; meddi/messages.py, pipeline/validation, llm_intake/master*, main.py, web report/store/templates, testy, pyproject/uv.lock a docs/ | Aktuální relace / web | done | Explicitní rozpory a doptání se zdroji, zachovaná horší varianta, žádné barvy od LLM, opakovaný report bez API, čas a reference oddělené; 736 testů a balíček ověřeny. Živý LLM neověřen: místní klíč chybí; bez nasazení |
@@ -863,3 +864,36 @@ Azure ZIP znovu vytvořen (56 souborů) a po rozbalení ověřen import,
 401 bez hesla, 200 s heslem pro formulář, statiku i report.
 Bez nových závislostí, commitu, pushe a nasazení; trvalé úložiště Azure
 zůstává dříve otevřeným bodem.
+
+Úvodní zpráva se dvěma rolemi 17. 10. 2026 (nahrazuje předchozí webový tok):
+po výběru profilu web položí „Jak se dnes cítíte?“. Jedna stávající MASTER
+extrakce dodá fakta společným pravidlům i témata pro sjednocení všech
+relevantních dotazníků. `full_questionnaires=True` otevírá celé formuláře
+podle původních definic, bez duplicit a bez šestiotázkového limitu; úvodní
+fakta nepředvyplňují odpovědi. Před první cílenou API extrakcí se vyhodnotí
+triáž na serveru. Výsledek se podle dřívějšího pokynu zobrazí po uložení.
+Zpráva se exportuje odděleně od odpovědí a celý kontakt zůstává dohledatelný.
+Nové téma v další odpovědi může doplnit další celý formulář. Nepřítomný
+příznak, pečující ani nejasný subjekt sami formuláře neotevírají; nenamapované
+klinické údaje se přesto vyhodnotí. Zdroj větvení: dotazniky_definice.json;
+zdroj přednosti zprávy při rozporu: pravidla_triaze.md §6.2, MEDDI PDF s. 12.
+Reprodukována a opravena ztráta aktuálního úvodního měření 38,5 °C po novější
+mírnější teplotní volbě; pouze v novém režimu zůstávají pravidlům oba
+podklady aktuálního kontaktu. Budoucí/nejasně historická data se nepřidávají,
+klinické prahy se nemění. Původní MASTER CLI a explicitní API zachované.
+Změněny llm_intake/dialogue.py, meddi/pipeline.py, web/app.py, web/export.py,
+web/templates/index.html, tři webové testovací soubory a docs/tasks,
+architecture, decisions. Bez nových závislostí nebo změny klíčů.
+Ověření Windows/Python 3.12: všech 756 testů prošlo, včetně 16 scénářů
+nového webového průchodu. Pokryto všech 49 otázek při výběru čtyř formulářů,
+větev bez příznaků, okamžitý nález, zachování horečky, prázdná fakta,
+subjekty/popření, chyba API s opakováním, opravy a nová témata.
+Jedno skutečné API volání syntetické zprávy o bolesti břicha/NRS a obavách
+z léčby vrátilo 4 fakta a 3 celé formuláře: Nežádoucí účinky,
+psychoonkologický screening a bolest/analgetickou terapii. Žádné cílené
+API volání v úvodním kroku, žádná pacientská či referenční data v payloadu.
+Jde o integrační smoke test, nikoli klinickou validaci modelu.
+Ruff check ., formát sedmi dotčených Python souborů a git diff --check prošly.
+Azure ZIP znovu vytvořen (56 souborů), rozbalený prošel importem, 401 bez
+hesla a 200 s heslem pro formulář, statiku i report. Bez commitu, pushe
+a nasazení; přetrvání úložiště Azure zůstává otevřené.

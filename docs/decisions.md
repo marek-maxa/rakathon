@@ -1,13 +1,15 @@
 # Rozhodnutí
 
-Webový dotazník (17. 10. 2026, aktuální upřesnění uživatele): pacient vybere
-jeden celý dotazník, výchozí jsou Nežádoucí účinky. Zpráva pacienta je až po
-jeho otázkách, nepovinná a přeskočitelná. Nahrazuje to předchozí webový
-MASTER vstup s adaptivním výběrem témat. Pořadí a větvení vycházejí z dodaných
-definic, nikoli z výběru LLM; zpráva se nadále extrahuje stejným API a její
-fakta vstupují do společné triáže. Nedochází k automatickému otevírání dalších
-dotazníků. Celkový webový limit šesti otázek se ruší, limit upřesnění jedné
-odpovědi zůstává. Samostatné MASTER CLI zachovává dosavadní chování.
+Webový dotazník (17. 10. 2026, poslední upřesnění uživatele): první odpověď
+na „Jak se dnes cítíte?“ současně vybírá všechny relevantní dotazníky a
+funguje jako automaticky vyhodnocená zpráva pacienta. Nahrazuje předchozí
+variantu s ručním výběrem jednoho dotazníku a zprávou na konci. Stejný MASTER
+extraktor vrací fakta a témata; kód sjednotí formuláře a projde je celé podle
+definic. Nevzniká druhé volání pro tutéž úvodní zprávu. Žádný top-k ani limit
+šesti otázek ve webu, limit upřesnění jedné odpovědi zůstává. Fakta z úvodu
+se v aktuálním kontaktu nezahodí jen proto, že pozdější dotazníková odpověď
+stejného pole je novější. Zdroj přednosti zprávy: pravidla_triaze.md §6.2
+a zadání MEDDI s. 12. Klinické prahy se nemění, MASTER CLI zůstává kompatibilní.
 
 Revize požadavků a cíl webu (17. 10. 2026): aktuální
 [plán K0–K10](meddi-onco-plan.md) vychází z opětovného přečtení všech

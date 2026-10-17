@@ -27,6 +27,7 @@ class MasterDialogue:
         max_questions: int | None = 6,
         max_clarifications: int = 2,
         bulk_confirmation: bool = False,
+        full_questionnaires: bool = False,
     ):
         if max_questions is not None and (
             type(max_questions) is not int or max_questions < 1
@@ -37,6 +38,7 @@ class MasterDialogue:
         self._extract_message, self._extract_answer = extract_message, extract_answer
         self._extract_with_events = extract_with_events
         self._bulk_confirmation = bulk_confirmation
+        self._full_questionnaires = full_questionnaires
         self._confirmed = False
         self._max_questions, self._max_clarifications = (
             max_questions,
@@ -112,7 +114,9 @@ class MasterDialogue:
                 self._flows[form].add_targets(targets)
             else:
                 self._flows[form] = QuestionnaireFlow(
-                    form, targets=targets, allow_drafts=self._bulk_confirmation
+                    form,
+                    targets=None if self._full_questionnaires else targets,
+                    allow_drafts=self._bulk_confirmation,
                 )
 
     def _reserve_question(self):
@@ -156,7 +160,11 @@ class MasterDialogue:
                         for c in analysis["question_candidates"]
                     )
                 ]
-                if related and self._questionnaire_id is None:
+                if (
+                    related
+                    and self._questionnaire_id is None
+                    and not self._full_questionnaires
+                ):
                     session.seed(related)
                 if session.state == "unresolved" or (
                     self._bulk_confirmation and session.state == "needs_confirmation"
@@ -338,6 +346,14 @@ class MasterDialogue:
                 "reason": self._reason,
                 "questions_asked": self._questions_asked,
                 "max_questions": self._max_questions,
+                **(
+                    {
+                        "mode": "questionnaires_from_message",
+                        "selected_questionnaire_ids": list(self._flows),
+                    }
+                    if self._full_questionnaires
+                    else {}
+                ),
                 **(
                     {
                         "questionnaire_id": self._questionnaire_id,

@@ -8,6 +8,11 @@ COLORS = {"zelena": 1, "zluta": 2, "oranzova": 3, "cervena": 4}
 
 def meddi_record(packet, completed_at: datetime, *, include_drafts=False):
     definitions = json.loads(DEFINITIONS.read_text(encoding="utf-8"))
+    dialogue = packet.get("dialogue") or {}
+    separate_message = bool(
+        dialogue.get("questionnaire_id")
+        or dialogue.get("mode") == "questionnaires_from_message"
+    )
     answers = {
         (item["question"]["questionnaire_id"], item["question"]["question_id"]): item
         for item in packet["question_answers"]
@@ -90,8 +95,8 @@ def meddi_record(packet, completed_at: datetime, *, include_drafts=False):
                 "zprava_pacienta": "\n".join(
                     message["text"]
                     for message in packet["messages"]
-                    if not (packet.get("dialogue") or {}).get("questionnaire_id")
-                    or message["source"] == "patient_message"
+                    if not separate_message
+                    or message["source"] in {"master_question", "patient_message"}
                 ),
                 "prilohy": [],
             }

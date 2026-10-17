@@ -18,9 +18,15 @@
           <a href="{{ url_for('patient_report.report_patient', patient_id=page.patient_id) }}">Přehled stavu pacienta</a>
         {% endif %}
         {% if not page.select_patient and not page.done and not page.review %}
-          <p class="progress">{% if page.select_questionnaire %}Výběr dotazníku{% elif page.patient_message %}Závěrečná zpráva (nepovinná){% else %}Otázky dotazníku{% endif %}</p>
+          <p class="progress">{% if page.master %}Úvodní otázka{% else %}Otázky dotazníků podle vaší zprávy{% endif %}</p>
         {% endif %}
         {% if page.questionnaire_name %}<p class="progress">{{ page.questionnaire_name }}</p>{% endif %}
+        {% if page.selected_questionnaires %}
+          <details>
+            <summary>Dotazníky vybrané podle vaší zprávy</summary>
+            <ul>{% for name in page.selected_questionnaires %}<li>{{ name }}</li>{% endfor %}</ul>
+          </details>
+        {% endif %}
       </header>
       <div id="loading" class="loading" role="status" hidden>
         <span class="spinner" aria-hidden="true"></span>
@@ -52,33 +58,16 @@
             </select>
             <button type="submit">Pokračovat</button>
           </form>
-        {% elif page.select_questionnaire %}
-          <h2 id="question-title">Vyberte dotazník</h2>
-          <form method="post" class="question-form">
-            <label for="questionnaire_id">Dotazník</label>
-            <select id="questionnaire_id" name="questionnaire_id" required>
-              {% for questionnaire in page.questionnaires %}
-                <option value="{{ questionnaire.id }}"{% if questionnaire.id == 'nezadouci_ucinky' %} selected{% endif %}>{{ questionnaire.name }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit">Začít dotazník</button>
-          </form>
-        {% elif page.patient_message %}
-          <h2 id="question-title">{{ page.question }}</h2>
-          <p>Můžete popsat další potíže nebo doplnit své odpovědi. Zprávu lze přeskočit.</p>
-          <form method="post" class="question-form">
-            <label for="patient_message">Zpráva pacienta (nepovinná)</label>
-            <textarea id="patient_message" name="patient_message" placeholder="Napište svou zprávu">{{ request.form.get('patient_message', '') if error else '' }}</textarea>
-            <button type="submit">Pokračovat k souhrnu</button>
-            <button type="submit" name="skip_message" value="1">Přeskočit</button>
-          </form>
         {% elif page.done %}
           <h2 id="question-title">Děkujeme</h2>
           <p>Odpovědi jsou uložené. Odpovědi bez přiřazení zůstávají označené jako nevyřešené.</p>
         {% elif page.review %}
           <h2 id="question-title">Zkontrolujte všechny odpovědi</h2>
           <p>Rozuměli jsme vám správně? Případné chyby opravte a pak potvrďte celý souhrn.</p>
-          <p class="answer-summary">{% if page.patient_message_text %}Vaše zpráva: {{ page.patient_message_text }}{% else %}Zpráva pacienta byla přeskočena.{% endif %}</p>
+          <p class="answer-summary">Vaše úvodní zpráva: {{ page.patient_message_text }}</p>
+          {% if not page.selected_questionnaires %}
+            <p class="notice">Podle zprávy jsme nevybrali žádný navazující dotazník. Zpráva se přesto zahrne do vyhodnocení.</p>
+          {% endif %}
           <form method="post">
             <button type="submit" name="restart" value="1">Začít znovu</button>
           </form>
@@ -118,6 +107,7 @@
           </form>
         {% else %}
           <h2 id="question-title">{{ page.question }}</h2>
+          {% if page.master %}<p>Popište své potíže nebo změny stavu. Podle zprávy vybereme vhodné dotazníky a zahrneme ji do vyhodnocení.</p>{% endif %}
           {% if page.instruction %}<p class="instruction">{{ page.instruction }}</p>{% endif %}
           {% if page.options %}
             <details>
@@ -127,7 +117,7 @@
           {% endif %}
           <form method="post" class="question-form">
             <label for="answer">Vaše odpověď</label>
-            <textarea id="answer" name="answer" placeholder="Napište svou odpověď" required></textarea>
+            <textarea id="answer" name="answer" placeholder="Napište svou odpověď" required>{{ request.form.get('answer', '') if error else '' }}</textarea>
             <button type="submit">Pokračovat</button>
           </form>
         {% endif %}

@@ -143,12 +143,21 @@ def _answer_candidate(item, index, root):
     )
 
 
-def _select_current(candidates, issue):
+def _select_current(candidates, issue, *, primary_message_id=None):
     selected = []
     for field, entries in sorted(candidates.items()):
         if all(row["at"] is not None for row in entries):
             latest = max(row["at"] for row in entries)
-            entries = [row for row in entries if row["at"] == latest]
+            entries = [
+                row
+                for row in entries
+                if row["at"] == latest
+                or (
+                    primary_message_id is not None
+                    and row["source"].get("kind") == "fact"
+                    and row["source"].get("source_message_id") == primary_message_id
+                )
+            ]
         else:
             issue("unknown_observation_time", {"field": field})
         # A choice index is not a measurement: temperature choice 1 and 38.2 C
@@ -565,7 +574,17 @@ def evaluate_contact(
         number(field, fact["value"], fact.get("unit"))
         add(field, fact["value"], source, available, fact.get("observed_at"))
 
-    selected = _select_current(candidates, issue)
+    # In the message-first questionnaire contact, a later choice is not proof
+    # that an explicit opening finding resolved. Keep both accounts for the
+    # shared rules; this does not carry old findings into another contact.
+    dialogue = packet.get("dialogue") or {}
+    selected = _select_current(
+        candidates,
+        issue,
+        primary_message_id=root.get("id")
+        if dialogue.get("mode") == "questionnaires_from_message"
+        else None,
+    )
     prepared, observations = _prepare_inputs(root, treatment_sources, selected)
     if prepared_checkin is not None:
         prepared["answers"].extend(

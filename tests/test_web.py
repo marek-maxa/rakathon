@@ -27,11 +27,12 @@ def test_patient_profile_is_selected_before_intake(monkeypatch):
 
     response = client.get("/")
     html = response.get_data(as_text=True)
-    assert "Výběr dotazníku" in html
+    assert "Úvodní otázka" in html
+    assert "Jak se dnes cítíte?" in html
     assert "Profil: Petr M." in html
     assert "/patients/ONC-002/report" in html
-    assert 'name="questionnaire_id"' in html
-    assert "<textarea" not in html
+    assert 'name="questionnaire_id"' not in html
+    assert "<textarea" in html
 
     with client.session_transaction() as flask_session:
         session_id = flask_session["id"]
