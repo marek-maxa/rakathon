@@ -1,0 +1,913 @@
+{
+  "schema_version": 1,
+  "coverage": [
+    {
+      "source_scope": "§1 / Čtyři úrovně a kroky",
+      "requirement_ids": [
+        "ROUTING-HOURS"
+      ],
+      "case_ids": [
+        "ROUTING-HOURS.mon-before-level-1",
+        "ROUTING-HOURS.mon-before-level-2",
+        "ROUTING-HOURS.mon-before-level-3",
+        "ROUTING-HOURS.mon-before-level-4",
+        "ROUTING-HOURS.mon-start-level-1",
+        "ROUTING-HOURS.mon-start-level-2",
+        "ROUTING-HOURS.mon-start-level-3",
+        "ROUTING-HOURS.mon-start-level-4",
+        "ROUTING-HOURS.mon-day-level-1",
+        "ROUTING-HOURS.mon-day-level-2",
+        "ROUTING-HOURS.mon-day-level-3",
+        "ROUTING-HOURS.mon-day-level-4",
+        "ROUTING-HOURS.mon-close-before-level-1",
+        "ROUTING-HOURS.mon-close-before-level-2",
+        "ROUTING-HOURS.mon-close-before-level-3",
+        "ROUTING-HOURS.mon-close-before-level-4",
+        "ROUTING-HOURS.mon-close-level-1",
+        "ROUTING-HOURS.mon-close-level-2",
+        "ROUTING-HOURS.mon-close-level-3",
+        "ROUTING-HOURS.mon-close-level-4",
+        "ROUTING-HOURS.fri-evening-level-1",
+        "ROUTING-HOURS.fri-evening-level-2",
+        "ROUTING-HOURS.fri-evening-level-3",
+        "ROUTING-HOURS.fri-evening-level-4",
+        "ROUTING-HOURS.saturday-level-1",
+        "ROUTING-HOURS.saturday-level-2",
+        "ROUTING-HOURS.saturday-level-3",
+        "ROUTING-HOURS.saturday-level-4",
+        "ROUTING-HOURS.sunday-level-1",
+        "ROUTING-HOURS.sunday-level-2",
+        "ROUTING-HOURS.sunday-level-3",
+        "ROUTING-HOURS.sunday-level-4",
+        "ROUTING-HOURS.utc-summer-level-1",
+        "ROUTING-HOURS.utc-summer-level-2",
+        "ROUTING-HOURS.utc-summer-level-3",
+        "ROUTING-HOURS.utc-summer-level-4",
+        "ROUTING-HOURS.utc-winter-level-1",
+        "ROUTING-HOURS.utc-winter-level-2",
+        "ROUTING-HOURS.utc-winter-level-3",
+        "ROUTING-HOURS.utc-winter-level-4",
+        "ROUTING-HOURS.yellow-friday",
+        "ROUTING-HOURS.yellow-weekend",
+        "ROUTING-HOURS.yellow-mon-work"
+      ]
+    },
+    {
+      "source_scope": "§2 / Pracovní doba a kontakty",
+      "requirement_ids": [
+        "ROUTING-HOURS",
+        "ROUTING-UNSPECIFIED",
+        "ROUTING-SPECIAL-YELLOW"
+      ],
+      "case_ids": [
+        "ROUTING-HOURS.mon-before-level-1",
+        "ROUTING-HOURS.mon-before-level-2",
+        "ROUTING-HOURS.mon-before-level-3",
+        "ROUTING-HOURS.mon-before-level-4",
+        "ROUTING-HOURS.mon-start-level-1",
+        "ROUTING-HOURS.mon-start-level-2",
+        "ROUTING-HOURS.mon-start-level-3",
+        "ROUTING-HOURS.mon-start-level-4",
+        "ROUTING-HOURS.mon-day-level-1",
+        "ROUTING-HOURS.mon-day-level-2",
+        "ROUTING-HOURS.mon-day-level-3",
+        "ROUTING-HOURS.mon-day-level-4",
+        "ROUTING-HOURS.mon-close-before-level-1",
+        "ROUTING-HOURS.mon-close-before-level-2",
+        "ROUTING-HOURS.mon-close-before-level-3",
+        "ROUTING-HOURS.mon-close-before-level-4",
+        "ROUTING-HOURS.mon-close-level-1",
+        "ROUTING-HOURS.mon-close-level-2",
+        "ROUTING-HOURS.mon-close-level-3",
+        "ROUTING-HOURS.mon-close-level-4",
+        "ROUTING-HOURS.fri-evening-level-1",
+        "ROUTING-HOURS.fri-evening-level-2",
+        "ROUTING-HOURS.fri-evening-level-3",
+        "ROUTING-HOURS.fri-evening-level-4",
+        "ROUTING-HOURS.saturday-level-1",
+        "ROUTING-HOURS.saturday-level-2",
+        "ROUTING-HOURS.saturday-level-3",
+        "ROUTING-HOURS.saturday-level-4",
+        "ROUTING-HOURS.sunday-level-1",
+        "ROUTING-HOURS.sunday-level-2",
+        "ROUTING-HOURS.sunday-level-3",
+        "ROUTING-HOURS.sunday-level-4",
+        "ROUTING-HOURS.utc-summer-level-1",
+        "ROUTING-HOURS.utc-summer-level-2",
+        "ROUTING-HOURS.utc-summer-level-3",
+        "ROUTING-HOURS.utc-summer-level-4",
+        "ROUTING-HOURS.utc-winter-level-1",
+        "ROUTING-HOURS.utc-winter-level-2",
+        "ROUTING-HOURS.utc-winter-level-3",
+        "ROUTING-HOURS.utc-winter-level-4",
+        "ROUTING-HOURS.yellow-friday",
+        "ROUTING-HOURS.yellow-weekend",
+        "ROUTING-HOURS.yellow-mon-work",
+        "ROUTING-UNSPECIFIED.missing-time",
+        "ROUTING-UNSPECIFIED.holiday",
+        "ROUTING-UNSPECIFIED.dst-fold",
+        "ROUTING-SPECIAL-YELLOW.glucose-evening",
+        "ROUTING-SPECIAL-YELLOW.neuro-next-dose",
+        "ROUTING-SPECIAL-YELLOW.tinnitus-next-dose"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Horečka",
+      "requirement_ids": [
+        "RED-FEVER",
+        "RED-CHILLS"
+      ],
+      "case_ids": [
+        "RED-FEVER.message",
+        "RED-FEVER.structured",
+        "RED-FEVER.negated-quotation",
+        "RED-FEVER.boundary-1",
+        "RED-FEVER.boundary-2",
+        "RED-FEVER.boundary-3",
+        "RED-FEVER.chemo-day-0",
+        "RED-FEVER.chemo-day-6",
+        "RED-FEVER.chemo-day-7",
+        "RED-FEVER.chemo-day-10",
+        "RED-FEVER.chemo-day-14",
+        "RED-FEVER.chemo-day-15",
+        "RED-FEVER.chemo-day-41",
+        "RED-FEVER.chemo-day-42",
+        "RED-FEVER.chemo-day-43",
+        "RED-CHILLS.message",
+        "RED-CHILLS.structured",
+        "RED-CHILLS.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Dýchání",
+      "requirement_ids": [
+        "RED-REST-DYSPNEA",
+        "RED-OXYGEN",
+        "RED-SUDDEN-CHEST",
+        "RED-SUDDEN-PALPITATIONS"
+      ],
+      "case_ids": [
+        "RED-REST-DYSPNEA.message",
+        "RED-REST-DYSPNEA.structured",
+        "RED-REST-DYSPNEA.negated-quotation",
+        "RED-SUDDEN-CHEST.message",
+        "RED-SUDDEN-CHEST.structured",
+        "RED-SUDDEN-CHEST.negated-quotation",
+        "RED-SUDDEN-PALPITATIONS.message",
+        "RED-SUDDEN-PALPITATIONS.structured",
+        "RED-SUDDEN-PALPITATIONS.negated-quotation",
+        "RED-OXYGEN.boundary-1",
+        "RED-OXYGEN.boundary-2",
+        "RED-OXYGEN.boundary-3",
+        "RED-OXYGEN.boundary-4"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Hrudník",
+      "requirement_ids": [
+        "RED-NEW-CHEST"
+      ],
+      "case_ids": [
+        "RED-NEW-CHEST.message",
+        "RED-NEW-CHEST.structured",
+        "RED-NEW-CHEST.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Neurologie",
+      "requirement_ids": [
+        "RED-CONFUSION",
+        "RED-CONSCIOUSNESS",
+        "RED-AROUSAL",
+        "RED-SEIZURE",
+        "RED-LIMB-WEAKNESS",
+        "RED-SPEECH"
+      ],
+      "case_ids": [
+        "RED-CONFUSION.message",
+        "RED-CONFUSION.structured",
+        "RED-CONFUSION.negated-quotation",
+        "RED-CONSCIOUSNESS.message",
+        "RED-CONSCIOUSNESS.structured",
+        "RED-CONSCIOUSNESS.negated-quotation",
+        "RED-AROUSAL.message",
+        "RED-AROUSAL.structured",
+        "RED-AROUSAL.negated-quotation",
+        "RED-SEIZURE.message",
+        "RED-SEIZURE.structured",
+        "RED-SEIZURE.negated-quotation",
+        "RED-LIMB-WEAKNESS.message",
+        "RED-LIMB-WEAKNESS.structured",
+        "RED-LIMB-WEAKNESS.negated-quotation",
+        "RED-SPEECH.message",
+        "RED-SPEECH.structured",
+        "RED-SPEECH.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Krvácení",
+      "requirement_ids": [
+        "RED-STOOL-BLOOD",
+        "RED-VOMIT-BLOOD",
+        "RED-BLACK-STOOL",
+        "RED-URINE-BLOOD",
+        "RED-NOSE",
+        "RED-HEAD-ANTICOAG"
+      ],
+      "case_ids": [
+        "RED-STOOL-BLOOD.message",
+        "RED-STOOL-BLOOD.structured",
+        "RED-STOOL-BLOOD.negated-quotation",
+        "RED-VOMIT-BLOOD.message",
+        "RED-VOMIT-BLOOD.structured",
+        "RED-VOMIT-BLOOD.negated-quotation",
+        "RED-BLACK-STOOL.message",
+        "RED-BLACK-STOOL.structured",
+        "RED-BLACK-STOOL.negated-quotation",
+        "RED-URINE-BLOOD.message",
+        "RED-URINE-BLOOD.structured",
+        "RED-URINE-BLOOD.negated-quotation",
+        "RED-HEAD-ANTICOAG.message",
+        "RED-HEAD-ANTICOAG.structured",
+        "RED-HEAD-ANTICOAG.negated-quotation",
+        "RED-NOSE.boundary-1",
+        "RED-NOSE.boundary-2",
+        "RED-NOSE.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Průjem",
+      "requirement_ids": [
+        "RED-DIARRHEA",
+        "RED-DIARRHEA-BLOOD"
+      ],
+      "case_ids": [
+        "RED-DIARRHEA-BLOOD.message",
+        "RED-DIARRHEA-BLOOD.structured",
+        "RED-DIARRHEA-BLOOD.negated-quotation",
+        "RED-DIARRHEA.boundary-1",
+        "RED-DIARRHEA.boundary-2",
+        "RED-DIARRHEA.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Zvracení",
+      "requirement_ids": [
+        "RED-VOMITING",
+        "RED-FLUID-DEHYDRATION"
+      ],
+      "case_ids": [
+        "RED-FLUID-DEHYDRATION.message",
+        "RED-FLUID-DEHYDRATION.structured",
+        "RED-FLUID-DEHYDRATION.negated-quotation",
+        "RED-VOMITING.boundary-1",
+        "RED-VOMITING.boundary-2",
+        "RED-VOMITING.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Dehydratace / oběh",
+      "requirement_ids": [
+        "RED-ANURIA",
+        "RED-FAINT",
+        "RED-LOWBP"
+      ],
+      "case_ids": [
+        "RED-FAINT.message",
+        "RED-FAINT.structured",
+        "RED-FAINT.negated-quotation",
+        "RED-ANURIA.boundary-1",
+        "RED-ANURIA.boundary-2",
+        "RED-ANURIA.boundary-3",
+        "RED-ANURIA.boundary-4",
+        "RED-LOWBP.boundary-1",
+        "RED-LOWBP.boundary-2",
+        "RED-LOWBP.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Břicho",
+      "requirement_ids": [
+        "RED-OBSTRUCTION-VOMIT",
+        "RED-OBSTRUCTION-COLIC"
+      ],
+      "case_ids": [
+        "RED-OBSTRUCTION-VOMIT.message",
+        "RED-OBSTRUCTION-VOMIT.structured",
+        "RED-OBSTRUCTION-VOMIT.negated-quotation",
+        "RED-OBSTRUCTION-COLIC.message",
+        "RED-OBSTRUCTION-COLIC.structured",
+        "RED-OBSTRUCTION-COLIC.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Tlak",
+      "requirement_ids": [
+        "RED-BP-SEVERE_HEADACHE",
+        "RED-BP-VISUAL_DISTURBANCE",
+        "RED-BP-SPEECH_DISTURBANCE",
+        "RED-BP-CHEST_PAIN",
+        "RED-HYPERTENSION"
+      ],
+      "case_ids": [
+        "RED-BP-SEVERE_HEADACHE.message",
+        "RED-BP-SEVERE_HEADACHE.structured",
+        "RED-BP-SEVERE_HEADACHE.negated-quotation",
+        "RED-BP-VISUAL_DISTURBANCE.message",
+        "RED-BP-VISUAL_DISTURBANCE.structured",
+        "RED-BP-VISUAL_DISTURBANCE.negated-quotation",
+        "RED-BP-SPEECH_DISTURBANCE.message",
+        "RED-BP-SPEECH_DISTURBANCE.structured",
+        "RED-BP-SPEECH_DISTURBANCE.negated-quotation",
+        "RED-BP-CHEST_PAIN.message",
+        "RED-BP-CHEST_PAIN.structured",
+        "RED-BP-CHEST_PAIN.negated-quotation",
+        "RED-HYPERTENSION.message",
+        "RED-HYPERTENSION.structured",
+        "RED-HYPERTENSION.negated-quotation",
+        "RED-HYPERTENSION.pair-179-109",
+        "RED-HYPERTENSION.pair-180-109",
+        "RED-HYPERTENSION.pair-179-110",
+        "RED-HYPERTENSION.pair-181-111"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Metabolismus",
+      "requirement_ids": [
+        "RED-METABOLIC-DIABETES",
+        "RED-METABOLIC-IMMUNOTHERAPY"
+      ],
+      "case_ids": [
+        "RED-METABOLIC-DIABETES.message",
+        "RED-METABOLIC-DIABETES.structured",
+        "RED-METABOLIC-DIABETES.negated-quotation",
+        "RED-METABOLIC-IMMUNOTHERAPY.message",
+        "RED-METABOLIC-IMMUNOTHERAPY.structured",
+        "RED-METABOLIC-IMMUNOTHERAPY.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Opioidy",
+      "requirement_ids": [
+        "RED-OPIOID-DROWSY",
+        "RED-OPIOID-NORESPONSE",
+        "RED-OPIOID-SLOWBREATH"
+      ],
+      "case_ids": [
+        "RED-OPIOID-DROWSY.message",
+        "RED-OPIOID-DROWSY.structured",
+        "RED-OPIOID-DROWSY.negated-quotation",
+        "RED-OPIOID-NORESPONSE.message",
+        "RED-OPIOID-NORESPONSE.structured",
+        "RED-OPIOID-NORESPONSE.negated-quotation",
+        "RED-OPIOID-SLOWBREATH.message",
+        "RED-OPIOID-SLOWBREATH.structured",
+        "RED-OPIOID-SLOWBREATH.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Červená / Psychika",
+      "requirement_ids": [
+        "RED-PSYCH-SUICIDE_PLAN",
+        "RED-PSYCH-SUICIDE_INTENT",
+        "RED-PSYCH-SUICIDE_MEANS"
+      ],
+      "case_ids": [
+        "RED-PSYCH-SUICIDE_PLAN.message",
+        "RED-PSYCH-SUICIDE_PLAN.structured",
+        "RED-PSYCH-SUICIDE_PLAN.negated-quotation",
+        "RED-PSYCH-SUICIDE_INTENT.message",
+        "RED-PSYCH-SUICIDE_INTENT.structured",
+        "RED-PSYCH-SUICIDE_INTENT.negated-quotation",
+        "RED-PSYCH-SUICIDE_MEANS.message",
+        "RED-PSYCH-SUICIDE_MEANS.structured",
+        "RED-PSYCH-SUICIDE_MEANS.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Celkový stav",
+      "requirement_ids": [
+        "ORANGE-FEELING"
+      ],
+      "case_ids": [
+        "ORANGE-FEELING.message",
+        "ORANGE-FEELING.structured",
+        "ORANGE-FEELING.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Dýchání",
+      "requirement_ids": [
+        "RED-OXYGEN",
+        "ORANGE-OXYGEN-DROP",
+        "ORANGE-ORTHOPNEA"
+      ],
+      "case_ids": [
+        "RED-OXYGEN.boundary-1",
+        "RED-OXYGEN.boundary-2",
+        "RED-OXYGEN.boundary-3",
+        "RED-OXYGEN.boundary-4",
+        "ORANGE-OXYGEN-DROP.boundary-1",
+        "ORANGE-OXYGEN-DROP.boundary-2",
+        "ORANGE-OXYGEN-DROP.boundary-3",
+        "ORANGE-ORTHOPNEA.message",
+        "ORANGE-ORTHOPNEA.structured",
+        "ORANGE-ORTHOPNEA.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Průjem",
+      "requirement_ids": [
+        "ORANGE-DIARRHEA-IMMUNOTHERAPY",
+        "ORANGE-DIARRHEA-FLUOROPYRIMIDINE_TREATMENT",
+        "ORANGE-DIARRHEA-IRINOTECAN_TREATMENT",
+        "ORANGE-LOPERAMIDE"
+      ],
+      "case_ids": [
+        "ORANGE-LOPERAMIDE.message",
+        "ORANGE-LOPERAMIDE.structured",
+        "ORANGE-LOPERAMIDE.negated-quotation",
+        "ORANGE-DIARRHEA-IMMUNOTHERAPY.boundary-1",
+        "ORANGE-DIARRHEA-IMMUNOTHERAPY.boundary-2",
+        "ORANGE-DIARRHEA-IMMUNOTHERAPY.boundary-3",
+        "ORANGE-DIARRHEA-IMMUNOTHERAPY.boundary-4",
+        "ORANGE-DIARRHEA-FLUOROPYRIMIDINE_TREATMENT.boundary-1",
+        "ORANGE-DIARRHEA-FLUOROPYRIMIDINE_TREATMENT.boundary-2",
+        "ORANGE-DIARRHEA-FLUOROPYRIMIDINE_TREATMENT.boundary-3",
+        "ORANGE-DIARRHEA-FLUOROPYRIMIDINE_TREATMENT.boundary-4",
+        "ORANGE-DIARRHEA-IRINOTECAN_TREATMENT.boundary-1",
+        "ORANGE-DIARRHEA-IRINOTECAN_TREATMENT.boundary-2",
+        "ORANGE-DIARRHEA-IRINOTECAN_TREATMENT.boundary-3",
+        "ORANGE-DIARRHEA-IRINOTECAN_TREATMENT.boundary-4"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Průjem na imunoterapii",
+      "requirement_ids": [
+        "ORANGE-IO-PAIN"
+      ],
+      "case_ids": [
+        "ORANGE-IO-PAIN.message",
+        "ORANGE-IO-PAIN.structured",
+        "ORANGE-IO-PAIN.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Příjem a tekutiny",
+      "requirement_ids": [
+        "ORANGE-FLUIDS",
+        "ORANGE-LIQUID-FOOD",
+        "ORANGE-LOW-URINE",
+        "ORANGE-DIZZY-INTAKE"
+      ],
+      "case_ids": [
+        "ORANGE-FLUIDS.message",
+        "ORANGE-FLUIDS.structured",
+        "ORANGE-FLUIDS.negated-quotation",
+        "ORANGE-LIQUID-FOOD.message",
+        "ORANGE-LIQUID-FOOD.structured",
+        "ORANGE-LIQUID-FOOD.negated-quotation",
+        "ORANGE-LOW-URINE.message",
+        "ORANGE-LOW-URINE.structured",
+        "ORANGE-LOW-URINE.negated-quotation",
+        "ORANGE-DIZZY-INTAKE.message",
+        "ORANGE-DIZZY-INTAKE.structured",
+        "ORANGE-DIZZY-INTAKE.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Zvracení",
+      "requirement_ids": [
+        "ORANGE-VOMIT-FLUID"
+      ],
+      "case_ids": [
+        "ORANGE-VOMIT-FLUID.boundary-1",
+        "ORANGE-VOMIT-FLUID.boundary-2",
+        "ORANGE-VOMIT-FLUID.boundary-3",
+        "ORANGE-VOMIT-FLUID.boundary-4"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Tlak",
+      "requirement_ids": [
+        "ORANGE-ANTIANGIO-BP"
+      ],
+      "case_ids": [
+        "ORANGE-ANTIANGIO-BP.message",
+        "ORANGE-ANTIANGIO-BP.structured",
+        "ORANGE-ANTIANGIO-BP.negated-quotation",
+        "ORANGE-ANTIANGIO-BP.pair-159-99",
+        "ORANGE-ANTIANGIO-BP.pair-160-99",
+        "ORANGE-ANTIANGIO-BP.pair-159-100"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Krvácení",
+      "requirement_ids": [
+        "ORANGE-ANTICOAG-BLEED",
+        "ORANGE-ANTICOAG-BRUISE"
+      ],
+      "case_ids": [
+        "ORANGE-ANTICOAG-BLEED.message",
+        "ORANGE-ANTICOAG-BLEED.structured",
+        "ORANGE-ANTICOAG-BLEED.negated-quotation",
+        "ORANGE-ANTICOAG-BRUISE.message",
+        "ORANGE-ANTICOAG-BRUISE.structured",
+        "ORANGE-ANTICOAG-BRUISE.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Žíly",
+      "requirement_ids": [
+        "ORANGE-CALF",
+        "ORANGE-CALF-EDUCATION"
+      ],
+      "case_ids": [
+        "ORANGE-CALF.message",
+        "ORANGE-CALF.structured",
+        "ORANGE-CALF.negated-quotation",
+        "ORANGE-CALF-EDUCATION.warning"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Bolest",
+      "requirement_ids": [
+        "ORANGE-NRS"
+      ],
+      "case_ids": [
+        "ORANGE-NRS.message",
+        "ORANGE-NRS.structured",
+        "ORANGE-NRS.negated-quotation",
+        "ORANGE-NRS.sos-helped"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Mozkový nádor",
+      "requirement_ids": [
+        "ORANGE-BRAIN"
+      ],
+      "case_ids": [
+        "ORANGE-BRAIN.message",
+        "ORANGE-BRAIN.structured",
+        "ORANGE-BRAIN.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Imunoterapie",
+      "requirement_ids": [
+        "ORANGE-IO-METABOLIC"
+      ],
+      "case_ids": [
+        "ORANGE-IO-METABOLIC.message",
+        "ORANGE-IO-METABOLIC.structured",
+        "ORANGE-IO-METABOLIC.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Glykémie",
+      "requirement_ids": [
+        "ORANGE-GLUCOSE"
+      ],
+      "case_ids": [
+        "ORANGE-GLUCOSE.boundary-1",
+        "ORANGE-GLUCOSE.boundary-2",
+        "ORANGE-GLUCOSE.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Psychika",
+      "requirement_ids": [
+        "ORANGE-PSYCH-YES",
+        "ORANGE-HOPELESS"
+      ],
+      "case_ids": [
+        "ORANGE-PSYCH-YES.message",
+        "ORANGE-PSYCH-YES.structured",
+        "ORANGE-PSYCH-YES.negated-quotation",
+        "ORANGE-HOPELESS.message",
+        "ORANGE-HOPELESS.structured",
+        "ORANGE-HOPELESS.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§3 / Oranžová / Opakovaná eskalace",
+      "requirement_ids": [
+        "ORANGE-WORSENING"
+      ],
+      "case_ids": [
+        "ORANGE-WORSENING.message",
+        "ORANGE-WORSENING.structured",
+        "ORANGE-WORSENING.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§4 / Příznak 2. stupně",
+      "requirement_ids": [
+        "YELLOW-GRADE2",
+        "YELLOW-NAUSEA",
+        "YELLOW-CONSTIPATION",
+        "YELLOW-MOUTH",
+        "YELLOW-PARONYCHIA",
+        "YELLOW-HANDFOOT"
+      ],
+      "case_ids": [
+        "YELLOW-GRADE2.message",
+        "YELLOW-GRADE2.structured",
+        "YELLOW-GRADE2.negated-quotation",
+        "YELLOW-NAUSEA.message",
+        "YELLOW-NAUSEA.structured",
+        "YELLOW-NAUSEA.negated-quotation",
+        "YELLOW-MOUTH.message",
+        "YELLOW-MOUTH.structured",
+        "YELLOW-MOUTH.negated-quotation",
+        "YELLOW-PARONYCHIA.message",
+        "YELLOW-PARONYCHIA.structured",
+        "YELLOW-PARONYCHIA.negated-quotation",
+        "YELLOW-HANDFOOT.message",
+        "YELLOW-HANDFOOT.structured",
+        "YELLOW-HANDFOOT.negated-quotation",
+        "YELLOW-CONSTIPATION.boundary-1",
+        "YELLOW-CONSTIPATION.boundary-2",
+        "YELLOW-CONSTIPATION.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§4 / Průjem do 3",
+      "requirement_ids": [
+        "YELLOW-IO-DIARRHEA"
+      ],
+      "case_ids": [
+        "YELLOW-IO-DIARRHEA.io-1-count-1",
+        "YELLOW-IO-DIARRHEA.io-1-count-2",
+        "YELLOW-IO-DIARRHEA.io-1-count-3",
+        "YELLOW-IO-DIARRHEA.io-0-count-1",
+        "YELLOW-IO-DIARRHEA.io-0-count-2",
+        "YELLOW-IO-DIARRHEA.io-0-count-3"
+      ]
+    },
+    {
+      "source_scope": "§4 / Zvracení 3–5",
+      "requirement_ids": [
+        "YELLOW-VOMIT-DRINKING"
+      ],
+      "case_ids": [
+        "YELLOW-VOMIT-DRINKING.boundary-1",
+        "YELLOW-VOMIT-DRINKING.boundary-2",
+        "YELLOW-VOMIT-DRINKING.boundary-3",
+        "YELLOW-VOMIT-DRINKING.boundary-4",
+        "YELLOW-VOMIT-DRINKING.boundary-5"
+      ]
+    },
+    {
+      "source_scope": "§4 / Tlak",
+      "requirement_ids": [
+        "YELLOW-BP-REPEATED",
+        "YELLOW-HYPOTENSION"
+      ],
+      "case_ids": [
+        "YELLOW-HYPOTENSION.message",
+        "YELLOW-HYPOTENSION.structured",
+        "YELLOW-HYPOTENSION.negated-quotation",
+        "YELLOW-BP-REPEATED.count-1",
+        "YELLOW-BP-REPEATED.count-2",
+        "YELLOW-BP-REPEATED.count-3",
+        "YELLOW-BP-REPEATED.count-4"
+      ]
+    },
+    {
+      "source_scope": "§4 / Glykémie",
+      "requirement_ids": [
+        "YELLOW-GLUCOSE"
+      ],
+      "case_ids": [
+        "YELLOW-GLUCOSE.boundary-1",
+        "YELLOW-GLUCOSE.boundary-2",
+        "YELLOW-GLUCOSE.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§4 / Neuropatie",
+      "requirement_ids": [
+        "YELLOW-NEURO-PERSIST",
+        "YELLOW-NEURO-FINE"
+      ],
+      "case_ids": [
+        "YELLOW-NEURO-PERSIST.message",
+        "YELLOW-NEURO-PERSIST.structured",
+        "YELLOW-NEURO-PERSIST.negated-quotation",
+        "YELLOW-NEURO-FINE.message",
+        "YELLOW-NEURO-FINE.structured",
+        "YELLOW-NEURO-FINE.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§4 / Tinnitus",
+      "requirement_ids": [
+        "YELLOW-TINNITUS"
+      ],
+      "case_ids": [
+        "YELLOW-TINNITUS.message",
+        "YELLOW-TINNITUS.structured",
+        "YELLOW-TINNITUS.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§4 / Otoky a přírůstek",
+      "requirement_ids": [
+        "YELLOW-EDEMA",
+        "YELLOW-WEIGHT-GAIN"
+      ],
+      "case_ids": [
+        "YELLOW-EDEMA.message",
+        "YELLOW-EDEMA.structured",
+        "YELLOW-EDEMA.negated-quotation",
+        "YELLOW-WEIGHT-GAIN.boundary-1",
+        "YELLOW-WEIGHT-GAIN.boundary-2",
+        "YELLOW-WEIGHT-GAIN.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§4 / Úbytek, soběstačnost, příjem",
+      "requirement_ids": [
+        "YELLOW-WEIGHT-LOSS",
+        "YELLOW-ADL",
+        "YELLOW-INTAKE"
+      ],
+      "case_ids": [
+        "YELLOW-INTAKE.message",
+        "YELLOW-INTAKE.structured",
+        "YELLOW-INTAKE.negated-quotation",
+        "YELLOW-WEIGHT-LOSS.boundary-1",
+        "YELLOW-WEIGHT-LOSS.boundary-2",
+        "YELLOW-WEIGHT-LOSS.boundary-3",
+        "YELLOW-ADL.boundary-1",
+        "YELLOW-ADL.boundary-2",
+        "YELLOW-ADL.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§4 / Bolest a SOS",
+      "requirement_ids": [
+        "YELLOW-PAIN",
+        "YELLOW-RESCUE"
+      ],
+      "case_ids": [
+        "YELLOW-PAIN.boundary-1",
+        "YELLOW-PAIN.boundary-2",
+        "YELLOW-PAIN.boundary-3",
+        "YELLOW-PAIN.boundary-4",
+        "YELLOW-PAIN.boundary-5",
+        "YELLOW-RESCUE.boundary-1",
+        "YELLOW-RESCUE.boundary-2",
+        "YELLOW-RESCUE.boundary-3"
+      ]
+    },
+    {
+      "source_scope": "§4 / Psychika, pečující a adherence",
+      "requirement_ids": [
+        "YELLOW-SADNESS",
+        "YELLOW-ANXIETY",
+        "YELLOW-CAREGIVER",
+        "YELLOW-ADHERENCE"
+      ],
+      "case_ids": [
+        "YELLOW-SADNESS.message",
+        "YELLOW-SADNESS.structured",
+        "YELLOW-SADNESS.negated-quotation",
+        "YELLOW-ANXIETY.message",
+        "YELLOW-ANXIETY.structured",
+        "YELLOW-ANXIETY.negated-quotation",
+        "YELLOW-CAREGIVER.message",
+        "YELLOW-CAREGIVER.structured",
+        "YELLOW-CAREGIVER.negated-quotation",
+        "YELLOW-ADHERENCE.message",
+        "YELLOW-ADHERENCE.structured",
+        "YELLOW-ADHERENCE.negated-quotation"
+      ]
+    },
+    {
+      "source_scope": "§4 / Vynechané check-iny",
+      "requirement_ids": [
+        "YELLOW-MISSED"
+      ],
+      "case_ids": [
+        "YELLOW-MISSED.count-1",
+        "YELLOW-MISSED.count-2",
+        "YELLOW-MISSED.count-3",
+        "YELLOW-MISSED.count-4"
+      ]
+    },
+    {
+      "source_scope": "§5 / Kontext",
+      "requirement_ids": [
+        "CONTEXT-NADIR",
+        "CONTEXT-IO-NEW",
+        "CONTEXT-IRINOTECAN",
+        "CONTEXT-FLUORO",
+        "CONTEXT-INTERACTION",
+        "CONTEXT-ANTIANGIO",
+        "CONTEXT-CYCLE-BREAK",
+        "CONTEXT-CHRONIC",
+        "CONTEXT-VULNERABLE",
+        "CONTEXT-PALLIATIVE"
+      ],
+      "case_ids": [
+        "CONTEXT-NADIR.day-6",
+        "CONTEXT-NADIR.day-7",
+        "CONTEXT-NADIR.day-10",
+        "CONTEXT-NADIR.day-14",
+        "CONTEXT-NADIR.day-15",
+        "CONTEXT-IO-NEW.diarrhea",
+        "CONTEXT-IO-NEW.new_cough",
+        "CONTEXT-IO-NEW.new_breathlessness",
+        "CONTEXT-IO-NEW.polydipsia",
+        "CONTEXT-IO-NEW.new_fatigue",
+        "CONTEXT-IRINOTECAN.hours-0",
+        "CONTEXT-IRINOTECAN.hours-11",
+        "CONTEXT-IRINOTECAN.hours-11.9",
+        "CONTEXT-IRINOTECAN.hours-12",
+        "CONTEXT-IRINOTECAN.hours-12.1",
+        "CONTEXT-IRINOTECAN.hours-24",
+        "CONTEXT-IRINOTECAN.uncertain-hours",
+        "CONTEXT-FLUORO.fluoropyrimidine_treatment",
+        "CONTEXT-FLUORO.irinotecan_treatment",
+        "CONTEXT-INTERACTION.review",
+        "CONTEXT-ANTIANGIO.review",
+        "CONTEXT-CYCLE-BREAK.review",
+        "CONTEXT-CHRONIC.review",
+        "CONTEXT-VULNERABLE.review",
+        "CONTEXT-PALLIATIVE.line-True",
+        "CONTEXT-PALLIATIVE.line-False",
+        "CONTEXT-PALLIATIVE.line-None"
+      ]
+    },
+    {
+      "source_scope": "§6 / Obecných sedm pravidel",
+      "requirement_ids": [
+        "GENERAL-TREND",
+        "GENERAL-CONFLICT",
+        "GENERAL-AFTER-CARE",
+        "GENERAL-UNCERTAINTY",
+        "GENERAL-NO-DIAGNOSIS",
+        "GENERAL-EXPLANATION",
+        "GENERAL-CAREGIVER"
+      ],
+      "case_ids": [
+        "GENERAL-TREND.base",
+        "GENERAL-CONFLICT.base",
+        "GENERAL-AFTER-CARE.base",
+        "GENERAL-UNCERTAINTY.base",
+        "GENERAL-NO-DIAGNOSIS.base",
+        "GENERAL-EXPLANATION.base",
+        "GENERAL-CAREGIVER.base",
+        "GENERAL-AFTER-CARE.new-red-after-improvement"
+      ]
+    },
+    {
+      "source_scope": "PDF s. 9 / Šest povinných situací",
+      "requirement_ids": [
+        "PRESENTATION-FEVER",
+        "PRESENTATION-COLITIS",
+        "PRESENTATION-HEART",
+        "PRESENTATION-INTERACTION",
+        "PRESENTATION-PALLIATIVE",
+        "PRESENTATION-CONFLICT"
+      ],
+      "case_ids": [
+        "PRESENTATION-FEVER.critical",
+        "PRESENTATION-FEVER.negative-context-only",
+        "PRESENTATION-COLITIS.critical",
+        "PRESENTATION-COLITIS.negative-context-only",
+        "PRESENTATION-HEART.critical",
+        "PRESENTATION-HEART.negative-context-only",
+        "PRESENTATION-INTERACTION.critical",
+        "PRESENTATION-INTERACTION.negative-context-only",
+        "PRESENTATION-PALLIATIVE.critical",
+        "PRESENTATION-PALLIATIVE.negative-context-only",
+        "PRESENTATION-CONFLICT.critical",
+        "PRESENTATION-CONFLICT.negative-context-only",
+        "PRESENTATION-COLITIS.replay-day-1",
+        "PRESENTATION-COLITIS.replay-day-2",
+        "PRESENTATION-COLITIS.replay-day-3",
+        "PRESENTATION-HEART.weight-only",
+        "PRESENTATION-HEART.baseline-drop",
+        "PRESENTATION-HEART.rest-breath",
+        "PRESENTATION-INTERACTION.minor-bleeding"
+      ]
+    },
+    {
+      "source_scope": "PPTX slidy 2–3 a 5 / Koordinace, priorita, krok",
+      "requirement_ids": [
+        "PRODUCT-COORDINATION",
+        "PRODUCT-UI-CONSISTENCY",
+        "PRODUCT-SUMMARY"
+      ],
+      "case_ids": [
+        "PRODUCT-SUMMARY.human",
+        "PRODUCT-COORDINATION.human",
+        "PRODUCT-UI-CONSISTENCY.human"
+      ]
+    }
+  ],
+  "excluded_claim": "Nejde o všechny možné věty ani důkaz klinické validity. Pokrytí znamená testovací případy, nikoli jejich splnění aplikací."
+}
