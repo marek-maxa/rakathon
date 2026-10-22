@@ -1,7 +1,7 @@
 [project]
 name = "meddi-onco"
 version = "0.1.0"
-description = "Rakathon 2026: MEDDI ONCO Challenge"
+description = "Oncology patient monitoring with conversational intake and explainable triage"
 requires-python = ">=3.12"
 dependencies = [
     "flask>=3.1.3",

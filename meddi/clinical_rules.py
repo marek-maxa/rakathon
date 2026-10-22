@@ -1,4 +1,4 @@
-"""Deterministic color conditions from pravidla_triaze.md, sections 3–5.
+"""Deterministic color conditions from resources/triage_rules.md, sections 3–5.
 
 Only explicit observations, measurements, and selected answers enter rules.
 True/False/None represent a proven condition, its rejection, or missing data.
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from .common_types import Severity
 from .validation import number
 
-RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
+RULES_SOURCE = "resources/triage_rules.md"
 CONTEXT_FLAGS = {
     "chemotherapy_within_6_weeks",
     "fluoropyrimidine_treatment",
@@ -348,7 +348,7 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
 
     def high_bp(systolic, diastolic):
         # Conservative interpretation of the protocol's paired BP thresholds:
-        # crossing either component is sufficient. See architecture.md.
+        # Crossing either component is sufficient under the current policy.
         return any_of(
             test("systolic_bp", lambda v: v >= systolic),
             test("diastolic_bp", lambda v: v >= diastolic),
@@ -380,9 +380,7 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
         test("systolic_bp", lambda v: v < 90),
         test("hours_without_urine", lambda v: v > 10),
     )
-    fluid_intolerance = any_of(
-        test("cannot_keep_fluids"), test("cannot_drink_fluids")
-    )
+    fluid_intolerance = any_of(test("cannot_keep_fluids"), test("cannot_drink_fluids"))
     hypertension_warnings = any_of(
         *(
             test(field)
@@ -576,7 +574,7 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
         "fluid_intolerance_with_dehydration",
         Severity.RED,
         "Pacient nepřijme nebo neudrží tekutiny a má známky dehydratace.",
-        "§3 / Červená / Zvracení; upřesnění mentora O10 (docs/backend.md)",
+        "§3 / Červená / Zvracení; upřesnění mentora (resources/triage_rules.md, §7)",
         all_of(fluid_intolerance, dehydration),
     )
     rule(
@@ -600,9 +598,7 @@ def evaluate_clinical_rules(prepared: dict, context: dict, observations: dict) -
         "§3 / Oranžová / Příjem a tekutiny",
         all_of(
             test("reduced_intake"),
-            any_of(
-                test("low_urine"), test("orthostatic_dizziness"), test("dizziness")
-            ),
+            any_of(test("low_urine"), test("orthostatic_dizziness"), test("dizziness")),
         ),
     )
     rule(

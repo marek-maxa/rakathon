@@ -12,8 +12,7 @@ from flask import Flask, Response, redirect, render_template, request, session
 from itsdangerous import BadSignature, URLSafeSerializer
 
 ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(ROOT / "llm_intake" / ".env")
-load_dotenv(ROOT / "notifications" / ".env")
+load_dotenv(ROOT / ".env")
 sys.path.insert(0, str(ROOT))
 
 from llm_intake.client import APIError, Client

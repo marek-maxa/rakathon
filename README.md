@@ -1,72 +1,52 @@
 # MEDDI ONCO
 
-Prototyp podpory onkologického pacienta mezi kontrolami: sběr obtíží,
-vysvětlitelná triáž a další krok pro pacienta i zdravotnický tým.
+A demo of oncology patient monitoring between appointments, using synthetic
+profiles. Conversational check-ins, explainable triage, and a shared view of
+symptoms, measurements, and follow-up for patients and care teams.
 
-Funguje MASTER vstup, výběr relevantních otázek a cílené doptávání, společné
-potvrzení, uložení kontaktu a historický report s volitelným zpracováním
-původních zpráv. Původní zprávy se trvale ukládají před LLM.
-Pacientský portál má demo vstup, konkrétní kontroly/měření a uložený stav;
-obecný klinický plánovač, skutečné předání týmu a úplné odborné souhrny
-zbývají propojit. Stav jednotlivých částí je
-v [architektuře](docs/architecture.md#implementovaný-stav).
+## Run locally
 
-Úvodní stránka nabízí volbu Pacient / Lékař. Pacient pokračuje na `/patient`.
-Zdravotnický přehled na `/team` ukazuje prioritní požadavky a stručné
-kartičky s odkazem na detail pacienta. Předání týmu je zatím simulované.
+Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 
-## Spuštění webu
-
-Python 3.12 + uv; příkazy spouštějte z kořene repozitáře na Linuxu
-nebo ve Windows PowerShellu.
-
-```text
+```sh
 uv sync --locked
 ```
 
-Zkopírujte [llm_intake/.env.example](llm_intake/.env.example) do
-`llm_intake/.env` a lokálně nastavte `MEDDI_LLM_API_KEY`, `MEDDI_BASIC_AUTH_USERNAME` a
-`MEDDI_BASIC_AUTH_PASSWORD`. Bez hesla web vrací 503. Potom:
+Copy `.env.example` to `.env`. Set the web username and password, a random
+`FLASK_SECRET_KEY`, and your LLM provider's API key, URL, model, and auth header.
 
-```text
+```sh
 uv run --locked python -m web.app
 ```
 
-Otevřete http://127.0.0.1:5000 a zvolte Pacient nebo Lékař; pacient pak zadá
-demo kód syntetického profilu (ukázkové účty jsou v demo ovládání).
-Společné heslo dema nenahrazuje individuální oprávnění
-a volba rozhraní není kontrola role. Web načítá `.env`
-automaticky; původní zprávy ukládá do `data/events.sqlite3`, potvrzené kontakty
-do `data/pacienti/`. Stav rozpracovaného rozhovoru je zatím pouze v paměti;
-uložené zprávy přežijí restart, obnovení rozhovoru K2b je odložené po MVP.
-Podrobnosti konfigurace a další příkazy jsou
-v [architektuře](docs/architecture.md#spuštění-a-kontroly).
+Open **http://127.0.0.1:5000** and sign in with the configured credentials.
 
-## Dokumentace
+- **Patient:** enter a sample profile code, such as `ONC-001`, submit a check-in,
+  review the answers, and confirm to save. Use the portal to update measurements.
+- **Care team:** open `/team` to review priorities, inspect patient histories,
+  and schedule follow-up. Email requires the optional SMTP settings in `.env`.
 
-Pro prezentaci použijte [demo průchod a integrační návrh](docs/demo.md).
-Samostatnou zálohu bez LLM a serveru vytvoří:
+## Share the demo
 
-```text
-uv run --locked python -m scripts.build_demo
+On a Linux server, use the same environment settings and run:
+
+```sh
+uv sync --locked --no-dev
+uv run --locked --no-dev gunicorn --config gunicorn.conf.py web.app:app
 ```
 
-Otevřete `dist/demo/index.html`. Jde o výslovně označenou předpřipravenou
-ukázku s aktuálním výpočtem pravidel, nikoli živou extrakci či skrytý fallback.
+Serve port 8000 through HTTPS when sharing access. Gunicorn uses one worker
+because active conversations are held in memory and reset on restart.
+Saved check-ins and original messages remain in `data/`; set `MEDDI_DATA_DIR`
+to a persistent directory on the host.
 
-| Dokument | Odpovědnost |
-| --- | --- |
-| [Zadání](docs/challenge.md) | Požadavky pořadatele, zdroje a hranice řešení |
-| [Architektura](docs/architecture.md) | Implementovaný stav, moduly, ukládání, spuštění a kontroly |
-| [Backend](docs/backend.md) | Kontrakt triáže, čas, validace, pokrytí a klinické mezery |
-| [Plán](docs/meddi-onco-plan.md) | Cílový tok, karta, kontroly, rozhraní a podmínky dokončení |
-| [Úkoly](docs/tasks.md) | Otevřená práce, pořadí a vlastníci |
-| [Rozhodnutí](docs/decisions.md) | Platné technické volby a nevyřešené konflikty |
-| [LLM intake](llm_intake/README.md) | Konfigurace a použití modulu; odkaz na jeho datový kontrakt |
-| [Notifikace](notifications/README.md) | Samostatné SMTP demo a jeho omezení |
-| [Podklady](documents/README.md) | Původní zadání a datový balíček pořadatele |
-| [AGENTS.md](AGENTS.md) | Instrukce pro práci v repozitáři |
+## Checks
 
-Pracujte se syntetickými nebo schválenými daty. Klíče a skutečné pacientské
-údaje nepatří do Gitu. Reference slouží pouze k oddělenému vyhodnocení;
-prototyp není klinicky schválený systém.
+```sh
+uv sync --locked
+uv run --locked pytest -q
+uv run --locked ruff check .
+```
+
+This demo uses shared access and simulates clinical handoff. It is intended
+for demonstrations, not real patient care.

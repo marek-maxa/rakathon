@@ -1,8 +1,8 @@
 # Pravidla triáže
 
-Podle těchto pravidel je anotováno referenční vyhodnocení (ground truth). Vycházejí ze semaforové triáže onkologických pacientů (UKONS 24h Triage Tool), gradace nežádoucích účinků CTCAE v5 a pacientem hlášených výstupů PRO-CTCAE.
+Pravidla vycházejí ze semaforové triáže onkologických pacientů (UKONS 24h Triage Tool), gradace nežádoucích účinků CTCAE v5 a pacientem hlášených výstupů PRO-CTCAE.
 
-Tvrdá pravidla (část 3) určují **nejnižší přípustnou úroveň**: řešení smí situaci vyhodnotit výš, nikdy ne níž. Ground truth ve vývojové ani ve skryté testovací sadě žádné tvrdé pravidlo neporušuje. Části 4–6 popisují typické situace a kontext, kde rozhoduje klinický úsudek.
+Tvrdá pravidla (část 3) určují **nejnižší přípustnou úroveň**: řešení smí situaci vyhodnotit výš, nikdy ne níž. Části 4–6 popisují typické situace a kontext, kde rozhoduje klinický úsudek.
 
 ---
 
@@ -102,3 +102,20 @@ Monitorovací centrum pracuje **v pracovní dny 7:00–15:30**. Mimo tuto dobu j
 5. **Bez diagnózy a změny léčby.** Pacientovi systém neříká diagnózu a nemění léky ani dávky. Smí připomenout postup, který má pacient předem od lékaře (např. schéma loperamidu, „Paralen neužívat, dokud vás nevyšetří lékař“).
 6. **Vysvětlitelnost.** Každé vyhodnocení uvádí klíčové nálezy a varovné příznaky, ze kterých vychází.
 7. **Pečující.** Když vyplňuje blízká osoba, oslovovat ji a hodnotit i její zátěž.
+
+
+## 7. Upřesnění příjmu tekutin
+
+Zdroj: upřesnění klinického mentora ze 17. 10. 2026 k §3 / Červená / Zvracení a Příjem a tekutiny.
+
+> Máte pravdu, že pravidlo bylo nešťastně zařazené jen pod zvracení. Červená je tu postavená na této kombinaci:
+>
+> pacient nepřijme nebo neudrží tekutiny (z jakéhokoli důvodu: zvracení, bolestivé polykání, mukozitida), tady to bylo doložené už předchozí den,
+> a zároveň má známky dehydratace: málo močí, závrať, tep nad 100.
+> Taková kombinace je 4 vždy, a na cisplatině nebo jiné nefrotoxické léčbě o to víc (riziko akutního selhání ledvin). Samotné „málo močím a točí se mi hlava“ bez doloženého selhání příjmu tekutin zůstává podle pravidla 3.
+
+Další upřesnění mentora ze 17. 10. 2026 zahrnuje také systolický tlak pod 90. Implementace kombinuje nemožnost příjmu či udržení tekutin s alespoň jednou známkou dehydratace. Snížený příjem se nesmí zaměnit za nemožnost příjmu. Samotný tep nad 100 není samostatné pravidlo dehydratace.
+
+## 8. Nejistota a lidský dohled
+
+Převzato z původních pravidel datového balíčku, §6.2 a §6.7: při pochybnosti se stav upřesní nebo eskaluje, nikdy se nesnižuje závažnost. Úrovně 2–4 vyžadují posouzení zdravotníkem.

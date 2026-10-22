@@ -16,9 +16,7 @@ QUESTIONNAIRE_COLORS = {
 QUESTIONNAIRE_DEFINITIONS = {
     questionnaire["id"]: questionnaire
     for questionnaire in json.loads(
-        (DATA_DIRECTORY / "docs" / "dotazniky_definice.json").read_text(
-            encoding="utf-8"
-        )
+        (DATA_DIRECTORY / "questionnaires.json").read_text(encoding="utf-8")
     )
 }
 
@@ -116,7 +114,7 @@ def _prepare_answer(questionnaire: dict, question: dict, answer: dict) -> dict:
 def prepare_checkin(checkin: dict) -> dict:
     """Return JSON-ready evidence from a complete check-in, without triaging it.
 
-    Colors and warnings come from docs/dotazniky_definice.json in the bundle,
+    Colors and warnings come from resources/questionnaires.json,
     never from cached answer colors in the incoming check-in. Uncolored answers
     remain available in answers; non_green_answers contains only known yellow,
     orange, and red answers. No clinical facts are inferred from free text.
@@ -159,16 +157,6 @@ def prepare_checkin(checkin: dict) -> dict:
     }
     prepared_inputs(result)
     return result
-
-
-def evaluate_checkin(checkin: dict) -> Severity | None:
-    """Keep the legacy questionnaire-color comparison working; not final triage."""
-    colors = [
-        Severity[answer["color"].upper()]
-        for answer in prepare_checkin(checkin)["answers"]
-        if answer["color"] is not None
-    ]
-    return max(colors, default=None)
 
 
 def answer_colors(

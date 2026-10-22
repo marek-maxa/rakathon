@@ -1,6 +1,6 @@
 """Resolve explicit mild answers and routing/context without clinical guesses.
 
-Source: bundle questionnaire definitions and pravidla_triaze.md §1, §4, §6.3.
+Source: resources/questionnaires.json and resources/triage_rules.md §1, §4, §6.3.
 No thresholds for psycho scales, vital signs or free text are inferred here.
 """
 

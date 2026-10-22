@@ -11,8 +11,7 @@ from urllib import error, parse, request
 from .core import Question, load_questions
 
 ASSETS = Path(__file__).resolve().parent
-DEFAULT_BASE_URL = "https://apim-rakathon-q7146n.azure-api.net/openai/v1/"
-DEFAULT_DEPLOYMENT = "gpt-6-1-sol-dz-eu"
+DEFAULT_BASE_URL = "https://api.openai.com/v1/"
 MAX_TARGETED_EXAMPLES = 3
 
 
@@ -34,8 +33,8 @@ class NoRedirect(request.HTTPRedirectHandler):
 class Client:
     api_key: str = field(repr=False)
     base_url: str = DEFAULT_BASE_URL
-    model: str = DEFAULT_DEPLOYMENT
-    key_header: str = "api-key"
+    model: str = ""
+    key_header: str = "Authorization"
     on_usage: Callable[[dict], None] | None = field(
         default=None, repr=False, compare=False
     )
@@ -48,6 +47,8 @@ class Client:
             raise ValueError("Base URL nesmí obsahovat query ani fragment.")
         if not self.api_key.strip():
             raise ValueError("Chybí MEDDI_LLM_API_KEY.")
+        if not self.model.strip():
+            raise ValueError("Chybí MEDDI_LLM_MODEL.")
         if self.key_header not in {
             "Authorization",
             "api-key",
@@ -60,8 +61,8 @@ class Client:
         return cls(
             api_key=os.environ.get("MEDDI_LLM_API_KEY", ""),
             base_url=os.environ.get("MEDDI_LLM_BASE_URL", DEFAULT_BASE_URL),
-            model=os.environ.get("MEDDI_LLM_MODEL", DEFAULT_DEPLOYMENT),
-            key_header=os.environ.get("MEDDI_LLM_KEY_HEADER", "api-key"),
+            model=os.environ.get("MEDDI_LLM_MODEL", ""),
+            key_header=os.environ.get("MEDDI_LLM_KEY_HEADER", "Authorization"),
         )
 
     def payload(
@@ -200,13 +201,13 @@ class Client:
                 ) from None
             if exc.code in {401, 403}:
                 raise APIError(
-                    f"LLM API: HTTP {exc.code}. Autentizace selhala; pro rakathonovou "
-                    "bránu nastavte MEDDI_LLM_KEY_HEADER=api-key a ověřte klíč."
+                    f"LLM API: HTTP {exc.code}. Autentizace selhala; ověřte "
+                    "MEDDI_LLM_API_KEY a MEDDI_LLM_KEY_HEADER podle poskytovatele."
                 ) from None
             if exc.code == 404:
                 raise APIError(
                     "LLM API: HTTP 404. Ověřte base URL a přesný název nasazení "
-                    "v MEDDI_LLM_MODEL (např. gpt-6-1-sol-dz-eu)."
+                    "v MEDDI_LLM_MODEL."
                 ) from None
             raise APIError(
                 f"LLM API: HTTP {exc.code}. Ověřte parametry požadavku a podporu JSON schema."

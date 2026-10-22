@@ -1,18 +1,14 @@
 """Omezený MASTER rozhovor nad stávajícím extraktorem a Intake; bez triáže."""
 
-import argparse
-import json
-import sys
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import asdict
 from datetime import datetime
-from pathlib import Path
 
-from .client import APIError, Client
+from .client import APIError
 from .core import Intake, load_question
 from .flow import QuestionnaireFlow
-from .master import MasterExtractor, analyze_message, is_negative_feeling
+from .master import analyze_message, is_negative_feeling
 from .master_contract import MessageEvent
 from .pipeline import build_pipeline_packet
 
@@ -462,157 +458,3 @@ class MasterDialogue:
                 ],
             },
         }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="MEDDI: interaktivní MASTER QUESTION a cílené doptávání"
-    )
-    parser.add_argument(
-        "--input", type=Path, help="Volitelná úvodní zpráva JSON místo prvního dotazu"
-    )
-    parser.add_argument(
-        "--at",
-        default="2026-10-16T10:00:00+02:00",
-        help="Simulovaný čas dostupnosti zpráv",
-    )
-    parser.add_argument(
-        "--max-questions",
-        type=int,
-        default=6,
-        help="Celkový limit včetně MASTER, potvrzení a oprav (výchozí 6)",
-    )
-    parser.add_argument(
-        "--max-clarifications",
-        type=int,
-        default=2,
-        help="Limit doplňujících otázek na parametr (výchozí 2)",
-    )
-    parser.add_argument(
-        "--debug", action="store_true", help="Vypsat konečný interní JSON"
-    )
-    parser.add_argument(
-        "--output", type=Path, help="Uložit konečný nebo přerušený JSON"
-    )
-    args = parser.parse_args()
-    contact = None
-    code = 0
-    try:
-        client = Client.from_env()
-        contact = MasterDialogue(
-            MasterExtractor(client),
-            client,
-            extract_with_events=client.extract_events,
-            max_questions=args.max_questions,
-            max_clarifications=args.max_clarifications,
-        )
-        print(
-            "Testujte se syntetickými odpověďmi. /konec ukončí kontakt, /moznosti nabídne odpovědi."
-        )
-        if args.input:
-            message = MessageEvent(
-                **json.loads(args.input.read_text(encoding="utf-8-sig"))
-            )
-        else:
-            question = "Jak se dnes cítíte?"
-            print(question)
-            text = input("Vaše odpověď: ")
-            if text.strip().casefold() == "/konec":
-                return 0
-            message = MessageEvent(
-                "synthetic-master-01",
-                "synthetic-patient",
-                text,
-                args.at,
-                "master_question",
-                "patient",
-                question,
-            )
-        contact.start(message)
-        while contact.state in {
-            "needs_answer",
-            "needs_description",
-            "needs_correction",
-            "needs_confirmation",
-        }:
-            if contact.state == "needs_confirmation":
-                print(contact.active.patient_summary())
-                text = input("Je to správně? [ano/ne nebo /konec]: ").strip().casefold()
-                if text in {"ano", "a"}:
-                    contact.confirm()
-                elif text in {"ne", "n"}:
-                    contact.reject()
-                elif text == "/konec":
-                    contact.cancel()
-                elif text == "/moznosti":
-                    print(
-                        contact.active.question.patient_options()
-                        or "Tato otázka nemá nabídku odpovědí."
-                    )
-                else:
-                    print("Prosím odpovězte ano nebo ne.")
-            else:
-                question = contact.next_question
-                print(question)
-                text = input("Vaše odpověď: ")
-                if text.strip().casefold() == "/konec":
-                    contact.cancel()
-                elif text.strip().casefold() == "/moznosti":
-                    print(
-                        (
-                            contact.active.question.patient_options()
-                            if contact.active
-                            else None
-                        )
-                        or "Tato otázka nemá nabídku odpovědí."
-                    )
-                else:
-                    origin = contact._messages[0]
-                    contact.submit(
-                        MessageEvent(
-                            f"{origin.id}-reply-{len(contact._messages)}",
-                            origin.patient_id,
-                            text,
-                            message.available_at,
-                            "targeted_answer",
-                            origin.author,
-                            question,
-                        )
-                    )
-        print(
-            {
-                "complete": "Kontakt byl dokončen. Vybrané odpovědi jsou zaznamenané.",
-                "limited": "Dosáhli jsme limitu dotazů. Nevyřešené údaje zůstávají zaznamenané.",
-                "unresolved": "Část údajů zůstává nevyřešená nebo nemá přiřazenou otázku.",
-                "cancelled": "Kontakt byl přerušen.",
-            }[contact.state]
-        )
-        code = 0 if contact.state == "complete" else 2
-    except (EOFError, KeyboardInterrupt):
-        if contact and contact._messages:
-            contact.cancel()
-        print("\nKontakt byl přerušen.")
-        code = 2
-    except (APIError, ValueError, TypeError, OSError) as exc:
-        if contact and contact._messages:
-            contact.cancel("processing_error")
-        print(f"Chyba: {exc}", file=sys.stderr)
-        code = 1
-    if contact and contact._messages:
-        output = json.dumps(
-            contact.snapshot(), ensure_ascii=False, indent=2, allow_nan=False
-        )
-        if args.debug:
-            print(output)
-        if args.output:
-            try:
-                args.output.parent.mkdir(parents=True, exist_ok=True)
-                args.output.write_text(output + "\n", encoding="utf-8")
-            except OSError as exc:
-                print(f"Nelze uložit výstup: {exc}", file=sys.stderr)
-                return 1
-    return code
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

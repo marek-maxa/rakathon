@@ -9,10 +9,7 @@ from pathlib import Path
 
 from .master_contract import MessageEvent
 
-DEFINITIONS = (
-    Path(__file__).resolve().parents[1]
-    / "rakathon_meddi_onco_data/docs/dotazniky_definice.json"
-)
+DEFINITIONS = Path(__file__).resolve().parents[1] / "resources/questionnaires.json"
 
 # Zdrojové definice nemají příznak výlučné možnosti. Index odvodíme z textu,
 # aby posunutí možnosti v definicích nezměnilo význam této politiky.
@@ -156,23 +153,6 @@ def find_question(
             "Upřesněte parametr questionnaire_id."
         )
     return matches[0]
-
-
-def create_targeted_session(
-    question_id: str,
-    client: Callable | None = None,
-    *,
-    questionnaire_id: str | None = None,
-    max_clarifications: int = 2,
-    path: Path = DEFINITIONS,
-) -> "Intake":
-    """Připraví samostatnou Intake relaci pro jednu konkrétní otázku."""
-    q = find_question(question_id, questionnaire_id=questionnaire_id, path=path)
-    if client is None:
-        from .client import Client
-
-        client = Client.from_env()
-    return Intake(q, client, max_clarifications=max_clarifications)
 
 
 def validate(question: Question, result: dict, sources: list[str]) -> dict:

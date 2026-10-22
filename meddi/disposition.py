@@ -1,6 +1,6 @@
 """Actionable four-level disposition, separate from assessment completeness.
 
-Sources: bundle README §4/§6 and pravidla_triaze.md §1–2, §6.4.
+Sources: resources/triage_rules.md §1–2, §6.4 and §8.
 Yellow review for unresolved current inputs is a conservative application policy,
 not a diagnosis or a claim that the missing clinical mapping is implemented.
 """
@@ -9,7 +9,7 @@ from copy import deepcopy
 
 from .routing import timed_route
 
-RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
+RULES_SOURCE = "resources/triage_rules.md"
 COLORS = ("green", "yellow", "orange", "red")
 ACTIONS = {
     "green": (
@@ -67,7 +67,7 @@ def resolve_disposition(
                 "rule_id": "clinical_review_required",
                 "color": "yellow",
                 "message": "Aktuální údaje nelze spolehlivě posoudit automaticky. Je potřeba posouzení zdravotnickým týmem.",
-                "source": f"{RULES_SOURCE}, §1 / Žlutá, §6.4; rakathon_meddi_onco_data/README.md, §6.2 a §6.7",
+                "source": f"{RULES_SOURCE}, §1 / Žlutá, §6.4; resources/triage_rules.md, §8",
                 "evidence": deepcopy(
                     [
                         item

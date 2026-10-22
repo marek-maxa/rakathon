@@ -1,15 +1,12 @@
 """Otevřená zpráva → validované fakty a kandidáti otázek. Bez triáže."""
 
-import argparse
 import json
 import re
-import sys
 import unicodedata
 from collections.abc import Callable
 from dataclasses import asdict
-from pathlib import Path
 
-from .client import ASSETS, APIError, Client, compact_json
+from .client import ASSETS, Client, compact_json
 from .master_contract import Fact, MessageEvent, build_packet
 from .pipeline import build_pipeline_packet
 from .question_catalog import (
@@ -298,27 +295,3 @@ def analyze_message(
         "unmapped_concepts": unmapped,
         "unknown_subject_fact_indices": unknown_subject,
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="MEDDI: zpráva → fakta a kandidáti otázek (JSON)"
-    )
-    parser.add_argument(
-        "input",
-        type=Path,
-        help="JSON zprávy podle MessageEvent; použijte syntetická data",
-    )
-    args = parser.parse_args()
-    try:
-        message = MessageEvent(**json.loads(args.input.read_text(encoding="utf-8-sig")))
-        packet = analyze_message(message, MasterExtractor(Client.from_env()))
-        print(json.dumps(packet, ensure_ascii=False, indent=2, allow_nan=False))
-    except (APIError, ValueError, TypeError, OSError) as exc:
-        print(f"Chyba: {exc}", file=sys.stderr)
-        return 1
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

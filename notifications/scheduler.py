@@ -133,8 +133,7 @@ def latest_checkin(patient):
 
 
 def main():
-    load_dotenv(ROOT / "llm_intake" / ".env")
-    load_dotenv(ROOT / "notifications" / ".env")
+    load_dotenv(ROOT / ".env")
     parser = argparse.ArgumentParser(
         description="Minimální plánovač pozvánek k dotazníku."
     )

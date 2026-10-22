@@ -1,1 +1,0 @@
-"""Testy samostatných modulů prototypu."""

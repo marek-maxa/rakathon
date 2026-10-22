@@ -1,4 +1,4 @@
-"""Ordinary weekday routing from pravidla_triaze.md §2 and §5.
+"""Ordinary weekday routing from resources/triage_rules.md §2 and §5.
 
 No clock reads, clinical thresholds, notifications or holiday assumptions.
 """
@@ -7,7 +7,7 @@ from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 PRAGUE = ZoneInfo("Europe/Prague")
-SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md, §1–2, §5"
+SOURCE = "resources/triage_rules.md, §1–2, §5"
 ON_CALL = "724 590 848"
 
 

@@ -1,17 +1,13 @@
 """Small triage prototype: 1 = green, 2 = yellow, 3 = orange, 4 = red.
 
 None means the criterion needs review, not that the patient is fine.
-Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md, sections 3–4.
-evaluate_triage handles flat facts; evaluate_checkin consumes prepared forms.
+Source: resources/triage_rules.md, sections 3–4.
+evaluate_checkin consumes prepared forms.
 The check-in evaluator supports the color conditions from protocol sections 3–5.
 Text interpretation, contact routing and clinical validation are separate work.
 """
 
-import argparse
-import json
-import sys
 from copy import deepcopy
-from pathlib import Path
 
 from .answer_coverage import answer_coverage
 from .clinical_rules import HANDLED_QUESTIONS, HANDLED_VITALS, evaluate_clinical_rules
@@ -20,7 +16,7 @@ from .disposition import resolve_disposition
 from .routing import checkin_time
 from .validation import number, prepared_inputs
 
-RULES_SOURCE = "rakathon_meddi_onco_data/docs/pravidla_triaze.md"
+RULES_SOURCE = "resources/triage_rules.md"
 PULSE_SOURCE = (
     "https://medlineplus.gov/ency/article/003399.htm (Normal Results, adults)"
 )
@@ -30,7 +26,7 @@ TRIAGE_RULES_VERSION = 7
 def fever_score(temperature, recent_chemotherapy):
     """Fever >= 38 C during chemotherapy or within 6 weeks after it is red.
 
-    Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
+    Source: resources/triage_rules.md,
     section 3, Red / Horečka; §6.4 retains red while treatment is unknown.
     Chills are not covered by this function.
     """
@@ -49,7 +45,7 @@ def fever_score(temperature, recent_chemotherapy):
 def oxygen_score(spo2):
     """SpO2 < 90% is red; otherwise SpO2 < 92% is orange.
 
-    Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
+    Source: resources/triage_rules.md,
     section 3, Red and Orange / Dýchání. Baseline changes are not covered.
     """
     number("spo2_pct", spo2)
@@ -65,7 +61,7 @@ def oxygen_score(spo2):
 def overall_feeling_score(feeling):
     """An overall feeling score of 5 (very poor) is orange.
 
-    Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
+    Source: resources/triage_rules.md,
     section 3, Orange / Celkový stav.
     """
     number("overall_feeling", feeling)
@@ -77,7 +73,7 @@ def overall_feeling_score(feeling):
 def pain_score(pain, persists_after_rescue_dose):
     """NRS 4–6 is yellow; NRS >= 7 persisting after a rescue dose is orange.
 
-    Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md,
+    Source: resources/triage_rules.md,
     section 3, Orange / Bolest; section 4, pain NRS 4–6.
     Unknown SOS response retains provisional orange (§6.4); an explicit
     non-persistent response returns None pending review.
@@ -100,70 +96,6 @@ def pain_score(pain, persists_after_rescue_dose):
     return None
 
 
-def evaluate_triage(data, *, at=None):
-    """Take the highest known severity; unresolved criteria still need review.
-
-    Source: rakathon_meddi_onco_data/docs/pravidla_triaze.md, section 3:
-    hard rules set a minimum level. Missing inputs are saved as skipped rules
-    and do not suppress the result of the evaluated criteria.
-    """
-    scores = {
-        "fever": fever_score(
-            data.get("temperature_c"), data.get("chemotherapy_within_6_weeks")
-        ),
-        "oxygen": oxygen_score(data.get("spo2_pct")),
-        "overall_feeling": overall_feeling_score(data.get("overall_feeling")),
-        "pain": pain_score(
-            data.get("pain_nrs"), data.get("pain_persists_after_rescue_dose")
-        ),
-    }
-    level = max(
-        (score for score in scores.values() if score is not None),
-        default=None,
-    )
-    requires_review = None in scores.values()
-    inputs = {
-        "fever": ["temperature_c", "chemotherapy_within_6_weeks"],
-        "oxygen": ["spo2_pct"],
-        "overall_feeling": ["overall_feeling"],
-        "pain": ["pain_nrs"]
-        + (
-            ["pain_persists_after_rescue_dose"]
-            if data.get("pain_nrs") is not None and data["pain_nrs"] >= 7
-            else []
-        ),
-    }
-    skipped_rules = []
-    for criterion, fields in inputs.items():
-        missing = [field for field in fields if data.get(field) is None]
-        provisional = (
-            criterion == "fever"
-            and data.get("temperature_c") is not None
-            and data["temperature_c"] >= 38
-            and data.get("chemotherapy_within_6_weeks") is None
-        ) or (
-            criterion == "pain"
-            and data.get("pain_nrs") is not None
-            and data["pain_nrs"] >= 7
-            and data.get("pain_persists_after_rescue_dose") is None
-        )
-        if (scores[criterion] is None or provisional) and missing:
-            skipped_rules.append(
-                {"rule_id": criterion, "missing_fields": missing, "evidence": []}
-            )
-    return resolve_disposition(
-        {
-            "color": level.name.lower() if level is not None else None,
-            "scores": scores,
-            "requires_review": requires_review or bool(skipped_rules),
-            "skipped_rules": skipped_rules,
-        },
-        needs_clinical_review=requires_review or bool(skipped_rules),
-        at=at if at is not None else data.get("evaluated_at"),
-        palliative_care=data.get("palliative_care") is True,
-    )
-
-
 def evaluate_checkin(
     prepared: dict, context: dict | None = None, observations: dict | None = None
 ) -> dict:
@@ -178,7 +110,7 @@ def evaluate_checkin(
     Questionnaire display colors never determine severity. Unassessed answers
     need human review; an entirely missing criterion does not escalate.
     Additional treatment flags and symptom observations are documented in
-    clinical_rules.py and docs/architecture.md; only explicit facts are used.
+    clinical_rules.py; only explicit facts are used.
     """
     prepared_inputs(prepared)
     context = context or {}
@@ -338,7 +270,7 @@ def evaluate_checkin(
                     "question_id": key[1],
                     "coverage": kind,
                     "missing_questions": missing,
-                    "source": f"{RULES_SOURCE}, §1, §4, §6.3; rakathon_meddi_onco_data/docs/dotazniky_definice.json / {key[0]} / {key[1]}",
+                    "source": f"{RULES_SOURCE}, §1, §4, §6.3; resources/questionnaires.json / {key[0]} / {key[1]}",
                 }
             )
             if missing:
@@ -570,48 +502,3 @@ def evaluate_checkin(
             or level is None
         ),
     )
-
-
-def main():
-    """Read prepared JSON and print the result; no clinical rules here."""
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("input_file", type=Path)
-    parser.add_argument(
-        "--checkin", action="store_true", help="evaluate prepare_checkin output"
-    )
-    parser.add_argument(
-        "--context", type=Path, help="explicit facts available at check-in time"
-    )
-    parser.add_argument(
-        "--observations",
-        type=Path,
-        help="explicit symptom observations available at check-in time",
-    )
-    args = parser.parse_args()
-    data = json.loads(args.input_file.read_text(encoding="utf-8-sig"))
-    if args.context and not args.checkin:
-        parser.error("--context requires --checkin")
-    if args.observations and not args.checkin:
-        parser.error("--observations requires --checkin")
-    context = (
-        json.loads(args.context.read_text(encoding="utf-8-sig"))
-        if args.context
-        else None
-    )
-    observations = (
-        json.loads(args.observations.read_text(encoding="utf-8-sig"))
-        if args.observations
-        else None
-    )
-    result = (
-        evaluate_checkin(data, context, observations)
-        if args.checkin
-        else evaluate_triage(data)
-    )
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-
-
-if __name__ == "__main__":
-    main()

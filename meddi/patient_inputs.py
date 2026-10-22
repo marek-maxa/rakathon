@@ -2,7 +2,7 @@
 
 Only narrow explicit fluid reports are interpreted by fluid_intake; narrative
 treatment notes, scenario names and references are excluded. Cycle dates describe D1 treatment
-(bundle README §5). Medication doses can contain future changes, so only drug
+in the bundled profiles. Medication doses can contain future changes, so only drug
 names and their explicit validity dates are used.
 """
 
@@ -17,7 +17,7 @@ from .fluid_intake import fluid_observations
 from .form import prepare_checkin
 
 # Name-to-class mapping only: thresholds and decisions live in triage.
-# Sources and limitations are documented in docs/architecture.md.
+# This limited mapping is not a complete medication dictionary.
 DRUG_CLASSES = {
     "chemotherapy_within_6_weeks": r"doxorubicin|cyklofosfamid|cyclophosphamid|5-fu|fluorouracil|kapecitabin|capecitabin|irinotekan|irinotecan|oxaliplatin|cisplatin|karboplatin|carboplatin|etoposid|vinkristin|vincristin",
     "fluoropyrimidine_treatment": r"5-fu|fluorouracil|kapecitabin|capecitabin",

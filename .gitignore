@@ -8,9 +8,14 @@
 
 # Local tool credentials and sessions (not project configuration)
 /.aws/
+/.agents/
 /.codex/
 /.claude/
 /.gemini/
+AGENTS.md
+CLAUDE.md
+/.cursor/
+/.github/copilot-instructions.md
 CLAUDE.local.md
 
 # Local environments and worktrees

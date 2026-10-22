@@ -4,14 +4,10 @@ No LLM calls, text interpretation, patient-card storage or clinical thresholds.
 The caller supplies a CURRENT snapshot, not the patient's unrestricted history.
 """
 
-import argparse
-import json
 import re
-import sys
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
-from pathlib import Path
 
 from .clinical_rules import CONTEXT_FLAGS, OBSERVATION_FLAGS, OBSERVATION_NUMBERS
 from .disposition import resolve_disposition
@@ -731,34 +727,3 @@ def evaluate_contact(
             or packet.get("unknown_subject_fact_indices")
         ),
     )
-
-
-def main():
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(
-        description="LLM packet -> shared backend triage (no LLM calls)"
-    )
-    parser.add_argument("input", type=Path)
-    parser.add_argument("--snapshot", type=Path)
-    parser.add_argument("--context", type=Path)
-    parser.add_argument("--at", help="Evaluation time including timezone")
-    parser.add_argument("--output", type=Path)
-    args = parser.parse_args()
-
-    def read(path):
-        return json.loads(path.read_text(encoding="utf-8-sig")) if path else None
-
-    result = evaluate_contact(
-        read(args.input), read(args.snapshot), context=read(args.context), now=args.at
-    )
-    text = json.dumps(result, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(text, encoding="utf-8")
-    else:
-        print(text, end="")
-
-
-if __name__ == "__main__":
-    main()

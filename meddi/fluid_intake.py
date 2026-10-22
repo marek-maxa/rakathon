@@ -10,7 +10,8 @@ from datetime import timedelta
 
 def _normalize(text):
     return "".join(
-        c for c in unicodedata.normalize("NFKD", text.lower())
+        c
+        for c in unicodedata.normalize("NFKD", text.lower())
         if not unicodedata.combining(c)
     )
 
@@ -41,10 +42,10 @@ def _find(checkin, pattern):
 def fluid_observations(checkin, history, instant):
     """Bridge yesterday's explicit failure only with current corroboration.
 
-The mentor explicitly confirmed the previous-day link. Require a current
-report about yesterday's drinking and ongoing swallowing limitation; do not
-expire/carry arbitrary older symptoms or treat reduced intake as failure.
-"""
+    The mentor explicitly confirmed the previous-day link. Require a current
+    report about yesterday's drinking and ongoing swallowing limitation; do not
+    expire/carry arbitrary older symptoms or treat reduced intake as failure.
+    """
     observations = {}
 
     def put(field, value, source):
@@ -72,12 +73,18 @@ expire/carry arbitrary older symptoms or treat reduced intake as failure.
     ):
         for name, text in _reports(checkin):
             for clause in re.split(r"[,\.!?;\n]+", text):
-                if re.fullmatch(r"(?:dnes |nyni )?" + pattern, _normalize(clause).strip()):
-                    put(field, True, {
-                        "checkin_id": checkin["checkin_id"],
-                        "field": name,
-                        "evidence": clause.strip(),
-                    })
+                if re.fullmatch(
+                    r"(?:dnes |nyni )?" + pattern, _normalize(clause).strip()
+                ):
+                    put(
+                        field,
+                        True,
+                        {
+                            "checkin_id": checkin["checkin_id"],
+                            "field": name,
+                            "evidence": clause.strip(),
+                        },
+                    )
     yesterday_report = _find(
         checkin,
         r"vcera jsem (?:vypil|vypila) .+",
@@ -89,14 +96,24 @@ expire/carry arbitrary older symptoms or treat reduced intake as failure.
         for form in checkin.get("dotazniky", [])
         for answer in form.get("odpovedi", [])
     )
-    if not failure and not recovery and yesterday_report and limited_swallowing and history:
+    if (
+        not failure
+        and not recovery
+        and yesterday_report
+        and limited_swallowing
+        and history
+    ):
         previous = history[-1]
         if instant(previous).date() == instant(checkin).date() - timedelta(days=1):
             prior = fluid_observations(previous, [], instant).get("cannot_drink_fluids")
             if prior and prior["value"] is True:
-                put("cannot_drink_fluids", True, {
-                    "prior_failure": prior["source"],
-                    "current_report": yesterday_report,
-                    "continuity": "previous_day_with_current_swallowing_limitation",
-                })
+                put(
+                    "cannot_drink_fluids",
+                    True,
+                    {
+                        "prior_failure": prior["source"],
+                        "current_report": yesterday_report,
+                        "continuity": "previous_day_with_current_swallowing_limitation",
+                    },
+                )
     return observations
